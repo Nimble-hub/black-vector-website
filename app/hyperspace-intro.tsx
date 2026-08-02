@@ -327,7 +327,7 @@ const exitWakeVertexShader = `
     float age = max(uTime - delay, 0.0);
     float lifetime = 2.7 + aDrift * 1.8;
     float life = clamp(age / lifetime, 0.0, 1.0);
-    float active = step(delay, uTime) * (1.0 - step(lifetime, age));
+    float isAlive = step(delay, uTime) * (1.0 - step(lifetime, age));
     float directionSign = mix(-1.0, 1.0, step(0.5, fract(aSeed * 17.31)));
     float orbit = aAngle + directionSign * (
       age * (0.64 + aDrift * 0.86)
@@ -352,7 +352,7 @@ const exitWakeVertexShader = `
     gl_Position = vec4(screenPosition / halfResolution, 0.0, 1.0);
     vShardUv = uv;
     vBrightness = aBrightness;
-    vLife = active
+    vLife = isAlive
       * smoothstep(0.0, 0.065, life)
       * (1.0 - smoothstep(0.66, 1.0, life))
       * uOpacity;
@@ -406,7 +406,7 @@ const exitCrystalVertexShader = `
   void main() {
     float age = max(uTime - aDelay, 0.0);
     float life = clamp(age / aLifetime, 0.0, 1.0);
-    float active = step(aDelay, uTime) * (1.0 - step(aLifetime, age));
+    float isAlive = step(aDelay, uTime) * (1.0 - step(aLifetime, age));
     float fade = smoothstep(0.0, 0.055, life) * (1.0 - smoothstep(0.68, 1.0, life));
 
     vec3 localOffset = position - aClusterOrigin;
@@ -440,7 +440,7 @@ const exitCrystalVertexShader = `
     float facetShimmer = 0.92 + sin(age * (4.0 + aSeed * 3.0) + aSeed * 31.0) * 0.08;
     gl_PointSize = clamp(aSize * facetShimmer * (24.0 / max(-viewPosition.z, 1.0)), 1.8, 34.0);
 
-    vLife = active * fade * uOpacity;
+    vLife = isAlive * fade * uOpacity;
     vBrightness = aBrightness;
     vCoolness = aSeed;
     vRotation = aSeed + age * abs(aSwirl) * 0.055;
@@ -501,7 +501,7 @@ const exitDustVertexShader = `
   void main() {
     float age = max(uTime - aDelay, 0.0);
     float life = clamp(age / aLifetime, 0.0, 1.0);
-    float active = step(aDelay, uTime) * (1.0 - step(aLifetime, age));
+    float isAlive = step(aDelay, uTime) * (1.0 - step(aLifetime, age));
     float fade = smoothstep(0.0, 0.045, life) * (1.0 - smoothstep(0.7, 1.0, life));
 
     vec3 localOffset = position - aClusterOrigin;
@@ -542,7 +542,7 @@ const exitDustVertexShader = `
     float sparkleSize = 1.0 + aSparkle * sparkleWave * 2.8;
     gl_PointSize = clamp(aSize * sparkleSize * (28.0 / max(-viewPosition.z, 1.0)), 1.4, 36.0);
 
-    vLife = active * fade * uOpacity;
+    vLife = isAlive * fade * uOpacity;
     vBrightness = aBrightness;
     vSparkle = aSparkle;
     vTwinkle = sparkleWave;
