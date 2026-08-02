@@ -486,14 +486,26 @@ export function HyperspaceIntro() {
     const toggleAudio = () => {
       const muted = !audio.isMuted;
       audio.setMuted(muted);
+      if (!muted) void audio.startMusic();
       window.localStorage.setItem("black-vector-audio-muted", String(muted));
       updateButton();
     };
+    const startScoreOnGesture = () => {
+      void audio.startMusic();
+      window.removeEventListener("pointerdown", startScoreOnGesture);
+      window.removeEventListener("keydown", startScoreOnGesture);
+    };
     updateButton();
     button?.addEventListener("click", toggleAudio);
+    if ((hasSeenJump || reducedMotion) && !storedMuted) {
+      window.addEventListener("pointerdown", startScoreOnGesture, { once: true });
+      window.addEventListener("keydown", startScoreOnGesture, { once: true });
+    }
     return () => {
       window.clearTimeout(readinessTimer);
       button?.removeEventListener("click", toggleAudio);
+      window.removeEventListener("pointerdown", startScoreOnGesture);
+      window.removeEventListener("keydown", startScoreOnGesture);
       audio.dispose();
       audioRef.current = null;
     };
@@ -556,10 +568,10 @@ export function HyperspaceIntro() {
       uTravel: { value: 0 },
       uDepth: { value: DEPTH },
       uNear: { value: NEAR },
-      uOpacity: { value: shouldJump ? 1 : 0 },
-      uStretch: { value: shouldJump ? 0.025 : 1 },
-      uWidthScale: { value: shouldJump ? 0.72 : 1 },
-      uEnergy: { value: shouldJump ? 0.28 : 1 },
+      uOpacity: { value: shouldJump ? 0.24 : 0 },
+      uStretch: { value: shouldJump ? 0.035 : 1 },
+      uWidthScale: { value: shouldJump ? 0.76 : 1 },
+      uEnergy: { value: shouldJump ? 0.24 : 1 },
       uResolution: { value: new THREE.Vector2(1, 1) },
     };
     const geometry = createTunnelGeometry(isMobile ? 1350 : 2300);
@@ -676,25 +688,27 @@ export function HyperspaceIntro() {
 
       if (!jumpComplete) {
         const progress = skipJumpRef.current ? 1 : clamp01(elapsed / DURATION);
+        const charge = smoothstep(progress / 0.285);
         const launch = smoothstep((progress - 0.305) / 0.045);
         const braking = smoothstep((progress - 0.84) / 0.055);
-        const preLaunchSpeed = 0.14;
+        const preLaunchSpeed = 0.12 + charge * 0.72;
         const hyperspaceSpeed = 74;
         const speed = THREE.MathUtils.lerp(preLaunchSpeed, hyperspaceSpeed, launch) * (1 - braking) + 0.35 * braking;
         travel += speed * delta;
         uniforms.uTravel.value = travel;
-        uniforms.uStretch.value = (0.018 + launch * 1.72) * (1 - braking) + braking * 0.04;
-        uniforms.uWidthScale.value = (0.72 + launch * 0.8) * (1 - braking * 0.35);
-        uniforms.uEnergy.value = (0.28 + launch * 1.2) * (1 - braking * 0.48);
-        uniforms.uOpacity.value = smoothstep(progress / 0.035) * (1 - smoothstep((progress - 0.88) / 0.055));
+        const staticStretch = THREE.MathUtils.lerp(0.035, 0.32, charge);
+        uniforms.uStretch.value = (staticStretch + launch * 1.43) * (1 - braking) + braking * 0.04;
+        uniforms.uWidthScale.value = (0.76 + charge * 0.4 + launch * 0.38) * (1 - braking * 0.35);
+        uniforms.uEnergy.value = (0.24 + charge * 0.88 + launch * 0.34) * (1 - braking * 0.48);
+        uniforms.uOpacity.value = smoothstep(progress / 0.015) * (0.24 + charge * 0.76) * (1 - smoothstep((progress - 0.88) / 0.055));
         world.setOpacity(smoothstep((progress - 0.865) / 0.09));
-        renderer.toneMappingExposure = 0.98 + launch * 0.06;
+        renderer.toneMappingExposure = 0.94 + charge * 0.1 + launch * 0.06;
 
         camera.position.x = 0;
         camera.position.y = 0;
         camera.position.z = 0;
         camera.rotation.set(0, 0, 0);
-        camera.fov = 64 + launch * 18 - braking * 20;
+        camera.fov = 62 + charge * 4 + launch * 16 - braking * 20;
         camera.updateProjectionMatrix();
 
         if (progress >= 1) {
@@ -766,9 +780,10 @@ export function HyperspaceIntro() {
       probeTarget.dispose();
       uniforms.uResolution.value.copy(fullResolution);
       uniforms.uTravel.value = 0;
-      uniforms.uStretch.value = 0.025;
-      uniforms.uWidthScale.value = 0.72;
-      uniforms.uEnergy.value = 0.28;
+      uniforms.uOpacity.value = 0.24;
+      uniforms.uStretch.value = 0.035;
+      uniforms.uWidthScale.value = 0.76;
+      uniforms.uEnergy.value = 0.24;
       const hasLightGeometry = probePixels.some((value, index) => index % 4 !== 3 && value > 6);
       if (!hasLightGeometry) {
         geometry.dispose();
