@@ -12,7 +12,7 @@ import { HyperspaceIntro2D } from "./hyperspace-intro-2d";
 const DURATION = 15000;
 const DEPTH = 132;
 const NEAR = 0.68;
-const SEEN_KEY = "black-vector-jump-seen-3d-v3";
+const SEEN_KEY = "black-vector-jump-seen-3d-v4";
 
 function clamp01(value: number) {
   return Math.max(0, Math.min(1, value));
@@ -38,6 +38,7 @@ const vertexShader = `
   uniform float uDepth;
   uniform float uNear;
   uniform float uOpacity;
+  uniform float uStretch;
   uniform vec2 uResolution;
 
   varying vec2 vRibbonUv;
@@ -48,7 +49,7 @@ const vertexShader = `
   void main() {
     float travel = mod(aSeedZ + uTravel, uDepth);
     float headZ = min(-uDepth + travel, -uNear);
-    float tailZ = headZ - aLength;
+    float tailZ = headZ - aLength * uStretch;
     vec2 radial = vec2(cos(aAngle), sin(aAngle)) * aRadius;
 
     vec4 clipTail = projectionMatrix * modelViewMatrix * vec4(radial, tailZ, 1.0);
@@ -84,6 +85,7 @@ const fragmentShader = `
   varying float vDepthFade;
 
   uniform float uOpacity;
+  uniform float uEnergy;
 
   void main() {
     float edge = 1.0 - smoothstep(0.18, 1.0, abs(vRibbonUv.x));
@@ -96,7 +98,7 @@ const fragmentShader = `
     vec3 coldBlue = vec3(0.34, 0.67, 1.0);
     vec3 photographicWhite = vec3(0.93, 0.985, 1.0);
     vec3 color = mix(coldBlue, photographicWhite, vHue);
-    float intensity = vBrightness * headExposure * (0.66 + hotCore * 1.25);
+    float intensity = vBrightness * headExposure * (0.66 + hotCore * 1.25) * uEnergy;
     float alpha = edge * longitudinal * vDepthFade * uOpacity;
 
     gl_FragColor = vec4(color * intensity, alpha);
@@ -446,6 +448,8 @@ export function HyperspaceIntro() {
       uDepth: { value: DEPTH },
       uNear: { value: NEAR },
       uOpacity: { value: shouldJump ? 1 : 0 },
+      uStretch: { value: shouldJump ? 0.025 : 1 },
+      uEnergy: { value: shouldJump ? 0.24 : 1 },
       uResolution: { value: new THREE.Vector2(1, 1) },
     };
     const geometry = createTunnelGeometry(isMobile ? 900 : 1650);
@@ -521,22 +525,38 @@ export function HyperspaceIntro() {
 
       if (!jumpComplete) {
         const progress = skipJumpRef.current ? 1 : clamp01(elapsed / DURATION);
+        const charge = smoothstep(progress / 0.18);
+        const launch = smoothstep((progress - 0.18) / 0.075);
+        const launchPhase = clamp01((progress - 0.17) / 0.12);
+        const launchKick = Math.sin(launchPhase * Math.PI);
         const exitBoost = smoothstep((progress - 0.8) / 0.11);
         const braking = smoothstep((progress - 0.92) / 0.08);
-        const speed = (25.5 + exitBoost * 10.5) * (1 - braking) + 0.35 * braking;
+        const preLaunchSpeed = 0.35 + charge * 3.1;
+        const hyperspaceSpeed = 25.5 + exitBoost * 10.5 + launchKick * 16;
+        const speed = THREE.MathUtils.lerp(preLaunchSpeed, hyperspaceSpeed, launch) * (1 - braking) + 0.35 * braking;
         travel += speed * delta;
         uniforms.uTravel.value = travel;
-        uniforms.uOpacity.value = 1 - smoothstep((progress - 0.84) / 0.16);
+        uniforms.uStretch.value = (0.025 + launch * 0.975 + launchKick * 0.26) * (1 - braking) + braking * 0.035;
+        uniforms.uEnergy.value = (0.24 + charge * 0.2 + launch * 0.56) * (1 - braking * 0.5);
+        uniforms.uOpacity.value = smoothstep(progress / 0.035) * (1 - smoothstep((progress - 0.84) / 0.16));
         world.setOpacity(smoothstep((progress - 0.87) / 0.13));
 
-        camera.position.x = Math.sin(elapsed * 0.00023) * 0.018;
-        camera.position.y = Math.cos(elapsed * 0.00019) * 0.014;
-        camera.position.z = 0;
-        camera.rotation.set(0, 0, Math.sin(elapsed * 0.00013) * 0.0018);
+        const cruiseRumble = launch * (1 - braking);
+        camera.position.x = Math.sin(elapsed * 0.0037) * (0.003 + launchKick * 0.04 + cruiseRumble * 0.007);
+        camera.position.y = Math.cos(elapsed * 0.0031) * (0.002 + launchKick * 0.03 + cruiseRumble * 0.006);
+        camera.position.z = launchKick * 0.055;
+        camera.rotation.set(0, 0, Math.sin(elapsed * 0.0017) * (0.0006 + launchKick * 0.004));
+        camera.fov = 64 + launch * 10 + launchKick * 8 - braking * 4;
+        camera.updateProjectionMatrix();
+
+        if (progress > 0.175 && progress < 0.255) {
+          const ignition = (progress - 0.175) / 0.08;
+          flash = Math.sin(ignition * Math.PI) * 0.16;
+        }
 
         if (progress > 0.87 && progress < 0.97) {
           const phase = (progress - 0.87) / 0.1;
-          flash = smoothstep(phase / 0.42) * (1 - smoothstep((phase - 0.42) / 0.58)) * 0.9;
+          flash = Math.max(flash, smoothstep(phase / 0.42) * (1 - smoothstep((phase - 0.42) / 0.58)) * 0.9);
         }
 
         if (progress >= 1) {
@@ -586,6 +606,8 @@ export function HyperspaceIntro() {
       const fullResolution = renderer.getDrawingBufferSize(new THREE.Vector2());
       uniforms.uResolution.value.set(64, 36);
       uniforms.uTravel.value = 18;
+      uniforms.uStretch.value = 0.85;
+      uniforms.uEnergy.value = 1;
       renderer.setRenderTarget(probeTarget);
       renderer.render(scene, camera);
       renderer.readRenderTargetPixels(probeTarget, 0, 0, 64, 36, probePixels);
@@ -593,6 +615,8 @@ export function HyperspaceIntro() {
       probeTarget.dispose();
       uniforms.uResolution.value.copy(fullResolution);
       uniforms.uTravel.value = 0;
+      uniforms.uStretch.value = 0.025;
+      uniforms.uEnergy.value = 0.24;
       const hasLightGeometry = probePixels.some((value, index) => index % 4 !== 3 && value > 6);
       if (!hasLightGeometry) {
         geometry.dispose();
