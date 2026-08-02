@@ -2618,7 +2618,7 @@ export function HyperspaceIntro() {
         const shakeStrength = impactKick * 0.105
           + impactDecay * 0.055
           + launchShake * 0.025
-          + launchRumble * (0.075 + secondaryKick * 0.065)
+          + launchRumble * (0.022 + secondaryKick * 0.025)
           + brakingShake * 0.032;
         const cameraDive = smoothstep((progress - (LAUNCH_PROGRESS + 0.008)) / 0.012)
           * (1 - smoothstep((progress - (LAUNCH_PROGRESS + 0.1)) / 0.07));
@@ -2640,17 +2640,20 @@ export function HyperspaceIntro() {
           + Math.sin(elapsed * 0.083) * 0.31;
         const shakeZ = Math.sin(elapsed * 0.052 + 2.1)
           + Math.sin(elapsed * 0.097) * 0.24;
-        // Broad, slightly mismatched frequencies read as mass and engine
-        // pressure. The faster oscillators above are retained only as a thin
-        // layer of ignition chatter.
-        const rumbleX = Math.sin(elapsed * 0.011 + 0.4)
-          + Math.sin(elapsed * 0.018 + 2.1) * 0.58
-          + Math.sin(elapsed * 0.029) * 0.22;
-        const rumbleY = Math.cos(elapsed * 0.009 + 1.2)
-          + Math.sin(elapsed * 0.016 + 0.5) * 0.52
-          + Math.cos(elapsed * 0.027 + 2.8) * 0.2;
-        const rumbleZ = Math.sin(elapsed * 0.013 + 2.5)
-          + Math.sin(elapsed * 0.023 + 0.9) * 0.42;
+        // Hull vibration is transmitted through the camera mount: dense,
+        // high-frequency vertical and longitudinal tremors with almost no
+        // lateral travel. It rises under late-charge load, peaks at ignition,
+        // then clears rather than turning cruise into handheld camera shake.
+        const hullCharge = smoothstep((sequencePressure - 0.58) / 0.42)
+          * (1 - launch);
+        const hullEnvelope = hullCharge * 0.3 + launchRumble;
+        const hullVibrationX = Math.sin(elapsed * 0.061 + 2.1) * 0.18
+          + Math.sin(elapsed * 0.089 + 0.6) * 0.08;
+        const hullVibrationY = Math.sin(elapsed * 0.052 + 0.3) * 0.55
+          + Math.sin(elapsed * 0.077 + 1.7) * 0.28
+          + Math.sin(elapsed * 0.031 + 2.4) * 0.17;
+        const hullVibrationZ = Math.sin(elapsed * 0.038 + 1.2) * 0.5
+          + Math.sin(elapsed * 0.068 + 2.6) * 0.22;
         const cinematicDriftX = fieldSwayX
           * (charge * 0.095 + visualLaunch * 0.14)
           * (1 - braking);
@@ -2671,38 +2674,38 @@ export function HyperspaceIntro() {
           + cinematicDriftY
           + cruiseDriftY;
         camera.position.x = rigX
-          + shakeX * shakeStrength * 0.38
-          + rumbleX * launchRumble * 0.095;
+          + shakeX * shakeStrength * 0.16
+          + hullVibrationX * hullEnvelope * 0.018;
         camera.position.y = rigY
-          + shakeY * shakeStrength * 0.3
-          + rumbleY * launchRumble * 0.075;
+          + shakeY * shakeStrength * 0.18
+          + hullVibrationY * hullEnvelope * 0.055;
         camera.position.z = -0.9 * exitArrival
           - charge * (1 - launch) * 1.2
           + launchRecoil
           - cameraDive * 3.1
           - crashZoom * 5.4
-          + shakeZ * shakeStrength * 0.16
-          + rumbleZ * launchRumble * 0.085
+          + shakeZ * shakeStrength * 0.1
+          + hullVibrationZ * hullEnvelope * 0.035
           + cruiseDriftZ;
         cameraTarget.set(
           rigX
             + chargeLookX
             + cruiseLookX
-            + rumbleX * launchRumble * 0.055
+            + hullVibrationX * hullEnvelope * 0.008
             + shakeX * launchShake * 0.02,
           rigY
             + chargeLookY
             + cruiseLookY
             + recoilEnvelope * 0.16
             - crashZoom * 0.5
-            + rumbleY * launchRumble * 0.042
+            + hullVibrationY * hullEnvelope * 0.015
             + shakeY * launchShake * 0.014,
           THREE.MathUtils.lerp(-100, -38, exitArrival)
             + cruiseFloatZ * cruiseFloatEnvelope * 1.15
             - crashZoom * 7.5,
         );
         camera.lookAt(cameraTarget);
-        camera.rotation.z += rumbleX * launchRumble * 0.0028
+        camera.rotation.z += hullVibrationX * hullEnvelope * 0.0015
           + shakeX * shakeStrength * 0.0018
           + impactKick * 0.0018
           + recoilEnvelope * 0.001;
@@ -2716,7 +2719,7 @@ export function HyperspaceIntro() {
           + recoilEnvelope * 1.1
           + cameraDive * 6.5
           + cruiseFloatZ * cruiseFloatEnvelope * 0.12
-          + rumbleZ * launchRumble * 0.34
+          + hullVibrationZ * hullEnvelope * 0.12
           - braking * 23.5;
         camera.updateProjectionMatrix();
 
