@@ -596,6 +596,7 @@ const gravitationalLensShader = {
     uStretch: { value: 0 },
     uDarkness: { value: 0 },
     uFlash: { value: 0 },
+    uMotionBlur: { value: 0 },
     uTime: { value: 0 },
     uCruise: { value: 0 },
   },
@@ -618,6 +619,7 @@ const gravitationalLensShader = {
     uniform float uStretch;
     uniform float uDarkness;
     uniform float uFlash;
+    uniform float uMotionBlur;
     uniform float uTime;
     uniform float uCruise;
 
@@ -709,6 +711,23 @@ const gravitationalLensShader = {
       streak += texture2D(tDiffuse, clamp(warpedUv - stretchOffset * 0.22, uvMin, uvMax)).rgb * 0.1;
       float stretchBlend = clamp(uStretch * 9.0, 0.0, 0.94) * stretchMask;
       vec3 lensed = mix(warped, streak, stretchBlend);
+
+      // A short radial shutter trail connects the optical collapse to forward
+      // acceleration. Sampling only outward from the vanishing point makes
+      // the image feel pulled past the camera rather than generally softened.
+      vec2 shutterStep = radialUv * uMotionBlur * 0.0048;
+      vec3 shutterTrail = lensed * 0.34;
+      shutterTrail += texture2D(tDiffuse, clamp(warpedUv + shutterStep, uvMin, uvMax)).rgb * 0.25;
+      shutterTrail += texture2D(tDiffuse, clamp(warpedUv + shutterStep * 2.15, uvMin, uvMax)).rgb * 0.19;
+      shutterTrail += texture2D(tDiffuse, clamp(warpedUv + shutterStep * 3.55, uvMin, uvMax)).rgb * 0.13;
+      shutterTrail += texture2D(tDiffuse, clamp(warpedUv + shutterStep * 5.1, uvMin, uvMax)).rgb * 0.09;
+      float shutterMask = max(outerField * 0.72, wideField * 0.46)
+        * smoothstep(horizon * 0.5, horizon * 4.8, radius);
+      lensed = mix(
+        lensed,
+        shutterTrail,
+        clamp(uMotionBlur * shutterMask * 0.72, 0.0, 0.68)
+      );
 
       float fieldBlend = max(
         outerField,
@@ -2521,6 +2540,13 @@ export function HyperspaceIntro() {
           1,
           launchImpulse + crashZoom * 0.42,
         );
+        lensPass.uniforms.uMotionBlur.value = Math.min(
+          1,
+          crashZoom * 0.78
+            + launchImpulse * 0.36
+            + launchRumble * 0.16
+            + cruiseLens * 0.045,
+        );
         lensPass.uniforms.uTime.value = elapsed * 0.001;
         lensPass.uniforms.uCruise.value = cruiseLens;
         lensPass.uniforms.uDarkness.value = Math.min(
@@ -2585,9 +2611,10 @@ export function HyperspaceIntro() {
           + cruiseShake;
         const cameraDive = smoothstep((progress - (LAUNCH_PROGRESS + 0.008)) / 0.012)
           * (1 - smoothstep((progress - (LAUNCH_PROGRESS + 0.1)) / 0.07));
-        // A two-stage seat impulse: the camera snaps backward on the impact
-        // frame, then gives back a much smaller amount as forward travel takes
-        // over. Keeping it brief prevents the launch from feeling springy.
+        // Keep the physical recoil almost imperceptible. A large backward
+        // translation followed by the crash zoom reads as a rubber-band camera
+        // move, so the seat impact is carried by optical compression, rumble,
+        // and forward acceleration instead.
         const recoilAttack = smoothstep(
           (progress - (LAUNCH_PROGRESS - 0.001)) / 0.003,
         );
@@ -2595,12 +2622,7 @@ export function HyperspaceIntro() {
           (progress - (LAUNCH_PROGRESS + 0.025)) / 0.02,
         );
         const recoilEnvelope = recoilAttack * recoilRelease;
-        const launchRecoil = recoilEnvelope * 4.8;
-        const recoilSettle = smoothstep(
-          (progress - (LAUNCH_PROGRESS + 0.024)) / 0.014,
-        ) * (1 - smoothstep(
-          (progress - (LAUNCH_PROGRESS + 0.075)) / 0.035,
-        ));
+        const launchRecoil = recoilEnvelope * 0.18;
         const shakeX = Math.sin(elapsed * 0.043)
           + Math.sin(elapsed * 0.071 + 1.7) * 0.38;
         const shakeY = Math.cos(elapsed * 0.037 + 0.6)
@@ -2646,7 +2668,6 @@ export function HyperspaceIntro() {
         camera.position.z = -0.9 * exitArrival
           - charge * (1 - launch) * 1.2
           + launchRecoil
-          - recoilSettle * 0.62
           - cameraDive * 3.1
           - crashZoom * 5.4
           + shakeZ * shakeStrength * 0.16
@@ -2661,7 +2682,7 @@ export function HyperspaceIntro() {
           rigY
             + chargeLookY
             + cruiseLookY
-            + recoilEnvelope * 0.72
+            + recoilEnvelope * 0.16
             - crashZoom * 0.5
             + rumbleY * launchRumble * 0.042
             + shakeY * launchShake * 0.014,
@@ -2673,7 +2694,7 @@ export function HyperspaceIntro() {
         camera.rotation.z += rumbleX * launchRumble * 0.0065
           + shakeX * shakeStrength * 0.004
           + impactKick * 0.004
-          + recoilEnvelope * 0.008
+          + recoilEnvelope * 0.002
           + fieldSwayX * fieldSwayEnvelope * 0.0045
           + cruiseFloatX * cruiseFloatEnvelope * 0.0065;
         camera.fov = 62
@@ -2684,7 +2705,7 @@ export function HyperspaceIntro() {
           - crashZoom * 28
           + visualLaunch * 24.5
           + impactKick * 5
-          + recoilEnvelope * 4
+          + recoilEnvelope * 1.1
           + cameraDive * 6.5
           + Math.sin(elapsed * 0.00135) * visualLaunch * (1 - braking) * 1.05
           + cruiseFloatZ * cruiseFloatEnvelope * 0.48
