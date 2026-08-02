@@ -3,6 +3,10 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import * as THREE from "three";
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
+import { EffectComposer } from "three/examples/jsm/postprocessing/EffectComposer.js";
+import { OutputPass } from "three/examples/jsm/postprocessing/OutputPass.js";
+import { RenderPass } from "three/examples/jsm/postprocessing/RenderPass.js";
+import { ShaderPass } from "three/examples/jsm/postprocessing/ShaderPass.js";
 import { HyperspaceIntro2D } from "./hyperspace-intro-2d";
 import { HyperspaceAudio } from "./hyperspace-audio";
 
@@ -131,6 +135,67 @@ const fragmentShader = `
     gl_FragColor = vec4(color * intensity, alpha);
   }
 `;
+
+const launchOpticsShader = {
+  uniforms: {
+    tDiffuse: { value: null },
+    uStrength: { value: 0 },
+    uChromatic: { value: 0 },
+    uExposureKick: { value: 0 },
+    uAspect: { value: 1 },
+  },
+  vertexShader: `
+    varying vec2 vUv;
+
+    void main() {
+      vUv = uv;
+      gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+    }
+  `,
+  fragmentShader: `
+    precision highp float;
+
+    uniform sampler2D tDiffuse;
+    uniform float uStrength;
+    uniform float uChromatic;
+    uniform float uExposureKick;
+    uniform float uAspect;
+
+    varying vec2 vUv;
+
+    void main() {
+      vec2 fromCenter = vUv - 0.5;
+      vec2 aspectVector = vec2(fromCenter.x * uAspect, fromCenter.y);
+      float radial = clamp(length(aspectVector), 0.0, 1.0);
+      vec3 blur = vec3(0.0);
+      float totalWeight = 0.0;
+
+      for (int index = 0; index < 9; index += 1) {
+        float stepAmount = float(index) / 8.0;
+        float weight = 1.0 - stepAmount * 0.52;
+        vec2 sampleUv = clamp(
+          vUv - fromCenter * uStrength * stepAmount,
+          vec2(0.001),
+          vec2(0.999)
+        );
+        blur += texture2D(tDiffuse, sampleUv).rgb * weight;
+        totalWeight += weight;
+      }
+
+      blur /= totalWeight;
+      float spectralAmount = uChromatic * smoothstep(0.08, 0.82, radial);
+      vec2 spectralOffset = fromCenter * spectralAmount;
+      float red = texture2D(tDiffuse, clamp(vUv - spectralOffset, 0.001, 0.999)).r;
+      float blue = texture2D(tDiffuse, clamp(vUv + spectralOffset, 0.001, 0.999)).b;
+      blur.r = mix(blur.r, red, 0.62);
+      blur.b = mix(blur.b, blue, 0.62);
+
+      float edgeLift = smoothstep(0.18, 0.92, radial) * uExposureKick * 0.08;
+      vec3 color = blur * (1.0 + uExposureKick * 0.12 + edgeLift);
+      gl_FragColor = vec4(color, 1.0);
+    }
+  `,
+};
 
 const tunnelDustVertexShader = `
   precision highp float;
@@ -1634,6 +1699,14 @@ export function HyperspaceIntro() {
     renderer.toneMapping = THREE.ACESFilmicToneMapping;
     renderer.toneMappingExposure = SCENE_EXPOSURE;
 
+    const composer = new EffectComposer(renderer);
+    const renderPass = new RenderPass(scene, camera);
+    const launchOpticsPass = new ShaderPass(launchOpticsShader);
+    const outputPass = new OutputPass();
+    composer.addPass(renderPass);
+    composer.addPass(launchOpticsPass);
+    composer.addPass(outputPass);
+
     const uniforms = {
       uTravel: { value: 0 },
       uDepth: { value: DEPTH },
@@ -1851,10 +1924,13 @@ export function HyperspaceIntro() {
         : Math.min(window.devicePixelRatio || 1, largeFrame ? 1.25 : isMobile ? 1.35 : 1.6);
       renderer.setPixelRatio(pixelRatio);
       renderer.setSize(width, height, false);
+      composer.setPixelRatio(pixelRatio);
+      composer.setSize(width, height);
       camera.aspect = width / height;
       camera.updateProjectionMatrix();
       uniforms.uResolution.value.set(width * pixelRatio, height * pixelRatio);
       exitWakeUniforms.uResolution.value.set(width * pixelRatio, height * pixelRatio);
+      launchOpticsPass.uniforms.uAspect.value = width / height;
     };
 
     const onContextLost = (event: Event) => {
@@ -1884,6 +1960,7 @@ export function HyperspaceIntro() {
       const elapsed = time - startTime;
       const delta = Math.min((time - previousTime) / 1000, 0.05);
       previousTime = time;
+      let launchOptics = 0;
 
       if (!jumpComplete) {
         const progress = skipJumpRef.current ? 1 : clamp01(elapsed / DURATION);
@@ -1893,6 +1970,9 @@ export function HyperspaceIntro() {
         const launchProgress = clamp01((progress - 0.285) / 0.028);
         const launch = 1 - Math.pow(1 - launchProgress, 4);
         const visualLaunch = smoothstep((progress - 0.285) / 0.055);
+        const opticsAttack = smoothstep((progress - 0.278) / 0.016);
+        const opticsRelease = 1 - smoothstep((progress - 0.337) / 0.038);
+        launchOptics = opticsAttack * opticsRelease;
         const braking = smoothstep((progress - 0.84) / 0.055);
         const exitArrival = smoothstep((progress - 0.89) / 0.11);
         const lineGrowth = smoothstep((progress - 0.04) / 0.31);
@@ -1927,7 +2007,12 @@ export function HyperspaceIntro() {
         renderer.toneMappingExposure = 1.0
           + charge * 0.11
           + launch * 0.08
+          + launchOptics * 0.055
           + exitIllumination * 0.13;
+
+        launchOpticsPass.uniforms.uStrength.value = launchOptics * (isMobile ? 0.028 : 0.043);
+        launchOpticsPass.uniforms.uChromatic.value = launchOptics * 0.0042;
+        launchOpticsPass.uniforms.uExposureKick.value = launchOptics;
 
         const launchShake = smoothstep((progress - 0.285) / 0.012) * (1 - smoothstep((progress - 0.36) / 0.055));
         const brakingShake = smoothstep((progress - 0.82) / 0.05) * (1 - smoothstep((progress - 0.965) / 0.035));
@@ -2011,7 +2096,8 @@ export function HyperspaceIntro() {
         : jumpComplete ? 1 : 0;
       world.update(elapsed * 0.001);
       updateWorldAnchors(currentInterfaceArrival);
-      renderer.render(scene, camera);
+      if (launchOptics > 0.001) composer.render();
+      else renderer.render(scene, camera);
     };
 
     resize();
@@ -2061,6 +2147,9 @@ export function HyperspaceIntro() {
         for (const item of world.materials) item.dispose();
         for (const item of world.textures) item.dispose();
         world.cancelAssetLoad();
+        launchOpticsPass.dispose();
+        outputPass.dispose();
+        composer.dispose();
         renderer.dispose();
         window.setTimeout(() => setFallback(true), 0);
         return;
@@ -2108,6 +2197,9 @@ export function HyperspaceIntro() {
       for (const item of world.geometries) item.dispose();
       for (const item of world.materials) item.dispose();
       for (const item of world.textures) item.dispose();
+      launchOpticsPass.dispose();
+      outputPass.dispose();
+      composer.dispose();
       renderer.dispose();
     };
   }, [experienceReady, fallback, finish, runId]);
