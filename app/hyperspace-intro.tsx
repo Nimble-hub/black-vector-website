@@ -590,9 +590,9 @@ const exitDustVertexShader = `
       * headlightCone
       * step(0.18, forwardDepth);
     float facetFlash = pow(
-      max(sin(age * (2.65 + aSeed * 2.25) + aSeed * 43.0), 0.0),
-      18.0
-    ) * step(0.78, aSeed);
+      max(sin(age * (3.15 + aSeed * 2.55) + aSeed * 43.0), 0.0),
+      22.0
+    ) * step(0.62, aSeed);
     float seededFlash = aGlint * pow(
       max(sin(age * (1.55 + aSeed * 1.3) + aSeed * 67.0), 0.0),
       22.0
@@ -600,13 +600,15 @@ const exitDustVertexShader = `
     float diamondFire = max(facetFlash, seededFlash);
     float effectiveGlint = max(diamondFire, headlightResponse * 0.42);
     gl_PointSize = clamp(
-      aSize * (18.0 / max(-viewPosition.z, 1.0)) * (1.0 + effectiveGlint * 0.72),
+      aSize * (18.0 / max(-viewPosition.z, 1.0)) * (1.0 + effectiveGlint * 0.44),
       0.62,
-      4.35
+      3.45
     );
 
     vLife = isAlive * fade * uOpacity;
-    vBrightness = aBrightness * (1.0 + headlightResponse * 2.35);
+    vBrightness = aBrightness * (
+      0.78 + headlightResponse * 2.8 + diamondFire * 2.65
+    );
     vGlint = effectiveGlint;
     vFacetRotation = aSeed * 6.2831853 + age * (0.32 + aTurbulence * 0.23);
     vFacetFlash = diamondFire;
@@ -643,22 +645,30 @@ const exitDustFragmentShader = `
       * glintFalloff * max(vGlint, vFacetFlash);
     float pinFire = 1.0 - smoothstep(0.0, 0.075, diamondDistance);
 
-    vec3 iceShadow = vec3(0.42, 0.68, 0.84);
-    vec3 iceFacet = vec3(0.78, 0.93, 1.0);
+    vec3 iceShadow = vec3(0.62, 0.78, 0.9);
+    vec3 iceFacet = vec3(0.88, 0.965, 1.0);
     vec3 reflectedWhite = vec3(0.985, 0.998, 1.0);
-    vec3 color = mix(iceShadow, iceFacet, 0.58 + facetLight * 0.35);
-    color = mix(color, reflectedWhite, innerDiamond * 0.48 + facetSeam * 0.2);
+    vec3 color = mix(iceShadow, iceFacet, 0.66 + facetLight * 0.3);
+    color = mix(color, reflectedWhite, innerDiamond * 0.58 + facetSeam * 0.24);
 
+    float bodyAlpha = crystalBody * (0.18 + innerDiamond * 0.16);
+    float sparkleAlpha = max(diffraction * 1.08, pinFire * vFacetFlash * 0.88);
     float alpha = max(
-      crystalBody * (0.58 + innerDiamond * 0.34),
-      diffraction * 0.9
+      bodyAlpha,
+      sparkleAlpha
     ) * vLife * vBrightness;
-    vec3 emittedLight = reflectedWhite * (
-      pinFire * (1.05 + vFacetFlash * 4.8)
-        + diffraction * 2.8
-        + crystalEdge * vGlint * 0.55
+    vec3 spectralIce = mix(
+      vec3(0.58, 0.88, 1.0),
+      vec3(1.0, 0.91, 0.76),
+      smoothstep(-0.32, 0.32, point.x)
     );
-    gl_FragColor = vec4(color * (0.92 + facetLight * 0.58) + emittedLight, alpha);
+    vec3 flashColor = mix(reflectedWhite, spectralIce, vFacetFlash * 0.12);
+    vec3 emittedLight = flashColor * (
+      pinFire * (1.6 + vFacetFlash * 7.2)
+        + diffraction * 4.25
+        + crystalEdge * vGlint * 0.42
+    );
+    gl_FragColor = vec4(color * (1.12 + facetLight * 0.52) + emittedLight, alpha);
   }
 `;
 
