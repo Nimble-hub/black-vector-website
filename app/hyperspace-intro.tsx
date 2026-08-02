@@ -13,7 +13,7 @@ import { HyperspaceIntro2D } from "./hyperspace-intro-2d";
 const DURATION = 15000;
 const DEPTH = 132;
 const NEAR = 0.68;
-const SEEN_KEY = "black-vector-jump-seen-3d-v13";
+const SEEN_KEY = "black-vector-jump-seen-3d-v14";
 
 function clamp01(value: number) {
   return Math.max(0, Math.min(1, value));
@@ -63,7 +63,7 @@ const vertexShader = `
     vec2 direction = normalize(screenHead - screenTail + vec2(0.00001));
     vec2 perpendicular = vec2(direction.y, -direction.x);
     float perspectiveWidth = clamp(22.0 / max(clipHead.w, 0.5), 0.8, 5.5);
-    float halfWidth = max(aWidth * uWidthScale * perspectiveWidth, 1.5);
+    float halfWidth = max(aWidth * uWidthScale * perspectiveWidth, 1.65);
 
     float along = uv.y;
     vec2 screenPosition = mix(screenTail, screenHead, along);
@@ -76,7 +76,7 @@ const vertexShader = `
     vRibbonUv = uv;
     vBrightness = aBrightness;
     vHue = aHue;
-    vDepthFade = smoothstep(0.0, 18.0, travel);
+    vDepthFade = smoothstep(0.0, 24.0, travel);
   }
 `;
 
@@ -114,7 +114,6 @@ const fragmentShader = `
 const filmicCameraShader = {
   uniforms: {
     tDiffuse: { value: null },
-    uFlash: { value: 0 },
     uResolution: { value: new THREE.Vector2(1, 1) },
   },
   vertexShader: `
@@ -127,7 +126,6 @@ const filmicCameraShader = {
   fragmentShader: `
     precision highp float;
     uniform sampler2D tDiffuse;
-    uniform float uFlash;
     uniform vec2 uResolution;
     varying vec2 vUv;
 
@@ -136,7 +134,6 @@ const filmicCameraShader = {
       vec2 lens = (vUv - 0.5) * vec2(uResolution.x / uResolution.y, 1.0);
       float vignette = smoothstep(0.34, 0.82, dot(lens, lens));
       color *= mix(1.0, 0.82, vignette);
-      color *= 1.0 + uFlash * 0.65;
       gl_FragColor = vec4(max(color, 0.0), 1.0);
     }
   `,
@@ -477,6 +474,7 @@ export function HyperspaceIntro() {
     const composer = new EffectComposer(renderer);
     composer.addPass(new RenderPass(scene, camera));
     const bloomPass = new UnrealBloomPass(new THREE.Vector2(1, 1), isMobile ? 0.48 : 0.58, 0.18, 0.72);
+    bloomPass.enabled = !shouldJump;
     composer.addPass(bloomPass);
     const filmPass = new ShaderPass(filmicCameraShader);
     composer.addPass(filmPass);
@@ -489,7 +487,7 @@ export function HyperspaceIntro() {
       const width = window.innerWidth;
       const height = window.innerHeight;
       const largeFrame = width * height > 3_000_000;
-      const pixelRatio = Math.min(window.devicePixelRatio || 1, largeFrame ? 1.2 : isMobile ? 1.35 : 1.65);
+      const pixelRatio = Math.min(window.devicePixelRatio || 1, largeFrame ? 1.1 : isMobile ? 1.2 : 1.35);
       renderer.setPixelRatio(pixelRatio);
       renderer.setSize(width, height, false);
       composer.setPixelRatio(pixelRatio);
@@ -523,7 +521,6 @@ export function HyperspaceIntro() {
       const elapsed = time - startTime;
       const delta = Math.min((time - previousTime) / 1000, 0.05);
       previousTime = time;
-      let flash = 0;
 
       if (!jumpComplete) {
         const progress = skipJumpRef.current ? 1 : clamp01(elapsed / DURATION);
@@ -540,38 +537,28 @@ export function HyperspaceIntro() {
         const speed = THREE.MathUtils.lerp(preLaunchSpeed, hyperspaceSpeed, launch) * (1 - braking) + 0.35 * braking;
         travel += speed * delta;
         uniforms.uTravel.value = travel;
-        uniforms.uStretch.value = (0.018 + chargeWall * 0.92 + launch * 1.06 + launchKick * 0.5) * (1 - braking) + braking * 0.04;
-        uniforms.uWidthScale.value = (0.72 + chargeWall * 1.25 + launch * 0.36 + launchKick * 0.48) * (1 - braking * 0.35);
-        uniforms.uEnergy.value = (0.28 + chargeWall * 1.22 + launch * 0.82 + launchKick * 0.22) * (1 - braking * 0.48);
+        uniforms.uStretch.value = (0.018 + chargeWall * 0.9 + launch * 1.35 + launchKick * 0.2 + exitBoost * 0.2) * (1 - braking) + braking * 0.04;
+        uniforms.uWidthScale.value = (0.72 + chargeWall * 0.8 + launch * 0.8 + launchKick * 0.15) * (1 - braking * 0.35);
+        uniforms.uEnergy.value = (0.28 + chargeWall * 1.2 + launch * 1.2 + launchKick * 0.08) * (1 - braking * 0.48);
         uniforms.uOpacity.value = smoothstep(progress / 0.035) * (1 - smoothstep((progress - 0.84) / 0.16));
         world.setOpacity(smoothstep((progress - 0.87) / 0.13));
         bloomPass.strength = 0.035 + launch * 0.04 + stretchedCharge * (isMobile ? 0.02 : 0.03);
         bloomPass.threshold = 0.97;
         bloomPass.radius = 0.018;
-        renderer.toneMappingExposure = 0.98 + chargeWall * 0.08 + launchKick * 0.05 + launch * 0.02;
+        renderer.toneMappingExposure = 0.98 + chargeWall * 0.06 + launch * 0.06;
 
-        const cruiseRumble = launch * (1 - braking);
-        camera.position.x = Math.sin(elapsed * 0.0037) * (0.003 + launchKick * 0.04 + cruiseRumble * 0.007);
-        camera.position.y = Math.cos(elapsed * 0.0031) * (0.002 + launchKick * 0.03 + cruiseRumble * 0.006);
-        camera.position.z = launchKick * 0.055;
-        camera.rotation.set(0, 0, Math.sin(elapsed * 0.0017) * (0.0006 + launchKick * 0.004));
+        camera.position.x = 0;
+        camera.position.y = 0;
+        camera.position.z = launchKick * 0.035;
+        camera.rotation.set(0, 0, 0);
         camera.fov = 64 + launch * 14 + launchKick * 10 - braking * 4;
         camera.updateProjectionMatrix();
-
-        if (progress > 0.245 && progress < 0.335) {
-          const ignition = (progress - 0.245) / 0.09;
-          flash = Math.sin(ignition * Math.PI) * 0.32;
-        }
-
-        if (progress > 0.87 && progress < 0.97) {
-          const phase = (progress - 0.87) / 0.1;
-          flash = Math.max(flash, smoothstep(phase / 0.42) * (1 - smoothstep((phase - 0.42) / 0.58)) * 0.9);
-        }
 
         if (progress >= 1) {
           jumpComplete = true;
           tunnel.visible = false;
           world.setOpacity(1);
+          bloomPass.enabled = true;
           bloomPass.strength = isMobile ? 0.48 : 0.58;
           bloomPass.threshold = 0.72;
           bloomPass.radius = 0.18;
@@ -603,7 +590,6 @@ export function HyperspaceIntro() {
         world.orbitalRing.rotation.z = 0.45 + elapsed * 0.000025;
       }
 
-      filmPass.uniforms.uFlash.value = flash;
       composer.render(delta);
     };
 
