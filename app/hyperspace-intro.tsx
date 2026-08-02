@@ -39,6 +39,8 @@ const vertexShader = `
   uniform float uForwardStretch;
   uniform float uBackwardStretch;
   uniform float uWidthScale;
+  uniform float uFormation;
+  uniform float uWallAdvance;
   uniform vec2 uResolution;
 
   varying vec2 vRibbonUv;
@@ -48,10 +50,17 @@ const vertexShader = `
 
   void main() {
     float travel = mod(aSeedZ + uTravel, uDepth);
-    float anchorZ = min(-uDepth + travel, -uNear);
+    float tunnelAnchorZ = min(-uDepth + travel, -uNear);
+    float wallDistribution = fract(aSeedZ * 0.071 + aAngle * 0.113);
+    float wallRadius = mix(4.2, 27.0, pow(wallDistribution, 0.76));
+    float wallNoise = (fract(aSeedZ * 0.173 + aAngle * 0.37) - 0.5)
+      * mix(2.8, 0.5, uWallAdvance);
+    float wallZ = mix(-34.0, -1.45, uWallAdvance) + wallNoise;
+    float anchorZ = mix(wallZ, tunnelAnchorZ, uFormation);
     float headZ = min(anchorZ + aLength * uForwardStretch, -uNear);
     float tailZ = anchorZ - aLength * uBackwardStretch;
-    vec2 radial = vec2(cos(aAngle), sin(aAngle)) * aRadius;
+    vec2 radialDirection = vec2(cos(aAngle), sin(aAngle));
+    vec2 radial = radialDirection * mix(wallRadius, aRadius, uFormation);
 
     vec4 clipTail = projectionMatrix * modelViewMatrix * vec4(radial, tailZ, 1.0);
     vec4 clipHead = projectionMatrix * modelViewMatrix * vec4(radial, headZ, 1.0);
@@ -75,7 +84,7 @@ const vertexShader = `
     vRibbonUv = uv;
     vBrightness = aBrightness;
     vHue = aHue;
-    vDepthFade = smoothstep(0.0, 24.0, travel);
+    vDepthFade = mix(1.0, smoothstep(0.0, 24.0, travel), uFormation);
   }
 `;
 
@@ -134,22 +143,30 @@ const tunnelDustVertexShader = `
   uniform float uTravel;
   uniform float uDepth;
   uniform float uOpacity;
+  uniform float uFormation;
+  uniform float uWallAdvance;
 
   varying float vBrightness;
   varying float vLife;
 
   void main() {
     float travel = mod(aSeedZ + uTravel * 1.12, uDepth);
-    float z = -uDepth + travel;
-    vec2 radial = vec2(cos(aAngle), sin(aAngle)) * aRadius;
+    float tunnelZ = -uDepth + travel;
+    float wallDistribution = fract(aSeedZ * 0.083 + aAngle * 0.127);
+    float wallRadius = mix(3.8, 28.0, pow(wallDistribution, 0.74));
+    float wallZ = mix(-33.5, -1.35, uWallAdvance)
+      + (fract(aSeedZ * 0.191 + aAngle * 0.41) - 0.5) * mix(3.4, 0.7, uWallAdvance);
+    float z = mix(wallZ, tunnelZ, uFormation);
+    vec2 radialDirection = vec2(cos(aAngle), sin(aAngle));
+    vec2 radial = radialDirection * mix(wallRadius, aRadius, uFormation);
     vec4 viewPosition = modelViewMatrix * vec4(radial, z, 1.0);
     gl_Position = projectionMatrix * viewPosition;
     gl_PointSize = clamp(aSize * (18.0 / max(-viewPosition.z, 1.0)), 0.7, 4.2);
 
     vBrightness = aBrightness;
-    vLife = smoothstep(0.0, 12.0, travel)
-      * (1.0 - smoothstep(uDepth - 5.0, uDepth, travel))
-      * uOpacity;
+    float tunnelLife = smoothstep(0.0, 12.0, travel)
+      * (1.0 - smoothstep(uDepth - 5.0, uDepth, travel));
+    vLife = mix(1.0, tunnelLife, uFormation) * uOpacity;
   }
 `;
 
@@ -1334,6 +1351,8 @@ export function HyperspaceIntro() {
       uForwardStretch: { value: shouldJump ? 0.035 : 0 },
       uBackwardStretch: { value: shouldJump ? 0.035 : 1 },
       uWidthScale: { value: shouldJump ? 0.76 : 1 },
+      uFormation: { value: shouldJump ? 0 : 1 },
+      uWallAdvance: { value: 0 },
       uEnergy: { value: shouldJump ? 0.24 : 1 },
       uSymmetry: { value: shouldJump ? 1 : 0 },
       uResolution: { value: new THREE.Vector2(1, 1) },
@@ -1361,6 +1380,8 @@ export function HyperspaceIntro() {
       uTravel: { value: 0 },
       uDepth: { value: DEPTH },
       uOpacity: { value: 0 },
+      uFormation: { value: shouldJump ? 0 : 1 },
+      uWallAdvance: { value: 0 },
     };
     const tunnelDustGeometry = createTunnelDustGeometry(isMobile ? 420 : 900);
     const tunnelDustMaterial = new THREE.ShaderMaterial({
@@ -1578,6 +1599,8 @@ export function HyperspaceIntro() {
         const launchProgress = clamp01((progress - 0.285) / 0.028);
         const launch = 1 - Math.pow(1 - launchProgress, 4);
         const visualLaunch = smoothstep((progress - 0.285) / 0.055);
+        const wallAdvance = smoothstep((progress - 0.245) / 0.07);
+        const tunnelFormation = smoothstep((progress - 0.3) / 0.065);
         const braking = smoothstep((progress - 0.84) / 0.055);
         const exitArrival = smoothstep((progress - 0.89) / 0.11);
         const lineGrowth = smoothstep((progress - 0.04) / 0.31);
@@ -1586,11 +1609,17 @@ export function HyperspaceIntro() {
         const speed = THREE.MathUtils.lerp(preLaunchSpeed, hyperspaceSpeed, launch) * (1 - braking) + 0.35 * braking;
         travel += speed * delta;
         uniforms.uTravel.value = travel;
+        uniforms.uFormation.value = tunnelFormation;
+        uniforms.uWallAdvance.value = wallAdvance;
         tunnelDustUniforms.uTravel.value = travel;
-        tunnelDustUniforms.uOpacity.value = (0.025 + charge * 0.04 + visualLaunch * 0.42) * (1 - braking);
+        tunnelDustUniforms.uFormation.value = tunnelFormation;
+        tunnelDustUniforms.uWallAdvance.value = wallAdvance;
+        tunnelDustUniforms.uOpacity.value = (0.02 + charge * 0.16 + visualLaunch * 0.36) * (1 - braking);
         warpBubbleUniforms.uTime.value = elapsed * 0.001;
         warpBubbleUniforms.uTravel.value = travel;
-        warpBubbleUniforms.uOpacity.value = (charge * 0.006 + visualLaunch * 0.13) * (1 - braking);
+        warpBubbleUniforms.uOpacity.value = (charge * 0.006 + visualLaunch * 0.13)
+          * tunnelFormation
+          * (1 - braking);
         const stretchCharge = Math.pow(lineGrowth, 0.7);
         const staticStretch = THREE.MathUtils.lerp(0.035, 0.43, stretchCharge);
         uniforms.uForwardStretch.value = staticStretch * (1 - braking) + braking * 0.01;
