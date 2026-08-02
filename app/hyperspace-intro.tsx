@@ -87,7 +87,7 @@ const vertexShader = `
       + uWarpRelease * (shell * 0.22 + shellSlope * 0.055)
       + cruiseWave;
     float aperture = mix(
-      0.42,
+      0.82,
       1.0,
       pow(clamp(uFormation, 0.0, 1.0), 0.72)
     );
@@ -110,14 +110,14 @@ const vertexShader = `
       1.0
     );
     float headWake = mix(
-      0.08,
-      1.0,
-      pow(smoothstep(0.0, 0.96, headDepth), 0.52)
+      0.3,
+      1.08,
+      pow(smoothstep(0.0, 0.9, headDepth), 0.4)
     );
     float tailWake = mix(
-      0.08,
-      1.0,
-      pow(smoothstep(0.0, 0.96, tailDepth), 0.52)
+      0.27,
+      1.08,
+      pow(smoothstep(0.0, 0.9, tailDepth), 0.4)
     );
     vec2 radialDirection = vec2(cos(aAngle), sin(aAngle));
     vec2 tailRadial = radialDirection * aRadius * radialScale * tailWake;
@@ -137,12 +137,12 @@ const vertexShader = `
     float along = uv.y;
     float pointDepth = mix(tailDepth, headDepth, along);
     float pointWake = mix(
-      0.08,
-      1.0,
-      pow(smoothstep(0.0, 0.96, pointDepth), 0.52)
+      0.285,
+      1.08,
+      pow(smoothstep(0.0, 0.9, pointDepth), 0.4)
     );
     float wakeCurl = (1.0 - pointDepth)
-      * (0.018 + uWarpRelease * 0.022 + uWarpCruise * 0.01)
+      * (0.05 + uWarpRelease * 0.085 + uWarpCruise * 0.042)
       * sin(aAngle * 3.1 + uTravel * 0.012);
     float pointAngle = aAngle + wakeCurl;
     vec2 pointRadial = vec2(cos(pointAngle), sin(pointAngle))
@@ -161,11 +161,15 @@ const vertexShader = `
     );
     float apertureSoftness = mix(0.1, 0.22, uFormation);
     float screenRadius = length(ndcPosition);
-    vFormationMask = 1.0 - smoothstep(
+    float tunnelAperture = 1.0 - smoothstep(
       apertureRadius - apertureSoftness,
       apertureRadius,
       screenRadius
     );
+    // Before the aperture opens these same short ribbons read as a dense,
+    // full-frame star field. The field then hands off to the expanding wake.
+    float preWarpStarField = (1.0 - smoothstep(0.0, 0.72, uFormation)) * 0.74;
+    vFormationMask = max(tunnelAperture, preWarpStarField);
     float clipW = clipPoint.w;
     float ndcZ = clipPoint.z / clipPoint.w;
 
@@ -268,14 +272,14 @@ const tunnelDustVertexShader = `
       + uWarpRelease * (shell * 0.22 + shellSlope * 0.055)
       + cruiseWave;
     float aperture = mix(
-      0.42,
+      0.82,
       1.0,
       pow(clamp(uFormation, 0.0, 1.0), 0.72)
     );
     float wakeSurface = mix(
-      0.08,
-      1.0,
-      pow(smoothstep(0.0, 0.96, normalizedDepth), 0.56)
+      0.25,
+      1.08,
+      pow(smoothstep(0.0, 0.9, normalizedDepth), 0.42)
     );
     radialScale *= aperture * wakeSurface;
     float wakeGather = uLaunchDust * (0.22 + shell * 0.34);
@@ -305,12 +309,13 @@ const tunnelDustVertexShader = `
       pow(clamp(uFormation, 0.0, 1.0), 0.68)
     );
     float apertureSoftness = mix(0.1, 0.22, uFormation);
-    float dustFormationMask = 1.0 - smoothstep(
+    float dustAperture = 1.0 - smoothstep(
       apertureRadius - apertureSoftness,
       apertureRadius,
       length(dustNdc)
     );
-    vLife *= dustFormationMask;
+    float preWarpDustField = (1.0 - smoothstep(0.0, 0.74, uFormation)) * 0.82;
+    vLife *= max(dustAperture, preWarpDustField);
     vLife *= uOpacity;
     vGlint = aGlint;
     vDustDynamics = vec4(uLaunchDust, shell, aAngle, normalizedDepth);
@@ -428,8 +433,10 @@ const warpBubbleVertexShader = `
     float twistCos = cos(twist);
     float twistSin = sin(twist);
     vec3 displacedPosition = position;
-    float axialEnvelope = pow(max(sin(depth * 3.14159265), 0.0), 0.24);
-    float bubbleScale = mix(0.82, 1.0, axialEnvelope);
+    float axialEnvelope = pow(max(sin(depth * 3.14159265), 0.0), 0.34);
+    // A broad barrel with rounded shoulders makes the field curve around the
+    // camera instead of terminating in a pointed radial-burst silhouette.
+    float bubbleScale = mix(0.74, 1.14, axialEnvelope);
     bubbleScale *= 1.0 - uCompression * 0.035 + uRelease * 0.055;
     displacedPosition.xy *= bubbleScale;
     displacedPosition.xy += radial * (
@@ -1265,12 +1272,12 @@ function createTunnelDustGeometry(count: number) {
   const glints = new Float32Array(count);
 
   for (let index = 0; index < count; index += 1) {
-    const isCoreDust = Math.random() < 0.58;
+    const isCoreDust = Math.random() < 0.36;
     const isHeroGlint = Math.random() < 0.05;
     angles[index] = Math.random() * Math.PI * 2;
     radii[index] = isCoreDust
-      ? 0.18 + Math.pow(Math.random(), 1.62) * 3.7
-      : 2.7 + Math.pow(Math.random(), 0.78) * 9.5;
+      ? 0.55 + Math.pow(Math.random(), 1.38) * 4.7
+      : 3.8 + Math.pow(Math.random(), 0.76) * 9.8;
     seeds[index] = Math.random() * DEPTH;
     sizes[index] = isHeroGlint
       ? 1.55 + Math.pow(Math.random(), 1.6) * 1.15
@@ -2073,11 +2080,11 @@ export function HyperspaceIntro() {
       uTravel: { value: 0 },
       uDepth: { value: DEPTH },
       uNear: { value: NEAR },
-      uOpacity: { value: shouldJump ? 0.24 : 0 },
+      uOpacity: { value: shouldJump ? 0.36 : 0 },
       uForwardStretch: { value: shouldJump ? 0.035 : 0 },
       uBackwardStretch: { value: shouldJump ? 0.035 : 1 },
       uWidthScale: { value: shouldJump ? 0.76 : 1 },
-      uEnergy: { value: shouldJump ? 0.24 : 1 },
+      uEnergy: { value: shouldJump ? 0.34 : 1 },
       uSymmetry: { value: shouldJump ? 1 : 0 },
       uWarpTension: { value: 0 },
       uWarpRelease: { value: 0 },
@@ -2361,6 +2368,13 @@ export function HyperspaceIntro() {
         const warpPhase = clamp01((progress - LAUNCH_PROGRESS) / 0.21);
         const braking = smoothstep((progress - 0.84) / 0.055);
         const exitArrival = smoothstep((progress - 0.89) / 0.11);
+        const fieldSwayX = Math.sin(elapsed * 0.00108)
+          + Math.sin(elapsed * 0.00047 + 1.8) * 0.42;
+        const fieldSwayY = Math.cos(elapsed * 0.00091 + 0.7)
+          + Math.sin(elapsed * 0.00039 + 2.4) * 0.36;
+        const fieldSwayEnvelope = (
+          charge * 0.45 + visualLaunch * 0.55
+        ) * (1 - braking);
         const lineGrowth = sequencePressure;
         const preLaunchSpeed = 0;
         const hyperspaceSpeed = 92;
@@ -2387,7 +2401,7 @@ export function HyperspaceIntro() {
         const preLaunchDust = dustReveal * 0.26
           + dustSuction * (0.08 + warpTension * 0.14);
         tunnelDustUniforms.uOpacity.value = (
-          0.035
+          0.1
           + charge * 0.06
           + preLaunchDust
           + launchDust
@@ -2430,6 +2444,10 @@ export function HyperspaceIntro() {
         ) * (1 - braking);
         lensPass.enabled = lensStrength > 0.002;
         lensPass.uniforms.uStrength.value = lensStrength;
+        lensPass.uniforms.uCenter.value.set(
+          0.5 + fieldSwayX * fieldSwayEnvelope * 0.0035,
+          0.5 + fieldSwayY * fieldSwayEnvelope * 0.0028,
+        );
         lensPass.uniforms.uRadius.value = 0.05
           + charge * 0.115
           - cruiseLens * 0.04
@@ -2450,7 +2468,7 @@ export function HyperspaceIntro() {
         uniforms.uForwardStretch.value = staticStretch * (1 - braking) + braking * 0.01;
         uniforms.uBackwardStretch.value = (staticStretch + visualLaunch * 0.89) * (1 - braking) + braking * 0.03;
         uniforms.uWidthScale.value = (0.76 + charge * 0.4 + visualLaunch * 0.38) * (1 - braking * 0.35);
-        uniforms.uEnergy.value = (0.24 + charge * 0.88 + visualLaunch * 0.18) * (1 - braking * 0.48);
+        uniforms.uEnergy.value = (0.34 + charge * 0.78 + visualLaunch * 0.18) * (1 - braking * 0.48);
         uniforms.uSymmetry.value = 1 - visualLaunch;
         uniforms.uWarpTension.value = warpTension;
         uniforms.uWarpRelease.value = warpRelease;
@@ -2458,7 +2476,7 @@ export function HyperspaceIntro() {
         uniforms.uWarpCruise.value = visualLaunch * (1 - braking);
         uniforms.uFormation.value = sequencePressure;
         uniforms.uOpacity.value = smoothstep(progress / 0.015)
-          * (0.24 + charge * 0.76)
+          * (0.36 + charge * 0.64)
           * (1 - visualLaunch * 0.14)
           * (1 - smoothstep((progress - 0.88) / 0.055));
         exitWakeUniforms.uTime.value = Math.max(0, (elapsed - DURATION * 0.825) / 1000);
@@ -2479,18 +2497,23 @@ export function HyperspaceIntro() {
           + exitIllumination * 0.13;
 
         const launchLocal = clamp01((progress - LAUNCH_PROGRESS) / 0.11);
-        const pressureDrift = warpTension * (1 - launch) * 0.018;
+        const pressureDrift = warpTension * (1 - launch) * 0.045;
         const impactKick = smoothstep((progress - (LAUNCH_PROGRESS - 0.002)) / 0.004)
           * (1 - smoothstep((progress - (LAUNCH_PROGRESS + 0.018)) / 0.016));
+        const preLaunchZoom = smoothstep(
+          (progress - (LAUNCH_PROGRESS - 0.145)) / 0.115,
+        ) * (1 - smoothstep(
+          (progress - (LAUNCH_PROGRESS + 0.012)) / 0.024,
+        ));
         const launchShake = smoothstep((progress - LAUNCH_PROGRESS) / 0.004)
           * (1 - smoothstep((progress - (LAUNCH_PROGRESS + 0.07)) / 0.06));
         const brakingShake = smoothstep((progress - 0.82) / 0.05)
           * (1 - smoothstep((progress - 0.965) / 0.035));
-        const cruiseShake = visualLaunch * (1 - braking) * 0.005;
+        const cruiseShake = visualLaunch * (1 - braking) * 0.009;
         const impactDecay = launchShake * (1 - smoothstep(launchLocal));
-        const shakeStrength = impactKick * 0.22
-          + impactDecay * 0.14
-          + launchShake * 0.045
+        const shakeStrength = impactKick * 0.29
+          + impactDecay * 0.18
+          + launchShake * 0.06
           + brakingShake * 0.032
           + cruiseShake;
         const cameraDive = smoothstep((progress - (LAUNCH_PROGRESS + 0.014)) / 0.018)
@@ -2504,7 +2527,7 @@ export function HyperspaceIntro() {
         const recoilRelease = 1 - smoothstep(
           (progress - (LAUNCH_PROGRESS + 0.014)) / 0.012,
         );
-        const launchRecoil = recoilAttack * recoilRelease * 1.85;
+        const launchRecoil = recoilAttack * recoilRelease * 2.45;
         const recoilSettle = smoothstep(
           (progress - (LAUNCH_PROGRESS + 0.012)) / 0.01,
         ) * (1 - smoothstep(
@@ -2516,28 +2539,45 @@ export function HyperspaceIntro() {
           + Math.sin(elapsed * 0.083) * 0.31;
         const shakeZ = Math.sin(elapsed * 0.052 + 2.1)
           + Math.sin(elapsed * 0.097) * 0.24;
+        const cinematicDriftX = fieldSwayX
+          * (charge * 0.052 + visualLaunch * 0.082)
+          * (1 - braking);
+        const cinematicDriftY = fieldSwayY
+          * (charge * 0.038 + visualLaunch * 0.058)
+          * (1 - braking);
         camera.position.x = shakeX * shakeStrength
-          + Math.sin(elapsed * 0.0018) * pressureDrift;
+          + Math.sin(elapsed * 0.0018) * pressureDrift
+          + cinematicDriftX;
         camera.position.y = shakeY * shakeStrength * 0.7
-          - pressureDrift * 0.42;
+          - pressureDrift * 0.42
+          + cinematicDriftY;
         camera.position.z = -0.9 * exitArrival
+          - charge * (1 - launch) * 0.18
           + launchRecoil
           - recoilSettle * 0.24
           - cameraDive * 1.75
           + shakeZ * shakeStrength * 0.28;
         cameraTarget.set(
-          shakeX * shakeStrength * 0.76 + impactKick * 0.08,
-          shakeY * shakeStrength * 0.5 - impactKick * 0.075,
+          shakeX * shakeStrength * 0.76
+            + impactKick * 0.08
+            - cinematicDriftX * 0.62,
+          shakeY * shakeStrength * 0.5
+            - impactKick * 0.075
+            - cinematicDriftY * 0.48,
           THREE.MathUtils.lerp(-100, -38, exitArrival),
         );
         camera.lookAt(cameraTarget);
-        camera.rotation.z += shakeX * shakeStrength * 0.022;
+        camera.rotation.z += shakeX * shakeStrength * 0.022
+          + impactKick * 0.006
+          + fieldSwayX * fieldSwayEnvelope * 0.0022;
         camera.fov = 62
           + charge * 2.5
           - warpTension * 9.5
+          - preLaunchZoom * 3.8
           + launch * 21.5
           + impactKick * 12.5
           + cameraDive * 4.5
+          + Math.sin(elapsed * 0.00135) * visualLaunch * (1 - braking) * 0.7
           - braking * 23.5;
         camera.updateProjectionMatrix();
 
