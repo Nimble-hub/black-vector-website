@@ -600,9 +600,10 @@ const exitDustVertexShader = `
     float diamondFire = max(facetFlash, seededFlash);
     float effectiveGlint = max(diamondFire, headlightResponse * 0.42);
     gl_PointSize = clamp(
-      aSize * (18.0 / max(-viewPosition.z, 1.0)) * (1.0 + effectiveGlint * 0.44),
-      0.62,
-      3.45
+      aSize * (18.0 / max(-viewPosition.z, 1.0))
+        * (1.0 + diamondFire * 2.5 + headlightResponse * 0.16),
+      0.58,
+      6.4
     );
 
     vLife = isAlive * fade * uOpacity;
@@ -638,8 +639,8 @@ const exitDustFragmentShader = `
     float facetSeam = 1.0 - smoothstep(0.008, 0.035, abs(facetAxis));
     float crystalEdge = smoothstep(0.28, 0.47, diamondDistance) * crystalBody;
 
-    float horizontalGlint = 1.0 - smoothstep(0.006, 0.028, abs(point.y));
-    float verticalGlint = 1.0 - smoothstep(0.006, 0.028, abs(point.x));
+    float horizontalGlint = 1.0 - smoothstep(0.01, 0.06, abs(point.y));
+    float verticalGlint = 1.0 - smoothstep(0.01, 0.06, abs(point.x));
     float glintFalloff = 1.0 - smoothstep(0.06, 0.49, diamondDistance);
     float diffraction = max(horizontalGlint, verticalGlint * 0.72)
       * glintFalloff * max(vGlint, vFacetFlash);
@@ -651,7 +652,8 @@ const exitDustFragmentShader = `
     vec3 color = mix(iceShadow, iceFacet, 0.66 + facetLight * 0.3);
     color = mix(color, reflectedWhite, innerDiamond * 0.58 + facetSeam * 0.24);
 
-    float bodyAlpha = crystalBody * (0.18 + innerDiamond * 0.16);
+    float bodyAlpha = crystalBody * (0.13 + innerDiamond * 0.1)
+      * (1.0 - vFacetFlash * 0.84);
     float sparkleAlpha = max(diffraction * 1.08, pinFire * vFacetFlash * 0.88);
     float alpha = max(
       bodyAlpha,
@@ -1707,7 +1709,9 @@ export function HyperspaceIntro() {
     exitWake.matrixAutoUpdate = false;
     exitWake.updateMatrix();
     exitWake.renderOrder = 7;
-    exitWake.visible = shouldJump;
+    // The legacy ribbon wake read as gray slivers after the jump. Diamond dust
+    // now carries the entire exit reveal, so keep this layer disabled.
+    exitWake.visible = false;
     scene.add(exitWake);
 
     const exitCrystalUniforms = {
