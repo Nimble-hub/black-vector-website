@@ -38,7 +38,6 @@ const vertexShader = `
   uniform float uOpacity;
   uniform float uStretch;
   uniform float uCenteredStretch;
-  uniform float uChargeTime;
   uniform float uWidthScale;
   uniform vec2 uResolution;
 
@@ -49,20 +48,11 @@ const vertexShader = `
 
   void main() {
     float travel = mod(aSeedZ + uTravel, uDepth);
-    float chargePhase = fract(aSeedZ * 0.071 + aAngle * 0.159);
-    float chargeWave = sin(uChargeTime * 4.6 - chargePhase * 6.2831853);
-    float chargeWave01 = chargeWave * 0.5 + 0.5;
-    float chargeInfluence = uCenteredStretch;
-    float anchorZ = min(
-      -uDepth + travel + chargeWave * chargeInfluence * (0.25 + uStretch) * 0.9,
-      -uNear
-    );
-    float lengthSurge = 1.0 + chargeInfluence * (0.08 + chargeWave01 * 0.16);
-    float stretchedLength = aLength * uStretch * lengthSurge;
+    float anchorZ = min(-uDepth + travel, -uNear);
+    float stretchedLength = aLength * uStretch;
     float headZ = min(anchorZ + stretchedLength * uCenteredStretch, -uNear);
     float tailZ = anchorZ - stretchedLength;
-    float radialBreath = 1.0 + chargeWave * chargeInfluence * 0.03;
-    vec2 radial = vec2(cos(aAngle), sin(aAngle)) * aRadius * radialBreath;
+    vec2 radial = vec2(cos(aAngle), sin(aAngle)) * aRadius;
 
     vec4 clipTail = projectionMatrix * modelViewMatrix * vec4(radial, tailZ, 1.0);
     vec4 clipHead = projectionMatrix * modelViewMatrix * vec4(radial, headZ, 1.0);
@@ -871,7 +861,6 @@ export function HyperspaceIntro() {
       uOpacity: { value: shouldJump ? 0.24 : 0 },
       uStretch: { value: shouldJump ? 0.035 : 1 },
       uCenteredStretch: { value: shouldJump ? 1 : 0 },
-      uChargeTime: { value: 0 },
       uWidthScale: { value: shouldJump ? 0.76 : 1 },
       uEnergy: { value: shouldJump ? 0.24 : 1 },
       uResolution: { value: new THREE.Vector2(1, 1) },
@@ -1042,20 +1031,21 @@ export function HyperspaceIntro() {
         const charge = smoothstep(progress / 0.35);
         const launchProgress = clamp01((progress - 0.285) / 0.028);
         const launch = 1 - Math.pow(1 - launchProgress, 4);
+        const visualLaunch = smoothstep((progress - 0.285) / 0.055);
         const braking = smoothstep((progress - 0.84) / 0.055);
         const exitArrival = smoothstep((progress - 0.89) / 0.11);
-        const preLaunchSpeed = 0.12 + charge * 0.72;
+        const lineGrowth = smoothstep((progress - 0.04) / 0.31);
+        const preLaunchSpeed = 0.025 + lineGrowth * 0.075;
         const hyperspaceSpeed = 92;
         const speed = THREE.MathUtils.lerp(preLaunchSpeed, hyperspaceSpeed, launch) * (1 - braking) + 0.35 * braking;
         travel += speed * delta;
         uniforms.uTravel.value = travel;
-        const stretchCharge = Math.pow(charge, 0.7);
+        const stretchCharge = Math.pow(lineGrowth, 0.7);
         const staticStretch = THREE.MathUtils.lerp(0.035, 0.43, stretchCharge);
-        uniforms.uStretch.value = (staticStretch + launch * 1.32) * (1 - braking) + braking * 0.04;
-        uniforms.uCenteredStretch.value = 1 - launch;
-        uniforms.uChargeTime.value = elapsed / 1000;
-        uniforms.uWidthScale.value = (0.76 + charge * 0.4 + launch * 0.38) * (1 - braking * 0.35);
-        uniforms.uEnergy.value = (0.24 + charge * 0.88 + launch * 0.34) * (1 - braking * 0.48);
+        uniforms.uStretch.value = (staticStretch + visualLaunch * 1.32) * (1 - braking) + braking * 0.04;
+        uniforms.uCenteredStretch.value = 1 - visualLaunch;
+        uniforms.uWidthScale.value = (0.76 + charge * 0.4 + visualLaunch * 0.38) * (1 - braking * 0.35);
+        uniforms.uEnergy.value = (0.24 + charge * 0.88 + visualLaunch * 0.34) * (1 - braking * 0.48);
         uniforms.uOpacity.value = smoothstep(progress / 0.015) * (0.24 + charge * 0.76) * (1 - smoothstep((progress - 0.88) / 0.055));
         exitWakeUniforms.uTime.value = Math.max(0, (elapsed - DURATION * 0.78) / 1000);
         exitWakeUniforms.uOpacity.value = smoothstep((progress - 0.82) / 0.075) * 0.08;
@@ -1153,7 +1143,6 @@ export function HyperspaceIntro() {
       uniforms.uTravel.value = 18;
       uniforms.uStretch.value = 0.85;
       uniforms.uCenteredStretch.value = 0;
-      uniforms.uChargeTime.value = 0;
       uniforms.uWidthScale.value = 1;
       uniforms.uEnergy.value = 1;
       renderer.setRenderTarget(probeTarget);
@@ -1166,7 +1155,6 @@ export function HyperspaceIntro() {
       uniforms.uOpacity.value = 0.24;
       uniforms.uStretch.value = 0.035;
       uniforms.uCenteredStretch.value = 1;
-      uniforms.uChargeTime.value = 0;
       uniforms.uWidthScale.value = 0.76;
       uniforms.uEnergy.value = 0.24;
       const hasLightGeometry = probePixels.some((value, index) => index % 4 !== 3 && value > 6);
