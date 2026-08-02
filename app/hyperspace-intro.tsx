@@ -13,7 +13,7 @@ import { HyperspaceIntro2D } from "./hyperspace-intro-2d";
 const DURATION = 15000;
 const DEPTH = 132;
 const NEAR = 0.68;
-const SEEN_KEY = "black-vector-jump-seen-3d-v17";
+const SEEN_KEY = "black-vector-jump-seen-3d-v18";
 
 function clamp01(value: number) {
   return Math.max(0, Math.min(1, value));
@@ -94,18 +94,22 @@ const fragmentShader = `
   void main() {
     float taper = mix(0.12, 1.0, smoothstep(0.0, 0.24, vRibbonUv.y));
     float side = abs(vRibbonUv.x) / max(taper, 0.001);
-    float beam = 1.0 - smoothstep(0.68, 1.0, side);
+    float body = 1.0 - smoothstep(0.58, 0.96, side);
+    float core = 1.0 - smoothstep(0.0, 0.22, side);
+    float shoulder = (1.0 - smoothstep(0.3, 0.98, side)) * 0.12;
     float tailFade = smoothstep(0.0, 0.055, vRibbonUv.y);
     float headFade = 1.0 - smoothstep(0.975, 1.0, vRibbonUv.y);
-    float hotCore = 1.0 - smoothstep(0.0, 0.28, side);
     float headExposure = mix(0.3, 1.0, pow(vRibbonUv.y, 0.44));
     float longitudinal = tailFade * headFade * mix(0.24, 1.0, pow(vRibbonUv.y, 0.5));
 
     vec3 coldBlue = vec3(0.34, 0.67, 1.0);
     vec3 photographicWhite = vec3(0.93, 0.985, 1.0);
-    vec3 color = mix(coldBlue, photographicWhite, vHue);
-    float intensity = vBrightness * headExposure * (0.8 + hotCore * 1.05) * uEnergy;
-    float alpha = beam * longitudinal * vDepthFade * uOpacity;
+    vec3 coreWhite = vec3(0.985, 0.998, 1.0);
+    vec3 edgeColor = mix(coldBlue, photographicWhite, vHue);
+    vec3 color = mix(edgeColor, coreWhite, core * 0.88);
+    float intensity = vBrightness * headExposure * (0.82 + core * 1.4) * uEnergy;
+    float profile = min(body + shoulder, 1.0);
+    float alpha = profile * longitudinal * vDepthFade * uOpacity;
 
     gl_FragColor = vec4(color * intensity, alpha);
   }
