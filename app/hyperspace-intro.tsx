@@ -172,11 +172,38 @@ const tunnelDustFragmentShader = `
 const tunnelCausticVertexShader = `
   precision highp float;
 
+  uniform float uTime;
+  uniform float uTravel;
+
   varying vec2 vCausticUv;
+  varying float vMembrane;
+  varying float vFresnel;
 
   void main() {
+    float angle = atan(position.y, position.x);
+    float depth = uv.y;
+    float packet = pow(
+      0.5 + 0.5 * sin(depth * 8.0 - uTravel * 0.12 + sin(angle * 2.0) * 1.25),
+      3.0
+    );
+    float rippleA = sin(
+      depth * 42.0 - uTravel * 0.24 - uTime * 4.2
+        + sin(angle * 3.0 + uTime * 0.7) * 1.35
+    );
+    float rippleB = sin(
+      depth * 19.0 + angle * 6.0 + uTravel * 0.075 + uTime * 1.8
+    );
+    float displacement = (rippleA * 0.52 + rippleB * 0.26) * (0.34 + packet * 0.66);
+    vec3 displacedPosition = position;
+    displacedPosition.xy += normalize(position.xy) * displacement;
+
+    vec4 viewPosition = modelViewMatrix * vec4(displacedPosition, 1.0);
+    vec3 viewNormal = normalize(normalMatrix * normal);
+    vec3 viewDirection = normalize(-viewPosition.xyz);
     vCausticUv = uv;
-    gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+    vMembrane = 0.5 + displacement * 0.58;
+    vFresnel = pow(1.0 - abs(dot(viewNormal, viewDirection)), 1.35);
+    gl_Position = projectionMatrix * viewPosition;
   }
 `;
 
@@ -188,6 +215,8 @@ const tunnelCausticFragmentShader = `
   uniform float uTravel;
 
   varying vec2 vCausticUv;
+  varying float vMembrane;
+  varying float vFresnel;
 
   vec2 hash22(vec2 point) {
     vec2 hashed = vec2(
@@ -197,7 +226,7 @@ const tunnelCausticFragmentShader = `
     return fract(sin(hashed) * 43758.5453);
   }
 
-  float causticCells(vec2 point, float flow) {
+  vec2 causticCells(vec2 point, float flow) {
     vec2 cell = floor(point);
     vec2 local = fract(point);
     float nearest = 8.0;
@@ -221,41 +250,69 @@ const tunnelCausticFragmentShader = `
       }
     }
 
-    return sqrt(secondNearest) - sqrt(nearest);
+    return vec2(sqrt(nearest), sqrt(secondNearest) - sqrt(nearest));
   }
 
   void main() {
     float angle = vCausticUv.x * 6.2831853;
     float depth = vCausticUv.y;
     float flow = uTime;
-    float longitudinalWarp = sin(angle * 2.0 - flow * 0.34) * 0.42
-      + sin(angle * 5.0 + depth * 13.0 + flow * 0.22) * 0.18;
+    float longitudinalWarp = sin(angle * 2.0 - flow * 0.78) * 0.52
+      + sin(angle * 5.0 + depth * 13.0 + flow * 0.46) * 0.24
+      + sin(angle * 9.0 - depth * 7.0 - flow * 0.31) * 0.1;
     float tunnelFlow = uTravel * (18.0 / 132.0);
     vec2 causticPoint = vec2(
       vCausticUv.x * 7.0,
       depth * 18.0 - tunnelFlow + longitudinalWarp
     );
-    float cellGap = causticCells(causticPoint, flow);
-    float waterWeb = 1.0 - smoothstep(0.025, 0.15, cellGap);
-    float electricCore = 1.0 - smoothstep(0.006, 0.043, cellGap);
-    float rollingRefraction = 0.62 + 0.38 * pow(
-      0.5 + 0.5 * sin(angle * 3.0 + depth * 31.0 - flow * 0.72),
+    vec2 cellField = causticCells(causticPoint, flow);
+    float nearestCell = cellField.x;
+    float cellGap = cellField.y;
+    float plasmaCell = 1.0 - smoothstep(0.16, 0.82, nearestCell);
+    float waterWeb = 1.0 - smoothstep(0.022, 0.17, cellGap);
+    float electricCore = 1.0 - smoothstep(0.004, 0.036, cellGap);
+
+    float surgeA = pow(
+      0.5 + 0.5 * sin(
+        depth * 33.0 - uTravel * 0.34 + sin(angle * 3.0 + flow * 1.7) * 2.4
+      ),
+      9.0
+    );
+    float surgeB = pow(
+      0.5 + 0.5 * sin(
+        depth * 21.0 - uTravel * 0.23 - angle * 1.7
+          + sin(angle * 7.0 - depth * 9.0 + flow * 2.2) * 1.65
+      ),
+      11.0
+    );
+    float electricSurge = clamp(surgeA + surgeB, 0.0, 1.0);
+    float branchField = abs(sin(
+      angle * 1.5 + depth * 27.0 - uTravel * 0.19
+        + sin(angle * 5.0 - depth * 11.0 + flow * 2.6) * 1.15
+    ));
+    float branchingArc = (1.0 - smoothstep(0.018, 0.075, branchField))
+      * smoothstep(0.18, 0.78, plasmaCell + waterWeb)
+      * electricSurge;
+    float rollingRefraction = 0.48 + 0.52 * pow(
+      0.5 + 0.5 * sin(angle * 3.0 + depth * 31.0 - flow * 1.4),
       2.0
     );
-    float chargePulse = 0.72 + 0.28 * sin(
-      flow * 2.15 + depth * 46.0 + sin(angle * 4.0 - flow * 0.4) * 1.4
-    );
-    chargePulse *= chargePulse;
-    float filaments = waterWeb * 0.38 + electricCore * (0.72 + chargePulse * 0.72);
+    float plasma = plasmaCell * (0.08 + electricSurge * 0.34);
+    float filaments = waterWeb * (0.08 + electricSurge * 0.24)
+      + electricCore * (0.38 + electricSurge * 1.42)
+      + branchingArc * 1.25
+      + plasma;
     float depthFade = smoothstep(0.015, 0.1, depth)
       * (1.0 - smoothstep(0.92, 0.995, depth));
-    float alpha = filaments * rollingRefraction * depthFade * uOpacity;
-    vec3 deepCyan = vec3(0.04, 0.32, 0.72);
-    vec3 electricBlue = vec3(0.22, 0.76, 1.0);
-    vec3 lightningWhite = vec3(0.9, 0.985, 1.0);
-    vec3 waterColor = mix(deepCyan, electricBlue, waterWeb);
-    vec3 color = mix(waterColor, lightningWhite, electricCore * (0.58 + chargePulse * 0.42));
-    gl_FragColor = vec4(color * (0.52 + electricCore * 1.34), alpha);
+    float volume = 0.46 + vFresnel * 0.82 + abs(vMembrane - 0.5) * 0.72;
+    float alpha = filaments * rollingRefraction * volume * depthFade * uOpacity;
+    vec3 quantumBlue = vec3(0.025, 0.18, 0.68);
+    vec3 electricCyan = vec3(0.12, 0.72, 1.0);
+    vec3 lightningWhite = vec3(0.94, 0.992, 1.0);
+    vec3 plasmaColor = mix(quantumBlue, electricCyan, plasmaCell * 0.66 + waterWeb * 0.34);
+    float whiteHot = clamp(electricCore * (0.46 + electricSurge * 0.72) + branchingArc, 0.0, 1.0);
+    vec3 color = mix(plasmaColor, lightningWhite, whiteHot);
+    gl_FragColor = vec4(color * (0.42 + plasma * 0.52 + whiteHot * 1.52), alpha);
   }
 `;
 
@@ -1219,7 +1276,7 @@ export function HyperspaceIntro() {
       18.2,
       DEPTH,
       isMobile ? 36 : 64,
-      1,
+      isMobile ? 40 : 72,
       true,
     );
     tunnelCausticGeometry.rotateX(Math.PI / 2);
@@ -1422,9 +1479,9 @@ export function HyperspaceIntro() {
         uniforms.uTravel.value = travel;
         tunnelDustUniforms.uTravel.value = travel;
         tunnelDustUniforms.uOpacity.value = (0.025 + charge * 0.04 + visualLaunch * 0.42) * (1 - braking);
-        tunnelCausticUniforms.uTime.value = elapsed * 0.00105 + travel * 0.012;
+        tunnelCausticUniforms.uTime.value = elapsed * 0.001;
         tunnelCausticUniforms.uTravel.value = travel;
-        tunnelCausticUniforms.uOpacity.value = (charge * 0.022 + visualLaunch * 0.16) * (1 - braking);
+        tunnelCausticUniforms.uOpacity.value = (charge * 0.012 + visualLaunch * 0.18) * (1 - braking);
         const stretchCharge = Math.pow(lineGrowth, 0.7);
         const staticStretch = THREE.MathUtils.lerp(0.035, 0.43, stretchCharge);
         uniforms.uForwardStretch.value = staticStretch * (1 - braking) + braking * 0.01;
