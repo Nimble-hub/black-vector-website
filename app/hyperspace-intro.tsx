@@ -680,7 +680,9 @@ const environmentStarVertexShader = `
   void main() {
     vec4 viewPosition = modelViewMatrix * vec4(position, 1.0);
     gl_Position = projectionMatrix * viewPosition;
-    float twinkle = 0.94 + sin(uTime * (0.42 + aPhase * 0.28) + aPhase * 31.0) * 0.06;
+    float twinkleAmount = mix(0.014, 0.065, aGlint);
+    float twinkle = 1.0 - twinkleAmount
+      + sin(uTime * (0.42 + aPhase * 0.28) + aPhase * 31.0) * twinkleAmount;
     float glintPulse = 0.88 + sin(uTime * 0.68 + aPhase * 47.0) * 0.12;
     gl_PointSize = clamp(
       aSize * (92.0 / max(-viewPosition.z, 1.0)) * mix(1.0, glintPulse, aGlint),
@@ -709,7 +711,8 @@ const environmentStarFragmentShader = `
     float verticalRay = 1.0 - smoothstep(0.008, 0.026, abs(point.x));
     float rayFalloff = 1.0 - smoothstep(0.08, 0.49, radius);
     float diffraction = max(horizontalRay, verticalRay * 0.55) * rayFalloff * vGlint;
-    float alpha = max(core, halo * 0.24 + diffraction * 0.72) * vStarAlpha;
+    float haloWeight = mix(0.12, 0.27, vGlint);
+    float alpha = max(core, halo * haloWeight + diffraction * 0.72) * vStarAlpha;
     vec3 whiteCore = vec3(0.985, 0.997, 1.0);
     vec3 color = mix(vStarColor, whiteCore, core * 0.62 + diffraction * 0.32);
     gl_FragColor = vec4(color * (0.72 + core * 1.65 + diffraction * 1.28), alpha);
@@ -1103,7 +1106,7 @@ function createDeepSpaceWorld(isMobile: boolean) {
     return material;
   };
 
-  const starCount = isMobile ? 1300 : 2450;
+  const starCount = isMobile ? 2800 : 5200;
   const starPositions = new Float32Array(starCount * 3);
   const starColors = new Float32Array(starCount * 3);
   const starSizes = new Float32Array(starCount);
@@ -1111,22 +1114,47 @@ function createDeepSpaceWorld(isMobile: boolean) {
   const starPhases = new Float32Array(starCount);
   const starGlints = new Float32Array(starCount);
   const starColor = new THREE.Color();
+  const starClusterCenters = [
+    [-0.68, 0.34],
+    [0.46, -0.13],
+    [0.76, 0.4],
+    [-0.08, 0.11],
+  ] as const;
   for (let index = 0; index < starCount; index += 1) {
-    const depth = 42 + Math.pow(Math.random(), 0.58) * 106;
-    const sitsInStellarBand = Math.random() < 0.46;
-    const screenX = (Math.random() - 0.5) * 2.18;
-    const bandCenter = 0.16 - screenX * 0.23 + Math.sin(screenX * 3.2) * 0.045;
-    const screenY = sitsInStellarBand
-      ? bandCenter + (Math.random() - 0.5) * (0.13 + Math.pow(Math.random(), 2.1) * 0.32)
-      : (Math.random() - 0.5) * 1.34;
+    const depth = 38 + Math.pow(Math.random(), 0.52) * 111;
+    const clusterRoll = Math.random();
+    const clusterIndex = clusterRoll < 0.2
+      ? Math.floor(Math.random() * starClusterCenters.length)
+      : -1;
+    let screenX: number;
+    let screenY: number;
+    let sitsInStellarBand = false;
+    if (clusterIndex >= 0) {
+      const cluster = starClusterCenters[clusterIndex];
+      const clusterAngle = Math.random() * Math.PI * 2;
+      const clusterRadius = Math.pow(Math.random(), 2.05) * (0.08 + Math.random() * 0.16);
+      screenX = cluster[0] + Math.cos(clusterAngle) * clusterRadius;
+      screenY = cluster[1] + Math.sin(clusterAngle) * clusterRadius * 0.68;
+      sitsInStellarBand = true;
+    } else {
+      sitsInStellarBand = Math.random() < 0.58;
+      screenX = (Math.random() - 0.5) * 2.18;
+      const bandCenter = 0.16 - screenX * 0.23 + Math.sin(screenX * 3.2) * 0.045;
+      screenY = sitsInStellarBand
+        ? bandCenter + (Math.random() - 0.5) * (0.1 + Math.pow(Math.random(), 2.25) * 0.29)
+        : (Math.random() - 0.5) * 1.34;
+    }
     const positionOffset = index * 3;
     starPositions[positionOffset] = screenX * depth;
     starPositions[positionOffset + 1] = screenY * depth;
     starPositions[positionOffset + 2] = -depth;
 
     const temperature = Math.random();
-    if (temperature < 0.56) starColor.set(0xdce9ef);
-    else if (temperature < 0.73) starColor.set(0x86d9f0);
+    if (clusterIndex === 0 && temperature < 0.5) starColor.set(0x7dddf4);
+    else if (clusterIndex === 1 && temperature < 0.34) starColor.set(0xffcf91);
+    else if (clusterIndex === 2 && temperature < 0.44) starColor.set(0x9a9fff);
+    else if (temperature < 0.58) starColor.set(0xdce9ef);
+    else if (temperature < 0.74) starColor.set(0x86d9f0);
     else if (temperature < 0.86) starColor.set(0x9aa9ff);
     else if (temperature < 0.96) starColor.set(0xffd6a1);
     else starColor.set(0xff9b72);
@@ -1134,16 +1162,17 @@ function createDeepSpaceWorld(isMobile: boolean) {
     starColors[positionOffset + 1] = starColor.g;
     starColors[positionOffset + 2] = starColor.b;
 
-    const heroStar = Math.random() < 0.032;
-    const midStar = !heroStar && Math.random() < 0.13;
+    const heroStar = Math.random() < 0.018;
+    const midStar = !heroStar && Math.random() < 0.105;
     starSizes[index] = heroStar
       ? 3.4 + Math.random() * 2.8
       : midStar
         ? 1.45 + Math.random() * 1.35
-        : 0.58 + Math.pow(Math.random(), 1.8) * 0.86;
+        : 0.46 + Math.pow(Math.random(), 1.95) * 0.72;
+    const densityBoost = clusterIndex >= 0 ? 1.16 : sitsInStellarBand ? 1.08 : 1;
     starIntensities[index] = heroStar
       ? 0.82 + Math.random() * 0.18
-      : 0.38 + Math.pow(Math.random(), 0.72) * 0.48;
+      : (0.29 + Math.pow(Math.random(), 0.78) * 0.45) * densityBoost;
     starPhases[index] = Math.random();
     starGlints[index] = heroStar ? 0.58 + Math.random() * 0.42 : 0;
   }
@@ -1173,7 +1202,7 @@ function createDeepSpaceWorld(isMobile: boolean) {
   deepStars.renderOrder = -12;
   group.add(deepStars);
 
-  const veilCount = isMobile ? 260 : 460;
+  const veilCount = isMobile ? 360 : 680;
   const veilPositions = new Float32Array(veilCount * 3);
   const veilColors = new Float32Array(veilCount * 3);
   const veilSizes = new Float32Array(veilCount);
@@ -1200,7 +1229,7 @@ function createDeepSpaceWorld(isMobile: boolean) {
     veilColors[positionOffset + 1] = veilColor.g;
     veilColors[positionOffset + 2] = veilColor.b;
     veilSizes[index] = 18 + Math.pow(Math.random(), 0.64) * 32;
-    veilIntensities[index] = 0.024 + Math.pow(Math.random(), 1.5) * 0.052;
+    veilIntensities[index] = 0.019 + Math.pow(Math.random(), 1.6) * 0.043;
     veilPhases[index] = Math.random();
   }
   const veilGeometry = trackGeometry(new THREE.BufferGeometry());
