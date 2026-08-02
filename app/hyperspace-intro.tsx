@@ -55,7 +55,7 @@ const vertexShader = `
     float wallRadius = mix(1.8, 15.5, pow(wallDistribution, 0.68));
     float wallNoise = (fract(aSeedZ * 0.173 + aAngle * 0.37) - 0.5)
       * mix(2.8, 0.5, uWallAdvance);
-    float wallZ = mix(-46.0, -1.45, uWallAdvance) + wallNoise;
+    float wallZ = mix(-40.0, -1.45, uWallAdvance) + wallNoise;
     float anchorZ = mix(wallZ, tunnelAnchorZ, uFormation);
     float headZ = min(anchorZ + aLength * uForwardStretch, -uNear);
     float tailZ = anchorZ - aLength * uBackwardStretch;
@@ -154,7 +154,7 @@ const tunnelDustVertexShader = `
     float tunnelZ = -uDepth + travel;
     float wallDistribution = fract(aSeedZ * 0.083 + aAngle * 0.127);
     float wallRadius = mix(1.6, 16.5, pow(wallDistribution, 0.66));
-    float wallZ = mix(-45.5, -1.35, uWallAdvance)
+    float wallZ = mix(-39.5, -1.35, uWallAdvance)
       + (fract(aSeedZ * 0.191 + aAngle * 0.41) - 0.5) * mix(3.4, 0.7, uWallAdvance);
     float z = mix(wallZ, tunnelZ, uFormation);
     vec2 radialDirection = vec2(cos(aAngle), sin(aAngle));
@@ -591,7 +591,7 @@ const exitDustVertexShader = `
     vec4 viewPosition = vec4(particlePosition, 1.0);
     gl_Position = projectionMatrix * viewPosition;
 
-    gl_PointSize = clamp(aSize * (18.0 / max(-viewPosition.z, 1.0)) * (1.0 + aGlint * 2.35), 0.75, 8.6);
+    gl_PointSize = clamp(aSize * (18.0 / max(-viewPosition.z, 1.0)) * (1.0 + aGlint * 3.2), 0.8, 10.2);
 
     vLife = isAlive * fade * uOpacity;
     vBrightness = aBrightness;
@@ -627,12 +627,12 @@ const exitDustFragmentShader = `
     vec3 chromeBlue = vec3(0.5, 0.76, 0.96);
     vec3 reflectedWhite = vec3(0.975, 0.995, 1.0);
     vec3 metalBody = mix(chromeShadow, chromeBlue, 0.42 + normalZ * 0.36);
-    float reflection = clamp(metallicSpecular * 1.2 + core * 0.3 + diffraction * 0.72, 0.0, 1.0);
+    float reflection = clamp(metallicSpecular * 1.65 + core * 0.38 + diffraction, 0.0, 1.0);
     vec3 color = mix(metalBody, reflectedWhite, reflection);
-    float alpha = max(dust * (0.48 + core * 0.34 + metallicSpecular * 0.42), max(diffraction * 0.92, opticalHalo * 0.18))
+    float alpha = max(dust * (0.56 + core * 0.46 + metallicSpecular * 0.62), max(diffraction, opticalHalo * 0.22))
       * vLife * vBrightness;
     gl_FragColor = vec4(
-      color * (0.66 + metallicSpecular * 1.85 + metalRim * 0.24 + diffraction * 1.08),
+      color * (0.82 + metallicSpecular * 3.25 + metalRim * 0.34 + diffraction * 1.85),
       alpha
     );
   }
@@ -929,11 +929,11 @@ function createExitDustGeometry(count: number) {
     delays[index] = Math.random() * 0.085;
     lifetimes[index] = 4.1 + Math.random() * 2.2;
     sizes[index] = 0.44 + Math.pow(Math.random(), 1.48) * 2.16;
-    brightness[index] = 0.4 + Math.pow(Math.random(), 0.68) * 0.58;
+    brightness[index] = 0.58 + Math.pow(Math.random(), 0.62) * 0.62;
     turbulence[index] = localTurbulence * (0.86 + Math.random() * 0.28);
     seeds[index] = Math.random();
     drag[index] = localDrag * (0.9 + Math.random() * 0.2);
-    glints[index] = Math.random() < 0.09 ? 0.62 + Math.random() * 0.38 : 0;
+    glints[index] = Math.random() < 0.15 ? 0.72 + Math.random() * 0.28 : 0;
     swirls[index] = Math.sin(angle * 2 + 0.6) * 0.48 + Math.sin(angle * 5 - 0.8) * 0.17;
     clusterPhases[index] = angle * 1.72 + Math.sin(angle * 3) * 0.52;
   }
@@ -1645,7 +1645,7 @@ export function HyperspaceIntro() {
         exitCrystalUniforms.uTime.value = Math.max(0, (elapsed - DURATION * 0.872) / 1000);
         exitCrystalUniforms.uOpacity.value = 0;
         exitDustUniforms.uTime.value = Math.max(0, (elapsed - DURATION * 0.825) / 1000);
-        exitDustUniforms.uOpacity.value = smoothstep((progress - 0.828) / 0.045) * 0.9;
+        exitDustUniforms.uOpacity.value = smoothstep((progress - 0.828) / 0.045);
         world.setOpacity(smoothstep((progress - 0.9) / 0.085));
         renderer.toneMappingExposure = 0.94 + charge * 0.1 + launch * 0.06;
 
@@ -1689,7 +1689,7 @@ export function HyperspaceIntro() {
         exitCrystalUniforms.uTime.value = Math.max(0, (elapsed - DURATION * 0.872) / 1000);
         exitCrystalUniforms.uOpacity.value = 0;
         exitDustUniforms.uTime.value = Math.max(0, (elapsed - DURATION * 0.825) / 1000);
-        exitDustUniforms.uOpacity.value = dustFade * 0.9;
+        exitDustUniforms.uOpacity.value = dustFade;
         if (wakeFade <= 0.001) {
           exitWake.visible = false;
           exitCrystals.visible = false;
