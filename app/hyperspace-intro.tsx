@@ -10,7 +10,7 @@ type Star = {
 };
 
 const DURATION = 15000;
-const SEEN_KEY = "black-vector-jump-seen-v9";
+const SEEN_KEY = "black-vector-jump-seen-v11";
 
 function clamp01(value: number) {
   return Math.max(0, Math.min(1, value));
@@ -77,7 +77,7 @@ export function HyperspaceIntro() {
 
     const placeOnTunnelWall = (star: Star, z?: number) => {
       const angle = Math.random() * Math.PI * 2;
-      const radius = 0.24 + Math.pow(Math.random(), 0.72) * 1.08;
+      const radius = 0.075 + Math.pow(Math.random(), 0.72) * 1.28;
       const horizontalScale = Math.max(1.05, Math.min(1.55, (width / height) * 0.82));
       star.x = Math.cos(angle) * radius * horizontalScale;
       star.y = Math.sin(angle) * radius * 0.92;
@@ -107,7 +107,7 @@ export function HyperspaceIntro() {
     };
 
     const makeStars = () => {
-      const count = width < 720 ? 340 : 620;
+      const count = width < 720 ? 520 : 960;
       stars = Array.from({ length: count }, () => {
         const star: Star = {
           x: 0,
@@ -123,7 +123,8 @@ export function HyperspaceIntro() {
     const resize = () => {
       width = window.innerWidth;
       height = window.innerHeight;
-      pixelRatio = Math.min(window.devicePixelRatio || 1, width < 720 ? 1.35 : 1.6);
+      const pixelBudget = width * height > 3_000_000 ? 1.3 : width < 720 ? 1.5 : 1.8;
+      pixelRatio = Math.min(window.devicePixelRatio || 1, pixelBudget);
       canvas.width = width * pixelRatio;
       canvas.height = height * pixelRatio;
       canvas.style.width = `${width}px`;
@@ -176,30 +177,6 @@ export function HyperspaceIntro() {
         context.fillRect(0, 0, width, height);
       }
 
-      context.save();
-      context.globalCompositeOperation = "screen";
-      context.filter = "blur(8px)";
-      for (let ring = 0; ring < 6; ring += 1) {
-        const phase = (elapsed * 0.0002 + ring / 6) % 1;
-        const expansion = smoothstep(phase);
-        const ringRadius = Math.min(width, height) * (0.075 + expansion * 0.63);
-        const ringAlpha = Math.sin(phase * Math.PI) * transit * 0.024;
-        context.beginPath();
-        context.ellipse(
-          centerX,
-          centerY,
-          ringRadius * 1.42,
-          ringRadius * 0.82,
-          0,
-          0,
-          Math.PI * 2,
-        );
-        context.strokeStyle = `rgba(88, 158, 255, ${ringAlpha})`;
-        context.lineWidth = 1.5 + expansion * 8;
-        context.stroke();
-      }
-      context.restore();
-
       const tailWhitePaths = [new Path2D(), new Path2D(), new Path2D()];
       const tailBluePaths = [new Path2D(), new Path2D(), new Path2D()];
       const headWhitePaths = [new Path2D(), new Path2D(), new Path2D()];
@@ -221,11 +198,11 @@ export function HyperspaceIntro() {
         const tailX = centerX + (star.x / tailZ) * focal;
         const tailY = centerY + (star.y / tailZ) * focal;
         const depth = star.z < 0.24 ? 2 : star.z < 0.56 ? 1 : 0;
-        const blue = star.brightness < 0.7;
+        const blue = star.brightness < 0.62;
         const tailPath = blue ? tailBluePaths[depth] : tailWhitePaths[depth];
         const headPath = blue ? headBluePaths[depth] : headWhitePaths[depth];
-        const splitX = tailX + (x - tailX) * 0.62;
-        const splitY = tailY + (y - tailY) * 0.62;
+        const splitX = tailX + (x - tailX) * 0.48;
+        const splitY = tailY + (y - tailY) * 0.48;
 
         tailPath.moveTo(tailX, tailY);
         tailPath.lineTo(splitX, splitY);
@@ -239,21 +216,21 @@ export function HyperspaceIntro() {
 
       context.globalCompositeOperation = "lighter";
       context.lineCap = "round";
-      const crispWidths = [0.75, 1.45, 2.55];
-      const glowWidths = [3.2, 6.4, 11.5];
-      const depthAlpha = [0.5, 0.72, 0.96];
+      const crispWidths = [0.85, 1.6, 2.9];
+      const glowWidths = [3.8, 7.2, 13];
+      const depthAlpha = [0.58, 0.8, 1];
       const exposure = 0.986 + Math.sin(elapsed * 0.0011) * 0.006 + Math.sin(elapsed * 0.0027) * 0.003;
 
       for (let depth = 0; depth < 3; depth += 1) {
-        context.globalAlpha = trailStrength * (0.08 + depth * 0.055);
+        context.globalAlpha = trailStrength * (0.11 + depth * 0.075);
         context.strokeStyle = "#4d97ff";
         context.lineWidth = glowWidths[depth];
-        context.filter = depth === 0 ? "blur(1.4px)" : "blur(0.8px)";
+        context.filter = depth === 0 ? "blur(1.8px)" : "blur(1px)";
         context.stroke(glowPaths[depth]);
       }
 
       for (let depth = 0; depth < 3; depth += 1) {
-        context.filter = depth === 0 ? "blur(0.6px)" : "none";
+        context.filter = "none";
         context.globalAlpha = depthAlpha[depth] * 0.58 * exposure;
         context.lineWidth = crispWidths[depth] * (0.62 + trailStrength * 0.2);
         context.strokeStyle = "#559ce5";
@@ -263,9 +240,19 @@ export function HyperspaceIntro() {
 
         context.globalAlpha = depthAlpha[depth] * (0.82 + transit * 0.18) * exposure;
         context.lineWidth = crispWidths[depth] * (0.9 + trailStrength * 0.34);
-        context.strokeStyle = "#9bd5ff";
+        context.strokeStyle = "#b7deff";
         context.stroke(headBluePaths[depth]);
-        context.strokeStyle = "#f8fdff";
+        context.strokeStyle = "#ffffff";
+        context.stroke(headWhitePaths[depth]);
+      }
+
+      const coreWidths = [0.42, 0.72, 1.15];
+      for (let depth = 0; depth < 3; depth += 1) {
+        context.globalAlpha = depthAlpha[depth] * 0.94 * exposure;
+        context.lineWidth = coreWidths[depth];
+        context.strokeStyle = "#eaf7ff";
+        context.stroke(headBluePaths[depth]);
+        context.strokeStyle = "#ffffff";
         context.stroke(headWhitePaths[depth]);
       }
 
@@ -299,6 +286,7 @@ export function HyperspaceIntro() {
       context.fillStyle = flare;
       context.fillRect(centerX - width * 0.42, centerY - 1.25, width * 0.84, 2.5);
 
+      context.globalCompositeOperation = "source-over";
       const vignette = context.createRadialGradient(
         centerX,
         centerY,
@@ -313,6 +301,22 @@ export function HyperspaceIntro() {
       vignette.addColorStop(1, `rgba(0, 0, 2, ${0.68 - transit * 0.1})`);
       context.fillStyle = vignette;
       context.fillRect(0, 0, width, height);
+
+      const coreRadius = Math.min(width, height) * (0.052 + exitBoost * 0.006);
+      const tunnelCore = context.createRadialGradient(
+        centerX,
+        centerY,
+        0,
+        centerX,
+        centerY,
+        coreRadius,
+      );
+      tunnelCore.addColorStop(0, "rgba(0, 1, 5, 0.98)");
+      tunnelCore.addColorStop(0.48, "rgba(0, 2, 8, 0.9)");
+      tunnelCore.addColorStop(0.78, "rgba(0, 4, 14, 0.48)");
+      tunnelCore.addColorStop(1, "rgba(0, 4, 14, 0)");
+      context.fillStyle = tunnelCore;
+      context.fillRect(centerX - coreRadius, centerY - coreRadius, coreRadius * 2, coreRadius * 2);
 
       if (progress > 0.87 && progress < 0.95) {
         const flashProgress = (progress - 0.87) / 0.08;
