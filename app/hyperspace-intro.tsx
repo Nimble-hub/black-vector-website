@@ -13,7 +13,7 @@ import { HyperspaceIntro2D } from "./hyperspace-intro-2d";
 const DURATION = 15000;
 const DEPTH = 132;
 const NEAR = 0.68;
-const SEEN_KEY = "black-vector-jump-seen-3d-v12";
+const SEEN_KEY = "black-vector-jump-seen-3d-v13";
 
 function clamp01(value: number) {
   return Math.max(0, Math.min(1, value));
@@ -63,7 +63,7 @@ const vertexShader = `
     vec2 direction = normalize(screenHead - screenTail + vec2(0.00001));
     vec2 perpendicular = vec2(direction.y, -direction.x);
     float perspectiveWidth = clamp(22.0 / max(clipHead.w, 0.5), 0.8, 5.5);
-    float halfWidth = max(aWidth * uWidthScale * perspectiveWidth, 1.25);
+    float halfWidth = max(aWidth * uWidthScale * perspectiveWidth, 1.5);
 
     float along = uv.y;
     vec2 screenPosition = mix(screenTail, screenHead, along);
@@ -76,7 +76,7 @@ const vertexShader = `
     vRibbonUv = uv;
     vBrightness = aBrightness;
     vHue = aHue;
-    vDepthFade = smoothstep(0.0, 9.0, travel);
+    vDepthFade = smoothstep(0.0, 18.0, travel);
   }
 `;
 
@@ -115,7 +115,6 @@ const filmicCameraShader = {
   uniforms: {
     tDiffuse: { value: null },
     uFlash: { value: 0 },
-    uTunnelAtmosphere: { value: 0 },
     uResolution: { value: new THREE.Vector2(1, 1) },
   },
   vertexShader: `
@@ -129,21 +128,15 @@ const filmicCameraShader = {
     precision highp float;
     uniform sampler2D tDiffuse;
     uniform float uFlash;
-    uniform float uTunnelAtmosphere;
     uniform vec2 uResolution;
     varying vec2 vUv;
 
     void main() {
       vec3 color = texture2D(tDiffuse, vUv).rgb;
       vec2 lens = (vUv - 0.5) * vec2(uResolution.x / uResolution.y, 1.0);
-      float radial = length(lens);
-      float outsideBore = smoothstep(0.075, 0.19, radial);
-      float insideFrame = 1.0 - smoothstep(0.7, 1.08, radial);
-      float tunnelWall = outsideBore * insideFrame;
-      color += vec3(0.0008, 0.003, 0.008) * tunnelWall * uTunnelAtmosphere;
       float vignette = smoothstep(0.34, 0.82, dot(lens, lens));
       color *= mix(1.0, 0.82, vignette);
-      color = mix(color, vec3(0.94, 0.985, 1.0), uFlash);
+      color *= 1.0 + uFlash * 0.65;
       gl_FragColor = vec4(max(color, 0.0), 1.0);
     }
   `,
@@ -531,7 +524,6 @@ export function HyperspaceIntro() {
       const delta = Math.min((time - previousTime) / 1000, 0.05);
       previousTime = time;
       let flash = 0;
-      let tunnelAtmosphere = 0;
 
       if (!jumpComplete) {
         const progress = skipJumpRef.current ? 1 : clamp01(elapsed / DURATION);
@@ -546,19 +538,17 @@ export function HyperspaceIntro() {
         const preLaunchSpeed = 0.18 + charge * 8.2;
         const hyperspaceSpeed = 42 + exitBoost * 14 + launchKick * 30;
         const speed = THREE.MathUtils.lerp(preLaunchSpeed, hyperspaceSpeed, launch) * (1 - braking) + 0.35 * braking;
-        tunnelAtmosphere = (0.18 + launch * 0.82 + chargeWall * 0.92) * (1 - braking);
         travel += speed * delta;
         uniforms.uTravel.value = travel;
         uniforms.uStretch.value = (0.018 + chargeWall * 0.92 + launch * 1.06 + launchKick * 0.5) * (1 - braking) + braking * 0.04;
         uniforms.uWidthScale.value = (0.72 + chargeWall * 1.25 + launch * 0.36 + launchKick * 0.48) * (1 - braking * 0.35);
-        uniforms.uEnergy.value = (0.28 + chargeWall * 1.38 + launch * 0.88 + launchKick * 0.46) * (1 - braking * 0.48);
+        uniforms.uEnergy.value = (0.28 + chargeWall * 1.22 + launch * 0.82 + launchKick * 0.22) * (1 - braking * 0.48);
         uniforms.uOpacity.value = smoothstep(progress / 0.035) * (1 - smoothstep((progress - 0.84) / 0.16));
         world.setOpacity(smoothstep((progress - 0.87) / 0.13));
-        const cruiseBloom = isMobile ? 0.18 : 0.22;
-        bloomPass.strength = cruiseBloom * (0.12 + launch * 0.88) + stretchedCharge * (isMobile ? 0.08 : 0.1) + launchKick * (isMobile ? 0.1 : 0.14);
-        bloomPass.threshold = 0.94 - stretchedCharge * 0.025 - launch * 0.035 - launchKick * 0.03;
-        bloomPass.radius = 0.015 + stretchedCharge * 0.015 + launch * 0.025;
-        renderer.toneMappingExposure = 0.98 + chargeWall * 0.15 + launchKick * 0.16 + launch * 0.02;
+        bloomPass.strength = 0.035 + launch * 0.04 + stretchedCharge * (isMobile ? 0.02 : 0.03);
+        bloomPass.threshold = 0.97;
+        bloomPass.radius = 0.018;
+        renderer.toneMappingExposure = 0.98 + chargeWall * 0.08 + launchKick * 0.05 + launch * 0.02;
 
         const cruiseRumble = launch * (1 - braking);
         camera.position.x = Math.sin(elapsed * 0.0037) * (0.003 + launchKick * 0.04 + cruiseRumble * 0.007);
@@ -614,7 +604,6 @@ export function HyperspaceIntro() {
       }
 
       filmPass.uniforms.uFlash.value = flash;
-      filmPass.uniforms.uTunnelAtmosphere.value = tunnelAtmosphere;
       composer.render(delta);
     };
 
