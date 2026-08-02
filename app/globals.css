@@ -99,6 +99,71 @@ a:focus-visible {
   height: 100%;
 }
 
+.cinema-gate {
+  position: fixed;
+  inset: 0;
+  z-index: 120;
+  display: grid;
+  place-content: center;
+  justify-items: center;
+  gap: 12px;
+  width: 100%;
+  border: 0;
+  background:
+    radial-gradient(circle at 50% 50%, rgba(22, 35, 44, 0.28), transparent 32%),
+    #000104;
+  color: var(--ivory);
+  cursor: pointer;
+  text-transform: uppercase;
+}
+
+.cinema-gate::before,
+.cinema-gate::after {
+  content: "";
+  width: min(360px, 70vw);
+  height: 1px;
+  margin: 8px 0;
+  background: linear-gradient(90deg, transparent, rgba(68, 202, 209, 0.72), transparent);
+}
+
+.cinema-gate span,
+.cinema-gate small {
+  font-family: Consolas, "Cascadia Mono", monospace;
+  font-size: 8px;
+  font-weight: 400;
+  letter-spacing: 0.18em;
+}
+
+.cinema-gate span { color: rgba(231, 226, 214, 0.42); }
+.cinema-gate small { color: var(--cyan); }
+
+.cinema-gate strong {
+  font-family: Bahnschrift, "Arial Narrow", sans-serif;
+  font-size: clamp(22px, 3vw, 38px);
+  letter-spacing: 0.08em;
+}
+
+.cinema-gate:hover strong { color: var(--cyan); }
+
+.header-status {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+}
+
+.audio-toggle {
+  padding: 7px 9px;
+  border: 1px solid rgba(68, 202, 209, 0.28);
+  background: rgba(3, 10, 15, 0.52);
+  color: rgba(231, 226, 214, 0.58);
+  font-family: Consolas, "Cascadia Mono", monospace;
+  font-size: 8px;
+  letter-spacing: 0.12em;
+  cursor: pointer;
+}
+
+.audio-toggle:hover { border-color: rgba(68, 202, 209, 0.7); color: var(--cyan); }
+
 .eyebrow,
 .signal-state,
 .hero-meta,
@@ -472,6 +537,7 @@ h1 span {
 
 @media (max-width: 700px) {
   .signal-state { display: none; }
+  .header-status { gap: 0; }
   .hero-actions { align-items: flex-start; flex-direction: column; gap: 10px; }
   .hero-meta { display: none; }
   .scroll-cue { bottom: 24px; }

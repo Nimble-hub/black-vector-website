@@ -18,9 +18,14 @@ export default function Home() {
             <span className="wordmark-mark" aria-hidden="true">BV</span>
             <span>BLACK VECTOR</span>
           </a>
-          <div className="signal-state">
-            <span aria-hidden="true" />
-            V.A.L.O.R. UPLINK // ACTIVE
+          <div className="header-status">
+            <button className="audio-toggle" type="button" data-audio-toggle aria-pressed="true">
+              AUDIO // ON
+            </button>
+            <div className="signal-state">
+              <span aria-hidden="true" />
+              V.A.L.O.R. UPLINK // ACTIVE
+            </div>
           </div>
         </header>
 

@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import * as THREE from "three";
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
 import { HyperspaceIntro2D } from "./hyperspace-intro-2d";
+import { HyperspaceAudio } from "./hyperspace-audio";
 
 const DURATION = 15000;
 const DEPTH = 132;
@@ -427,9 +428,18 @@ export function HyperspaceIntro() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const skipJumpRef = useRef(false);
   const interfaceTimerRef = useRef<number | null>(null);
+  const audioRef = useRef<HyperspaceAudio | null>(null);
   const [runId, setRunId] = useState(0);
   const [jumping, setJumping] = useState(true);
   const [fallback, setFallback] = useState(false);
+  const [experienceReady, setExperienceReady] = useState(false);
+  const [needsEngagement, setNeedsEngagement] = useState(false);
+
+  const engage = useCallback(() => {
+    setNeedsEngagement(false);
+    setExperienceReady(true);
+    void audioRef.current?.start();
+  }, []);
 
   const finish = useCallback(() => {
     skipJumpRef.current = true;
@@ -445,11 +455,46 @@ export function HyperspaceIntro() {
 
   const replay = useCallback(() => {
     skipJumpRef.current = false;
+    setExperienceReady(true);
+    void audioRef.current?.start();
     if (interfaceTimerRef.current) window.clearTimeout(interfaceTimerRef.current);
     document.documentElement.classList.remove("experience-arriving");
     document.documentElement.classList.remove("experience-landed");
     setJumping(true);
     setRunId((value) => value + 1);
+  }, []);
+
+  useEffect(() => {
+    const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    const hasSeenJump = Boolean(window.sessionStorage.getItem(SEEN_KEY));
+    const storedMuted = window.localStorage.getItem("black-vector-audio-muted") === "true";
+    const audio = new HyperspaceAudio(storedMuted);
+    audioRef.current = audio;
+    const readinessTimer = window.setTimeout(() => {
+      setNeedsEngagement(!hasSeenJump && !reducedMotion);
+      setExperienceReady(hasSeenJump || reducedMotion);
+    }, 0);
+
+    const button = document.querySelector<HTMLButtonElement>("[data-audio-toggle]");
+    const updateButton = () => {
+      if (!button) return;
+      button.textContent = audio.isMuted ? "AUDIO // OFF" : "AUDIO // ON";
+      button.setAttribute("aria-pressed", String(!audio.isMuted));
+    };
+    const toggleAudio = () => {
+      const muted = !audio.isMuted;
+      audio.setMuted(muted);
+      window.localStorage.setItem("black-vector-audio-muted", String(muted));
+      updateButton();
+    };
+    updateButton();
+    button?.addEventListener("click", toggleAudio);
+    return () => {
+      window.clearTimeout(readinessTimer);
+      button?.removeEventListener("click", toggleAudio);
+      audio.dispose();
+      audioRef.current = null;
+    };
   }, []);
 
   useEffect(() => {
@@ -467,7 +512,7 @@ export function HyperspaceIntro() {
   }, [finish, jumping]);
 
   useEffect(() => {
-    if (fallback) return;
+    if (fallback || !experienceReady) return;
     const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
     const shouldJump = runId > 0 || (!window.sessionStorage.getItem(SEEN_KEY) && !reducedMotion);
     skipJumpRef.current = !shouldJump;
@@ -754,7 +799,7 @@ export function HyperspaceIntro() {
       for (const item of world.textures) item.dispose();
       renderer.dispose();
     };
-  }, [fallback, finish, runId]);
+  }, [experienceReady, fallback, finish, runId]);
 
   useEffect(() => () => {
     if (interfaceTimerRef.current) window.clearTimeout(interfaceTimerRef.current);
@@ -764,11 +809,20 @@ export function HyperspaceIntro() {
   if (fallback) return <HyperspaceIntro2D />;
 
   return (
-    <div
-      className={`space-experience${jumping ? " is-jumping" : " is-landed"}`}
-      aria-label={jumping ? "Three-dimensional hyperspace transit sequence" : "Three-dimensional Black Vector fleet theater"}
-    >
-      <canvas ref={canvasRef} aria-hidden="true" />
-    </div>
+    <>
+      {needsEngagement && (
+        <button className="cinema-gate" type="button" onClick={engage}>
+          <span>BLACK VECTOR // CINEMATIC EXPERIENCE</span>
+          <strong>INITIATE TRANSIT</strong>
+          <small>CINEMATIC AUDIO ENABLED</small>
+        </button>
+      )}
+      <div
+        className={`space-experience${jumping ? " is-jumping" : " is-landed"}`}
+        aria-label={jumping ? "Three-dimensional hyperspace transit sequence" : "Three-dimensional Black Vector fleet theater"}
+      >
+        <canvas ref={canvasRef} aria-hidden="true" />
+      </div>
+    </>
   );
 }
