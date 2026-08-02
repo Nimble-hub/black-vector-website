@@ -41,6 +41,7 @@ const vertexShader = `
   uniform float uWidthScale;
   uniform float uFormation;
   uniform float uWallAdvance;
+  uniform float uWallScale;
   uniform vec2 uResolution;
 
   varying vec2 vRibbonUv;
@@ -60,7 +61,7 @@ const vertexShader = `
     float headZ = min(anchorZ + aLength * uForwardStretch, -uNear);
     float tailZ = anchorZ - aLength * uBackwardStretch;
     vec2 radialDirection = vec2(cos(aAngle), sin(aAngle));
-    vec2 radial = radialDirection * mix(wallRadius, aRadius, uFormation);
+    vec2 radial = radialDirection * mix(wallRadius * uWallScale, aRadius, uFormation);
 
     vec4 clipTail = projectionMatrix * modelViewMatrix * vec4(radial, tailZ, 1.0);
     vec4 clipHead = projectionMatrix * modelViewMatrix * vec4(radial, headZ, 1.0);
@@ -145,6 +146,7 @@ const tunnelDustVertexShader = `
   uniform float uOpacity;
   uniform float uFormation;
   uniform float uWallAdvance;
+  uniform float uWallScale;
 
   varying float vBrightness;
   varying float vLife;
@@ -158,7 +160,7 @@ const tunnelDustVertexShader = `
       + (fract(aSeedZ * 0.191 + aAngle * 0.41) - 0.5) * mix(3.4, 0.7, uWallAdvance);
     float z = mix(wallZ, tunnelZ, uFormation);
     vec2 radialDirection = vec2(cos(aAngle), sin(aAngle));
-    vec2 radial = radialDirection * mix(wallRadius, aRadius, uFormation);
+    vec2 radial = radialDirection * mix(wallRadius * uWallScale, aRadius, uFormation);
     vec4 viewPosition = modelViewMatrix * vec4(radial, z, 1.0);
     gl_Position = projectionMatrix * viewPosition;
     gl_PointSize = clamp(aSize * (18.0 / max(-viewPosition.z, 1.0)), 0.7, 4.2);
@@ -1365,6 +1367,7 @@ export function HyperspaceIntro() {
       uWidthScale: { value: shouldJump ? 0.76 : 1 },
       uFormation: { value: shouldJump ? 0 : 1 },
       uWallAdvance: { value: 0 },
+      uWallScale: { value: shouldJump ? 0.68 : 1 },
       uEnergy: { value: shouldJump ? 0.24 : 1 },
       uSymmetry: { value: shouldJump ? 1 : 0 },
       uResolution: { value: new THREE.Vector2(1, 1) },
@@ -1394,6 +1397,7 @@ export function HyperspaceIntro() {
       uOpacity: { value: 0 },
       uFormation: { value: shouldJump ? 0 : 1 },
       uWallAdvance: { value: 0 },
+      uWallScale: { value: shouldJump ? 0.68 : 1 },
     };
     const tunnelDustGeometry = createTunnelDustGeometry(isMobile ? 420 : 900);
     const tunnelDustMaterial = new THREE.ShaderMaterial({
@@ -1613,6 +1617,7 @@ export function HyperspaceIntro() {
         const visualLaunch = smoothstep((progress - 0.285) / 0.055);
         const wallAdvance = smoothstep((progress - 0.282) / 0.05);
         const tunnelFormation = smoothstep((progress - 0.312) / 0.075);
+        const wallFill = smoothstep((progress - 0.075) / 0.205);
         const braking = smoothstep((progress - 0.84) / 0.055);
         const exitArrival = smoothstep((progress - 0.89) / 0.11);
         const lineGrowth = smoothstep((progress - 0.04) / 0.31);
@@ -1623,9 +1628,11 @@ export function HyperspaceIntro() {
         uniforms.uTravel.value = travel;
         uniforms.uFormation.value = tunnelFormation;
         uniforms.uWallAdvance.value = wallAdvance;
+        uniforms.uWallScale.value = 0.68 + wallFill * 1.05;
         tunnelDustUniforms.uTravel.value = travel;
         tunnelDustUniforms.uFormation.value = tunnelFormation;
         tunnelDustUniforms.uWallAdvance.value = wallAdvance;
+        tunnelDustUniforms.uWallScale.value = 0.68 + wallFill * 1.05;
         tunnelDustUniforms.uOpacity.value = (0.02 + charge * 0.16 + visualLaunch * 0.36) * (1 - braking);
         warpBubbleUniforms.uTime.value = elapsed * 0.001;
         warpBubbleUniforms.uTravel.value = travel;
