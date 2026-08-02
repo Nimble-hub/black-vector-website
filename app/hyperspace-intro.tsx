@@ -177,16 +177,26 @@ const launchOpticsShader = {
         ? vec2(aspectVector.x / uAspect, aspectVector.y) / radial
         : vec2(0.0);
 
-      // The lens briefly compresses the charged star wall before the jump.
-      // As launch begins, a refractive pressure front races from the vanishing
-      // point to the edge and hands the image into the radial velocity smear.
-      float radialSquared = radial * radial;
-      float compressionScale = 1.0 + uLensCompression * (0.028 + radialSquared * 0.115);
-      float waveRadius = mix(0.035, 1.15, pow(clamp(uLaunchPhase, 0.0, 1.0), 0.68));
-      float waveDistance = (radial - waveRadius) / 0.105;
-      float pressureWave = exp(-waveDistance * waveDistance) * uShockwave;
-      vec2 opticalUv = 0.5 + fromCenter * compressionScale;
-      opticalUv -= radialDirection * pressureWave * (0.012 + radial * 0.018);
+      // Model the launch lens as a coherent cylindrical metric around the
+      // tunnel mouth. The signed gradient bends light in opposite directions
+      // on either side of the shell, while the screen edge remains undisturbed.
+      float screenRadius = max(abs(fromCenter.x) * 2.0, abs(fromCenter.y) * 2.0);
+      float edgeFade = 1.0 - smoothstep(0.8, 0.99, screenRadius);
+      float tunnelField = smoothstep(0.035, 0.11, radial)
+        * (1.0 - smoothstep(0.46, 0.62, radial))
+        * edgeFade;
+      float compressionDisplacement = uLensCompression
+        * (0.012 + radial * 0.022)
+        * tunnelField;
+
+      float shellRadius = mix(0.055, 0.52, pow(clamp(uLaunchPhase, 0.0, 1.0), 0.7));
+      float shellDistance = (radial - shellRadius) / 0.115;
+      float shellDensity = exp(-shellDistance * shellDistance) * edgeFade;
+      float metricGradient = -shellDistance * shellDensity;
+      float metricDisplacement = metricGradient * uShockwave * 0.026;
+      vec2 opticalUv = vUv + radialDirection
+        * (compressionDisplacement + metricDisplacement);
+      opticalUv = mix(vUv, opticalUv, edgeFade);
 
       vec3 blur = vec3(0.0);
       float totalWeight = 0.0;
@@ -196,7 +206,7 @@ const launchOpticsShader = {
         float stepAmount = linearStep * linearStep;
         float weight = 1.0 - linearStep * 0.58;
         vec2 sampleUv = clamp(
-          opticalUv - fromCenter * uStrength * stepAmount * (0.72 + radial * 0.58),
+          opticalUv - fromCenter * uStrength * tunnelField * stepAmount,
           vec2(0.001),
           vec2(0.999)
         );
@@ -205,16 +215,18 @@ const launchOpticsShader = {
       }
 
       blur /= totalWeight;
-      float spectralAmount = uChromatic * smoothstep(0.06, 0.88, radial) * (0.45 + radial);
+      float spectralAmount = uChromatic
+        * tunnelField
+        * (0.18 + shellDensity * 0.82);
       vec2 spectralOffset = radialDirection * spectralAmount;
       float red = texture2D(tDiffuse, clamp(opticalUv - spectralOffset, 0.001, 0.999)).r;
       float blue = texture2D(tDiffuse, clamp(opticalUv + spectralOffset, 0.001, 0.999)).b;
       blur.r = mix(blur.r, red, 0.74);
       blur.b = mix(blur.b, blue, 0.74);
 
-      float edgeLift = smoothstep(0.16, 0.94, radial) * uExposureKick * 0.105;
-      float waveLift = pressureWave * uExposureKick * 0.13;
-      vec3 color = blur * (1.0 + uExposureKick * 0.135 + edgeLift + waveLift);
+      float tunnelLift = tunnelField * uExposureKick * 0.075;
+      float shellLift = shellDensity * uExposureKick * 0.14;
+      vec3 color = blur * (1.0 + uExposureKick * 0.1 + tunnelLift + shellLift);
       gl_FragColor = vec4(color, 1.0);
     }
   `,
@@ -2042,8 +2054,8 @@ export function HyperspaceIntro() {
 
         launchOpticsPass.uniforms.uStrength.value = launchOptics * (isMobile ? 0.048 : 0.07)
           + launchImpulse * (isMobile ? 0.052 : 0.072);
-        launchOpticsPass.uniforms.uChromatic.value = launchOptics * (isMobile ? 0.0048 : 0.0072)
-          + launchImpulse * (isMobile ? 0.0018 : 0.0028);
+        launchOpticsPass.uniforms.uChromatic.value = launchOptics * (isMobile ? 0.0008 : 0.0012)
+          + launchImpulse * (isMobile ? 0.00035 : 0.00055);
         launchOpticsPass.uniforms.uExposureKick.value = Math.max(launchOptics, launchImpulse);
         launchOpticsPass.uniforms.uLensCompression.value = launchCompression * (isMobile ? 0.78 : 1.08);
         launchOpticsPass.uniforms.uShockwave.value = launchOptics * 0.92;
