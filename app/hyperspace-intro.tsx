@@ -57,6 +57,7 @@ const vertexShader = `
   uniform float uWarpRelease;
   uniform float uWarpPhase;
   uniform float uWarpCruise;
+  uniform float uFormation;
   uniform vec2 uResolution;
 
   varying vec2 vRibbonUv;
@@ -84,6 +85,12 @@ const vertexShader = `
       + tensionCurve * 0.16
       + uWarpRelease * (shell * 0.22 + shellSlope * 0.055)
       + cruiseWave;
+    float aperture = mix(
+      0.42,
+      1.0,
+      pow(clamp(uFormation, 0.0, 1.0), 0.72)
+    );
+    radialScale *= aperture;
 
     float anchorZ = min(
       -uDepth + travel + uWarpRelease * shellSlope * 3.2,
@@ -181,6 +188,7 @@ const tunnelDustVertexShader = `
   uniform float uWarpPhase;
   uniform float uWarpCruise;
   uniform float uLaunchDust;
+  uniform float uFormation;
 
   varying float vBrightness;
   varying float vLife;
@@ -201,6 +209,12 @@ const tunnelDustVertexShader = `
       + uWarpTension * throatField * 0.16
       + uWarpRelease * (shell * 0.22 + shellSlope * 0.055)
       + cruiseWave;
+    float aperture = mix(
+      0.42,
+      1.0,
+      pow(clamp(uFormation, 0.0, 1.0), 0.72)
+    );
+    radialScale *= aperture;
     float wakeGather = uLaunchDust * (0.22 + shell * 0.34);
     radialScale *= 1.0 - wakeGather;
     float z = -uDepth
@@ -210,11 +224,11 @@ const tunnelDustVertexShader = `
     vec2 radial = vec2(cos(aAngle), sin(aAngle)) * aRadius * radialScale;
     vec4 viewPosition = modelViewMatrix * vec4(radial, z, 1.0);
     gl_Position = projectionMatrix * viewPosition;
-    float launchScale = 1.0 + uLaunchDust * (0.55 + shell * 1.4);
+    float launchScale = 1.0 + uLaunchDust * (0.18 + shell * 0.65);
     gl_PointSize = clamp(
       aSize * launchScale * (18.0 / max(-viewPosition.z, 1.0)),
-      0.7,
-      8.0
+      0.55,
+      5.2
     );
 
     vBrightness = aBrightness;
@@ -235,10 +249,21 @@ const tunnelDustFragmentShader = `
   void main() {
     vec2 point = gl_PointCoord - 0.5;
     float distanceFromCenter = length(point);
-    float speck = 1.0 - smoothstep(0.18, 0.5, distanceFromCenter);
-    float core = 1.0 - smoothstep(0.0, 0.15, distanceFromCenter);
+    float crystalAngle = vDustDynamics.z * 1.6180339;
+    float crystalCos = cos(crystalAngle);
+    float crystalSin = sin(crystalAngle);
+    vec2 crystalPoint = mat2(
+      crystalCos,
+      -crystalSin,
+      crystalSin,
+      crystalCos
+    ) * point;
+    float diamondDistance = abs(crystalPoint.x) + abs(crystalPoint.y);
+    float diamond = 1.0 - smoothstep(0.16, 0.49, diamondDistance);
+    float facet = 1.0 - smoothstep(0.02, 0.25, diamondDistance);
+    float core = 1.0 - smoothstep(0.0, 0.105, distanceFromCenter);
     float launchSpark = vDustDynamics.x * (0.34 + vDustDynamics.y * 0.66);
-    float diamond = 1.0 - smoothstep(0.1, 0.48, abs(point.x) + abs(point.y));
+    float glintEnergy = 0.16 + launchSpark * 0.84;
     vec2 radialAxis = vec2(cos(vDustDynamics.z), sin(vDustDynamics.z));
     vec2 tangentAxis = vec2(-radialAxis.y, radialAxis.x);
     float along = abs(dot(point, radialAxis));
@@ -246,25 +271,25 @@ const tunnelDustFragmentShader = `
     float microStreak = (1.0 - smoothstep(0.1, 0.5, along))
       * (1.0 - smoothstep(0.025, 0.11, across))
       * launchSpark;
-    float horizontalRay = 1.0 - smoothstep(0.035, 0.12, abs(point.y));
-    float verticalRay = 1.0 - smoothstep(0.035, 0.12, abs(point.x));
-    float rayFade = 1.0 - smoothstep(0.1, 0.5, distanceFromCenter);
+    float horizontalRay = 1.0 - smoothstep(0.018, 0.075, abs(point.y));
+    float verticalRay = 1.0 - smoothstep(0.018, 0.075, abs(point.x));
+    float rayFade = 1.0 - smoothstep(0.06, 0.5, distanceFromCenter);
     float diffraction = max(horizontalRay, verticalRay * 0.7)
       * rayFade
-      * launchSpark;
+      * glintEnergy;
     vec3 ice = mix(vec3(0.34, 0.7, 1.0), vec3(0.97, 0.995, 1.0), core);
-    float particleProfile = max(speck, diamond * launchSpark * 0.92);
-    float alpha = max(max(particleProfile, diffraction * 0.56), microStreak * 0.74)
+    float alpha = max(max(diamond, diffraction * 0.36), microStreak * 0.68)
       * vLife
       * vBrightness
-      * (1.0 + launchSpark * 0.58);
+      * (1.0 + launchSpark * 0.42);
     gl_FragColor = vec4(
       ice * (
-        0.62
-        + core * 0.72
-        + launchSpark * 0.55
-        + diffraction * 0.9
-        + microStreak * 1.05
+        0.78
+        + facet * 0.62
+        + core * 0.55
+        + launchSpark * 0.38
+        + diffraction * 1.2
+        + microStreak * 0.92
       ),
       alpha
     );
@@ -518,6 +543,11 @@ const gravitationalLensShader = {
       float outerSkin = exp(-pow(outerDistance / (ringWidth * 1.16), 2.0) * 1.85);
       float shellStack = photonRing + innerSkin * 0.48 + outerSkin * 0.34;
       float outerField = 1.0 - smoothstep(horizon * 0.96, horizon * 3.85, radius);
+      float wideField = 1.0 - smoothstep(
+        horizon * 1.05,
+        max(horizon * 6.4, 1.05),
+        radius
+      );
       float innerGuard = smoothstep(horizon * 0.22, horizon * 0.78, radius);
       float falloff = (horizon * horizon) /
         max(radius * radius + horizon * horizon * 0.3, 0.0001);
@@ -526,15 +556,21 @@ const gravitationalLensShader = {
         + (-outerDistance / max(ringWidth, 0.001)) * outerSkin * 0.28;
       float deflection = uStrength * outerField * innerGuard * falloff * 0.082
         + shellFold * uStrength * (0.0125 + uCruise * 0.0042)
-        + uFlash * outerField * innerGuard * falloff * 0.035;
+        + uFlash * outerField * innerGuard * falloff * 0.035
+        + uStrength * wideField * innerGuard
+          * (0.0055 + uFlash * 0.016 + uCruise * 0.0018);
       vec2 uvMin = vec2(0.001);
       vec2 uvMax = vec2(0.999);
       float orbitalShear = (
         sin(angle * 3.0 + uTime * 0.34)
           + sin(angle * 5.0 - uTime * 0.19) * 0.38
       ) * shellStack * uStrength * (0.0011 + uCruise * 0.00075);
+      float pressureShear = sin(angle * 2.0 - uTime * 0.22)
+        * wideField
+        * uStrength
+        * (0.0007 + uFlash * 0.0028);
       vec2 warpedUv = clamp(
-        vUv + radialUv * deflection + tangentUv * orbitalShear,
+        vUv + radialUv * deflection + tangentUv * (orbitalShear + pressureShear),
         uvMin,
         uvMax
       );
@@ -544,7 +580,12 @@ const gravitationalLensShader = {
         * uStrength
         * (0.0032 + uCruise * 0.0018);
 
-      float stretchMask = outerField * smoothstep(horizon * 0.32, horizon * 2.65, radius);
+      float localStretch = outerField
+        * smoothstep(horizon * 0.32, horizon * 2.65, radius);
+      float wideStretch = wideField
+        * smoothstep(horizon * 1.2, horizon * 5.4, radius)
+        * (0.16 + uFlash * 0.5 + uCruise * 0.1);
+      float stretchMask = max(localStretch, wideStretch);
       vec2 stretchOffset = radialUv * uStretch * (0.35 + photonRing * 0.65);
       vec3 base = texture2D(tDiffuse, vUv).rgb;
       vec3 warped = texture2D(tDiffuse, warpedUv).rgb;
@@ -560,7 +601,12 @@ const gravitationalLensShader = {
       float stretchBlend = clamp(uStretch * 9.0, 0.0, 0.94) * stretchMask;
       vec3 lensed = mix(warped, streak, stretchBlend);
 
-      float chroma = (shellStack * uStrength * 0.00145 + uStretch * 0.0034) * outerField;
+      float fieldBlend = max(
+        outerField,
+        wideField * (0.2 + uFlash * 0.48 + uCruise * 0.12)
+      );
+      float chroma = (shellStack * uStrength * 0.00145 + uStretch * 0.0034)
+        * fieldBlend;
       lensed.r = texture2D(tDiffuse, clamp(warpedUv - radialUv * chroma, uvMin, uvMax)).r;
       lensed.b = texture2D(tDiffuse, clamp(warpedUv + radialUv * chroma, uvMin, uvMax)).b;
       float compressedLight = max(sceneLuma(lensed) - sceneLuma(base), 0.0);
@@ -573,7 +619,7 @@ const gravitationalLensShader = {
         * (photonRing * 0.12 + horizontalFlare * 0.075) * uFlash;
       float core = (1.0 - smoothstep(horizon * 0.28, horizon * 0.86, radius))
         * uDarkness;
-      vec3 color = mix(base, lensed, outerField);
+      vec3 color = mix(base, lensed, fieldBlend);
       color += ringLight + launchLight;
       color *= 1.0 - core * 0.68;
       gl_FragColor = vec4(color, 1.0);
@@ -1123,10 +1169,10 @@ function createTunnelDustGeometry(count: number) {
       ? 0.18 + Math.pow(Math.random(), 1.62) * 3.7
       : 2.7 + Math.pow(Math.random(), 0.78) * 9.5;
     seeds[index] = Math.random() * DEPTH;
-    sizes[index] = (isCoreDust ? 1.32 : 1.02)
-      + Math.pow(Math.random(), 1.8) * 2.35;
-    brightness[index] = (isCoreDust ? 0.62 : 0.32)
-      + Math.random() * (isCoreDust ? 0.38 : 0.54);
+    sizes[index] = (isCoreDust ? 0.7 : 0.6)
+      + Math.pow(Math.random(), 2.1) * (isCoreDust ? 1.25 : 1.1);
+    brightness[index] = (isCoreDust ? 0.74 : 0.46)
+      + Math.random() * (isCoreDust ? 0.26 : 0.44);
   }
 
   geometry.setAttribute("position", new THREE.BufferAttribute(positions, 3));
@@ -1928,6 +1974,7 @@ export function HyperspaceIntro() {
       uWarpRelease: { value: 0 },
       uWarpPhase: { value: 0 },
       uWarpCruise: { value: 0 },
+      uFormation: { value: 0 },
       uResolution: { value: new THREE.Vector2(1, 1) },
     };
     const geometry = createTunnelGeometry(isMobile ? 1350 : 2300);
@@ -1958,8 +2005,9 @@ export function HyperspaceIntro() {
       uWarpPhase: { value: 0 },
       uWarpCruise: { value: 0 },
       uLaunchDust: { value: 0 },
+      uFormation: { value: 0 },
     };
-    const tunnelDustGeometry = createTunnelDustGeometry(isMobile ? 520 : 1300);
+    const tunnelDustGeometry = createTunnelDustGeometry(isMobile ? 720 : 1800);
     const tunnelDustMaterial = new THREE.ShaderMaterial({
       uniforms: tunnelDustUniforms,
       vertexShader: tunnelDustVertexShader,
@@ -2186,11 +2234,14 @@ export function HyperspaceIntro() {
         const progress = skipJumpRef.current ? 1 : clamp01(elapsed / DURATION);
         // Keep the light wall charging while acceleration begins so the short
         // traces stretch into hyperspace as one uninterrupted motion.
-        const charge = smoothstep(progress / LAUNCH_PROGRESS);
+        const sequencePressure = smoothstep(
+          (progress - 0.025) / (LAUNCH_PROGRESS - 0.025),
+        );
+        const charge = sequencePressure;
         const launchProgress = clamp01((progress - LAUNCH_PROGRESS) / 0.014);
         const launch = 1 - Math.pow(1 - launchProgress, 4);
         const visualLaunch = smoothstep((progress - LAUNCH_PROGRESS) / 0.035);
-        const tensionAttack = smoothstep((progress - 0.05) / 0.22);
+        const tensionAttack = smoothstep((sequencePressure - 0.08) / 0.72);
         const tensionRelease = 1 - smoothstep((progress - LAUNCH_PROGRESS) / 0.028);
         const warpTension = tensionAttack * tensionRelease;
         const warpReleaseAttack = smoothstep((progress - LAUNCH_PROGRESS) / 0.014);
@@ -2201,21 +2252,21 @@ export function HyperspaceIntro() {
         const warpPhase = clamp01((progress - LAUNCH_PROGRESS) / 0.21);
         const braking = smoothstep((progress - 0.84) / 0.055);
         const exitArrival = smoothstep((progress - 0.89) / 0.11);
-        const lineGrowth = smoothstep((progress - 0.04) / (LAUNCH_PROGRESS - 0.04));
+        const lineGrowth = sequencePressure;
         const preLaunchSpeed = 0;
         const hyperspaceSpeed = 92;
         const speed = THREE.MathUtils.lerp(preLaunchSpeed, hyperspaceSpeed, launch) * (1 - braking) + 0.35 * braking;
         travel += speed * delta;
         const dustSuction = smoothstep(
-          (progress - (LAUNCH_PROGRESS - 0.1)) / 0.09,
+          (sequencePressure - 0.55) / 0.45,
         );
         const dustReveal = smoothstep(
-          (progress - (LAUNCH_PROGRESS - 0.27)) / 0.19,
+          (sequencePressure - 0.12) / 0.62,
         );
         const dustSpeed = (
-          charge * 2.5
-          + dustReveal * dustReveal * 8
-          + dustSuction * dustSuction * 30
+          sequencePressure * 2.2
+          + sequencePressure * sequencePressure * 7
+          + Math.pow(dustSuction, 3) * 30
           + speed * 1.35
         ) * (1 - braking) + braking * 0.5;
         dustTravel += dustSpeed * delta;
@@ -2237,10 +2288,11 @@ export function HyperspaceIntro() {
         tunnelDustUniforms.uWarpRelease.value = warpRelease;
         tunnelDustUniforms.uWarpPhase.value = warpPhase;
         tunnelDustUniforms.uWarpCruise.value = visualLaunch * (1 - braking);
+        tunnelDustUniforms.uFormation.value = sequencePressure;
         tunnelDustUniforms.uLaunchDust.value = Math.min(
           1,
-          dustReveal * 0.24
-            + dustSuction * (0.2 + warpTension * 0.48)
+          dustReveal * 0.14
+            + dustSuction * (0.18 + warpTension * 0.46)
             + launchImpulse * 0.95
             + warpRelease * 0.78,
         );
@@ -2295,6 +2347,7 @@ export function HyperspaceIntro() {
         uniforms.uWarpRelease.value = warpRelease;
         uniforms.uWarpPhase.value = warpPhase;
         uniforms.uWarpCruise.value = visualLaunch * (1 - braking);
+        uniforms.uFormation.value = sequencePressure;
         uniforms.uOpacity.value = smoothstep(progress / 0.015)
           * (0.24 + charge * 0.76)
           * (1 - visualLaunch * 0.14)
