@@ -24,6 +24,18 @@ export default function Home() {
           </div>
         </header>
 
+        <div className="world-label world-label-planet" data-world-anchor="planet" aria-hidden="true">
+          <span>CELESTIAL CONTACT // PRIMARY</span>
+          <strong>UNREGISTERED STORMWORLD</strong>
+          <small>ORBITAL SOLUTION LOCKED</small>
+        </div>
+
+        <div className="world-label world-label-flagship" data-world-anchor="flagship" aria-hidden="true">
+          <span>FLEET CONTACT // 01</span>
+          <strong>CARRIER GROUP</strong>
+          <small>FORMATION HOLDING</small>
+        </div>
+
         <div className="hero-content" id="top">
           <p className="eyebrow">THE 27-DAY SKIRMISH // AFTER-ACTION ARCHIVE</p>
           <h1 id="hero-title">

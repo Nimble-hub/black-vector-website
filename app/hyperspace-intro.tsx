@@ -2,18 +2,13 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import * as THREE from "three";
-import { EffectComposer } from "three/examples/jsm/postprocessing/EffectComposer.js";
-import { OutputPass } from "three/examples/jsm/postprocessing/OutputPass.js";
-import { RenderPass } from "three/examples/jsm/postprocessing/RenderPass.js";
-import { ShaderPass } from "three/examples/jsm/postprocessing/ShaderPass.js";
-import { FXAAShader } from "three/examples/jsm/shaders/FXAAShader.js";
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
 import { HyperspaceIntro2D } from "./hyperspace-intro-2d";
 
 const DURATION = 15000;
 const DEPTH = 132;
 const NEAR = 0.68;
-const SEEN_KEY = "black-vector-jump-seen-3d-v19";
+const SEEN_KEY = "black-vector-jump-seen-3d-v20";
 
 function clamp01(value: number) {
   return Math.max(0, Math.min(1, value));
@@ -172,6 +167,7 @@ function createDeepSpaceWorld(isMobile: boolean) {
   const fleet = new THREE.Group();
   const geometries: THREE.BufferGeometry[] = [];
   const materials: THREE.Material[] = [];
+  const textures: THREE.Texture[] = [];
 
   const trackGeometry = <T extends THREE.BufferGeometry>(geometry: T) => {
     geometries.push(geometry);
@@ -184,7 +180,25 @@ function createDeepSpaceWorld(isMobile: boolean) {
     return material;
   };
 
-  const starCount = isMobile ? 1500 : 2800;
+  const starCanvas = document.createElement("canvas");
+  starCanvas.width = 32;
+  starCanvas.height = 32;
+  const starContext = starCanvas.getContext("2d");
+  if (starContext) {
+    const starGradient = starContext.createRadialGradient(16, 16, 0, 16, 16, 15);
+    starGradient.addColorStop(0, "rgba(255,255,255,1)");
+    starGradient.addColorStop(0.22, "rgba(236,249,255,0.96)");
+    starGradient.addColorStop(0.58, "rgba(150,210,238,0.34)");
+    starGradient.addColorStop(1, "rgba(100,180,220,0)");
+    starContext.fillStyle = starGradient;
+    starContext.fillRect(0, 0, 32, 32);
+  }
+  const starSprite = new THREE.CanvasTexture(starCanvas);
+  starSprite.colorSpace = THREE.SRGBColorSpace;
+  starSprite.generateMipmaps = true;
+  textures.push(starSprite);
+
+  const starCount = isMobile ? 850 : 1450;
   const starPositions = new Float32Array(starCount * 3);
   const starColors = new Float32Array(starCount * 3);
   const starColor = new THREE.Color();
@@ -204,22 +218,31 @@ function createDeepSpaceWorld(isMobile: boolean) {
   starGeometry.setAttribute("position", new THREE.BufferAttribute(starPositions, 3));
   starGeometry.setAttribute("color", new THREE.BufferAttribute(starColors, 3));
   const starMaterial = trackMaterial(new THREE.PointsMaterial({
-    size: isMobile ? 0.105 : 0.075,
+    size: isMobile ? 0.18 : 0.14,
     sizeAttenuation: true,
     vertexColors: true,
+    map: starSprite,
+    alphaTest: 0.035,
     depthWrite: false,
     blending: THREE.AdditiveBlending,
   }));
   group.add(new THREE.Points(starGeometry, starMaterial));
 
+  const planetTexture = new THREE.TextureLoader().load("/textures/bv-alien-planet.webp");
+  planetTexture.colorSpace = THREE.SRGBColorSpace;
+  planetTexture.wrapS = THREE.RepeatWrapping;
+  planetTexture.anisotropy = 4;
+  textures.push(planetTexture);
   const planetMaterial = trackMaterial(new THREE.MeshStandardMaterial({
-    color: 0x101b23,
-    roughness: 0.94,
-    metalness: 0.04,
+    color: 0xffffff,
+    map: planetTexture,
+    roughness: 0.88,
+    metalness: 0.02,
   }));
-  const planetGeometry = trackGeometry(new THREE.SphereGeometry(12, isMobile ? 32 : 56, isMobile ? 20 : 36));
+  const planetGeometry = trackGeometry(new THREE.SphereGeometry(12.8, isMobile ? 40 : 64, isMobile ? 24 : 40));
   const planet = new THREE.Mesh(planetGeometry, planetMaterial);
-  planet.position.set(-19, 8, -57);
+  planet.position.set(10.5, 0.8, -43);
+  planet.rotation.set(-0.08, -1.12, 0.04);
   group.add(planet);
 
   const atmosphereMaterial = trackMaterial(new THREE.MeshBasicMaterial({
@@ -300,10 +323,10 @@ function createDeepSpaceWorld(isMobile: boolean) {
     return ship;
   };
 
-  const flagship = createShip(1.05, new THREE.Vector3(4.5, -0.9, -18), 0.18);
-  createShip(0.34, new THREE.Vector3(-7.5, 2.7, -31), -0.2);
-  createShip(0.27, new THREE.Vector3(10.5, 4.2, -39), 0.28);
-  createShip(0.2, new THREE.Vector3(-3.4, -4.1, -27), 0.08);
+  const flagship = createShip(1.05, new THREE.Vector3(-2.8, -0.8, -20), 0.18);
+  createShip(0.34, new THREE.Vector3(5.8, 4.2, -31), -0.2);
+  createShip(0.27, new THREE.Vector3(15.8, -3.8, -37), 0.28);
+  createShip(0.2, new THREE.Vector3(-9.2, 3.4, -29), 0.08);
   group.add(fleet);
 
   let assetLoadCancelled = false;
@@ -363,15 +386,15 @@ function createDeepSpaceWorld(isMobile: boolean) {
     },
   );
 
-  const ringGeometry = trackGeometry(new THREE.TorusGeometry(7.8, 0.018, 4, 96));
+  const ringGeometry = trackGeometry(new THREE.TorusGeometry(14.5, 0.022, 4, 128));
   const ringMaterial = trackMaterial(new THREE.MeshBasicMaterial({
     color: 0x44cad1,
     blending: THREE.AdditiveBlending,
     depthWrite: false,
   }));
   const orbitalRing = new THREE.Mesh(ringGeometry, ringMaterial);
-  orbitalRing.position.set(-8, -4.7, -39);
-  orbitalRing.rotation.set(1.18, 0.22, 0.45);
+  orbitalRing.position.copy(planet.position);
+  orbitalRing.rotation.set(0, 0, 0.12);
   group.add(orbitalRing);
 
   const hemisphere = new THREE.HemisphereLight(0x9ad8e5, 0x030508, 1.15);
@@ -387,14 +410,14 @@ function createDeepSpaceWorld(isMobile: boolean) {
     atmosphereMaterial.opacity = eased * 0.17;
     engineMaterial.opacity = eased * 0.92;
     ringMaterial.opacity = eased * 0.46;
-    starMaterial.opacity = eased * 0.82;
+    starMaterial.opacity = eased * 0.72;
   };
 
   const cancelAssetLoad = () => {
     assetLoadCancelled = true;
   };
 
-  return { group, fleet, flagship, planet, orbitalRing, geometries, materials, setOpacity, cancelAssetLoad };
+  return { group, fleet, flagship, planet, orbitalRing, geometries, materials, textures, setOpacity, cancelAssetLoad };
 }
 
 export function HyperspaceIntro() {
@@ -449,9 +472,9 @@ export function HyperspaceIntro() {
     try {
       renderer = new THREE.WebGLRenderer({
         canvas,
-        antialias: false,
+        antialias: true,
         alpha: false,
-        depth: false,
+        depth: true,
         stencil: false,
         powerPreference: "high-performance",
       });
@@ -503,26 +526,41 @@ export function HyperspaceIntro() {
     world.setOpacity(shouldJump ? 0 : 1);
     scene.add(world.group);
 
-    const composer = new EffectComposer(renderer);
-    composer.addPass(new RenderPass(scene, camera));
-    const fxaaPass = new ShaderPass(FXAAShader);
-    composer.addPass(fxaaPass);
-    const outputPass = new OutputPass();
-    composer.addPass(outputPass);
+    const worldAnchors = [
+      {
+        element: document.querySelector<HTMLElement>('[data-world-anchor="planet"]'),
+        object: world.planet,
+        offset: new THREE.Vector3(8.5, 8.4, 0),
+      },
+      {
+        element: document.querySelector<HTMLElement>('[data-world-anchor="flagship"]'),
+        object: world.flagship,
+        offset: new THREE.Vector3(0, 2.1, 0),
+      },
+    ];
+    const projectedAnchor = new THREE.Vector3();
+    const updateWorldAnchors = () => {
+      for (const anchor of worldAnchors) {
+        if (!anchor.element) continue;
+        anchor.object.getWorldPosition(projectedAnchor);
+        projectedAnchor.add(anchor.offset).project(camera);
+        const offscreen = projectedAnchor.z > 1 || Math.abs(projectedAnchor.x) > 1.2 || Math.abs(projectedAnchor.y) > 1.2;
+        anchor.element.toggleAttribute("data-offscreen", offscreen);
+        anchor.element.style.setProperty("--anchor-x", `${(projectedAnchor.x * 0.5 + 0.5) * 100}%`);
+        anchor.element.style.setProperty("--anchor-y", `${(-projectedAnchor.y * 0.5 + 0.5) * 100}%`);
+      }
+    };
 
     const resize = () => {
       const width = window.innerWidth;
       const height = window.innerHeight;
       const largeFrame = width * height > 3_000_000;
-      const pixelRatio = Math.min(window.devicePixelRatio || 1, largeFrame ? 1.1 : isMobile ? 1.2 : 1.35);
+      const pixelRatio = Math.min(window.devicePixelRatio || 1, largeFrame ? 1.25 : isMobile ? 1.35 : 1.6);
       renderer.setPixelRatio(pixelRatio);
       renderer.setSize(width, height, false);
-      composer.setPixelRatio(pixelRatio);
-      composer.setSize(width, height);
       camera.aspect = width / height;
       camera.updateProjectionMatrix();
       uniforms.uResolution.value.set(width * pixelRatio, height * pixelRatio);
-      fxaaPass.uniforms.resolution.value.set(1 / (width * pixelRatio), 1 / (height * pixelRatio));
     };
 
     const onContextLost = (event: Event) => {
@@ -586,16 +624,16 @@ export function HyperspaceIntro() {
         const documentHeight = Math.max(document.documentElement.scrollHeight - window.innerHeight, 1);
         const scrollProgress = clamp01(window.scrollY / documentHeight);
         desiredCamera.set(
-          0.7 + scrollProgress * 10.5,
-          0.45 - scrollProgress * 4.8,
-          7.4 - scrollProgress * 8.5,
+          scrollProgress * 6.5,
+          -scrollProgress * 3.2,
+          -0.9 - scrollProgress * 10.5,
         );
         const cameraDamping = 1 - Math.pow(0.004, delta);
         camera.position.lerp(desiredCamera, cameraDamping);
         desiredTarget.set(
-          2.7 - scrollProgress * 8.4,
-          -0.6 + scrollProgress * 0.8,
-          -19 - scrollProgress * 17,
+          4.8 - scrollProgress * 6.8,
+          -0.2 + scrollProgress * 0.6,
+          -38 - scrollProgress * 12,
         );
         cameraTarget.lerp(desiredTarget, cameraDamping);
         camera.lookAt(cameraTarget);
@@ -604,11 +642,12 @@ export function HyperspaceIntro() {
 
         world.fleet.rotation.y = Math.sin(elapsed * 0.00008) * 0.022;
         world.flagship.position.y = -0.9 + Math.sin(elapsed * 0.00034) * 0.08;
-        world.planet.rotation.y = elapsed * 0.000012;
-        world.orbitalRing.rotation.z = 0.45 + elapsed * 0.000025;
+        world.planet.rotation.y = -1.12 + elapsed * 0.000008;
+        world.orbitalRing.rotation.z = 0.12 + elapsed * 0.000018;
       }
 
-      composer.render(delta);
+      updateWorldAnchors();
+      renderer.render(scene, camera);
     };
 
     resize();
@@ -641,10 +680,8 @@ export function HyperspaceIntro() {
         material.dispose();
         for (const item of world.geometries) item.dispose();
         for (const item of world.materials) item.dispose();
+        for (const item of world.textures) item.dispose();
         world.cancelAssetLoad();
-        fxaaPass.dispose();
-        outputPass.dispose();
-        composer.dispose();
         renderer.dispose();
         window.setTimeout(() => setFallback(true), 0);
         return;
@@ -666,9 +703,7 @@ export function HyperspaceIntro() {
       world.cancelAssetLoad();
       for (const item of world.geometries) item.dispose();
       for (const item of world.materials) item.dispose();
-      fxaaPass.dispose();
-      outputPass.dispose();
-      composer.dispose();
+      for (const item of world.textures) item.dispose();
       renderer.dispose();
     };
   }, [fallback, finish, runId]);

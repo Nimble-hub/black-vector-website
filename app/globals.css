@@ -113,36 +113,10 @@ a:focus-visible {
   z-index: 1;
   min-height: 100svh;
   overflow: hidden;
-  background:
-    linear-gradient(90deg, rgba(5, 7, 10, 0.9) 0%, rgba(5, 7, 10, 0.36) 46%, transparent 76%),
-    linear-gradient(0deg, rgba(5, 7, 10, 0.76) 0%, transparent 42%);
+  background: transparent;
   isolation: isolate;
   perspective: 1400px;
   perspective-origin: 64% 48%;
-}
-
-.hero-art {
-  position: absolute;
-  inset: 0;
-  z-index: -3;
-  background-image:
-    linear-gradient(90deg, rgba(5,7,10,.96) 0%, rgba(5,7,10,.64) 38%, rgba(5,7,10,.1) 72%),
-    linear-gradient(0deg, rgba(5,7,10,.92) 0%, transparent 42%),
-    url("/art/hero-carrier.png");
-  background-position: center;
-  background-size: cover;
-  transform: scale(1.04);
-  animation: hero-arrival 1.7s cubic-bezier(.16,.72,.26,1) both;
-}
-
-.hero::after {
-  content: "";
-  position: absolute;
-  inset: 12px;
-  z-index: 2;
-  border: 1px solid rgba(155, 170, 179, 0.12);
-  clip-path: polygon(0 0, 38% 0, 38% 1px, 100% 1px, 100% 78%, calc(100% - 1px) 78%, calc(100% - 1px) 100%, 0 100%);
-  pointer-events: none;
 }
 
 .site-header {
@@ -210,11 +184,99 @@ a:focus-visible {
   transform: translate3d(-52px, -43%, 150px) rotateY(4deg);
   transform-origin: left center;
   transform-style: preserve-3d;
-  filter: blur(5px);
   transition:
     opacity 760ms 100ms ease,
-    filter 900ms 80ms ease,
     transform 1250ms cubic-bezier(.16,.72,.26,1);
+}
+
+.hero-content::before {
+  content: "";
+  position: absolute;
+  inset: -46px -68px -46px -44px;
+  z-index: -1;
+  border-left: 1px solid rgba(68, 202, 209, 0.42);
+  background: linear-gradient(90deg, rgba(3, 8, 12, 0.88), rgba(3, 8, 12, 0.52) 62%, transparent);
+  clip-path: polygon(0 0, 92% 0, 100% 13%, 100% 100%, 0 100%);
+  transform: translateZ(-2px);
+}
+
+.world-label {
+  --anchor-x: 50%;
+  --anchor-y: 50%;
+  position: absolute;
+  top: var(--anchor-y);
+  left: var(--anchor-x);
+  z-index: 4;
+  display: grid;
+  min-width: 206px;
+  gap: 4px;
+  padding: 11px 14px 10px;
+  border-left: 1px solid rgba(68, 202, 209, 0.88);
+  background: rgba(3, 10, 15, 0.82);
+  clip-path: polygon(0 0, calc(100% - 13px) 0, 100% 13px, 100% 100%, 0 100%);
+  color: rgba(231, 226, 214, 0.72);
+  font-family: Consolas, "Cascadia Mono", monospace;
+  pointer-events: none;
+  opacity: 0;
+  transform: translate3d(24px, -50%, 70px) rotateY(-4deg);
+  transform-origin: left center;
+  transition: opacity 520ms 560ms ease, transform 900ms 480ms cubic-bezier(.16,.72,.26,1);
+  will-change: top, left, transform;
+}
+
+.world-label::before {
+  content: "";
+  position: absolute;
+  top: 50%;
+  right: 100%;
+  width: 28px;
+  border-top: 1px solid rgba(68, 202, 209, 0.72);
+}
+
+.world-label::after {
+  content: "";
+  position: absolute;
+  top: calc(50% - 2px);
+  right: calc(100% + 28px);
+  width: 4px;
+  height: 4px;
+  border: 1px solid var(--cyan);
+  transform: rotate(45deg);
+}
+
+.world-label span,
+.world-label small {
+  font-size: 7px;
+  letter-spacing: 0.13em;
+}
+
+.world-label span { color: var(--cyan); }
+.world-label small { color: rgba(231, 226, 214, 0.4); }
+
+.world-label strong {
+  color: rgba(231, 226, 214, 0.88);
+  font-size: 10px;
+  letter-spacing: 0.08em;
+}
+
+.world-label-flagship {
+  min-width: 168px;
+  transform: translate3d(calc(-100% - 24px), -50%, 70px) rotateY(4deg);
+  transform-origin: right center;
+}
+
+.world-label-flagship::before {
+  right: auto;
+  left: 100%;
+}
+
+.world-label-flagship::after {
+  right: auto;
+  left: calc(100% + 28px);
+}
+
+.world-label[data-offscreen] {
+  opacity: 0 !important;
 }
 
 .eyebrow {
@@ -332,14 +394,22 @@ h1 span {
 
 .experience-landed .site-header,
 .experience-landed .hero-meta,
-.experience-landed .scroll-cue {
+.experience-landed .scroll-cue,
+.experience-landed .world-label {
   opacity: 1;
   transform: translate3d(0, 0, 0);
 }
 
+.experience-landed .world-label {
+  transform: translate3d(24px, -50%, 0) rotateY(0deg);
+}
+
+.experience-landed .world-label-flagship {
+  transform: translate3d(calc(-100% - 24px), -50%, 0) rotateY(0deg);
+}
+
 .experience-landed .hero-content {
   opacity: 1;
-  filter: none;
   transform: translate3d(0, -43%, 0) rotateY(0deg);
 }
 
@@ -403,30 +473,19 @@ h1 span {
     linear-gradient(270deg, rgba(5, 7, 10, 0.9) 0%, rgba(5, 7, 10, 0.46) 50%, transparent 82%);
 }
 
-@keyframes hero-arrival {
-  from { opacity: 0; filter: brightness(2.4) blur(8px); transform: scale(1.12); }
-  to { opacity: 1; filter: brightness(1) blur(0); transform: scale(1.04); }
-}
-
 @keyframes signal-pulse {
   50% { opacity: .35; box-shadow: 0 0 3px var(--cyan); }
 }
 
 @media (max-width: 700px) {
   .signal-state { display: none; }
-  .hero-art {
-    background-image:
-      linear-gradient(90deg, rgba(5,7,10,.9), rgba(5,7,10,.28)),
-      linear-gradient(0deg, rgba(5,7,10,.97) 0%, transparent 60%),
-      url("/art/hero-carrier.png");
-    background-position: 61% center;
-  }
   .hero-content { top: 48%; }
   .hero-actions { align-items: flex-start; flex-direction: column; gap: 10px; }
   .hero-meta { display: none; }
   .scroll-cue { bottom: 24px; }
   h1 { font-size: clamp(46px, 15vw, 72px); }
   .archive-secondary { padding-left: 24px; }
+  .world-label { display: none; }
 }
 
 @media (prefers-reduced-motion: reduce) {
