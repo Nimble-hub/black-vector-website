@@ -12,7 +12,7 @@ import { HyperspaceIntro2D } from "./hyperspace-intro-2d";
 const DURATION = 15000;
 const DEPTH = 132;
 const NEAR = 0.68;
-const SEEN_KEY = "black-vector-jump-seen-3d-v4";
+const SEEN_KEY = "black-vector-jump-seen-3d-v5";
 
 function clamp01(value: number) {
   return Math.max(0, Math.min(1, value));
@@ -98,7 +98,7 @@ const fragmentShader = `
     vec3 coldBlue = vec3(0.34, 0.67, 1.0);
     vec3 photographicWhite = vec3(0.93, 0.985, 1.0);
     vec3 color = mix(coldBlue, photographicWhite, vHue);
-    float intensity = vBrightness * headExposure * (0.66 + hotCore * 1.25) * uEnergy;
+    float intensity = vBrightness * headExposure * (0.78 + hotCore * 1.52) * uEnergy;
     float alpha = edge * longitudinal * vDepthFade * uOpacity;
 
     gl_FragColor = vec4(color * intensity, alpha);
@@ -108,7 +108,6 @@ const fragmentShader = `
 const filmicCameraShader = {
   uniforms: {
     tDiffuse: { value: null },
-    uTime: { value: 0 },
     uFlash: { value: 0 },
     uResolution: { value: new THREE.Vector2(1, 1) },
   },
@@ -122,22 +121,15 @@ const filmicCameraShader = {
   fragmentShader: `
     precision highp float;
     uniform sampler2D tDiffuse;
-    uniform float uTime;
     uniform float uFlash;
     uniform vec2 uResolution;
     varying vec2 vUv;
-
-    float random(vec2 point) {
-      return fract(sin(dot(point, vec2(12.9898, 78.233)) + uTime * 41.17) * 43758.5453);
-    }
 
     void main() {
       vec3 color = texture2D(tDiffuse, vUv).rgb;
       vec2 lens = (vUv - 0.5) * vec2(uResolution.x / uResolution.y, 1.0);
       float vignette = smoothstep(0.34, 0.82, dot(lens, lens));
-      color *= mix(1.0, 0.57, vignette);
-      float grain = random(gl_FragCoord.xy) - 0.5;
-      color += grain * 0.012;
+      color *= mix(1.0, 0.82, vignette);
       color = mix(color, vec3(0.94, 0.985, 1.0), uFlash);
       gl_FragColor = vec4(max(color, 0.0), 1.0);
     }
@@ -441,7 +433,7 @@ export function HyperspaceIntro() {
 
     renderer.outputColorSpace = THREE.SRGBColorSpace;
     renderer.toneMapping = THREE.ACESFilmicToneMapping;
-    renderer.toneMappingExposure = 0.88;
+    renderer.toneMappingExposure = 0.98;
 
     const uniforms = {
       uTravel: { value: 0 },
@@ -449,7 +441,7 @@ export function HyperspaceIntro() {
       uNear: { value: NEAR },
       uOpacity: { value: shouldJump ? 1 : 0 },
       uStretch: { value: shouldJump ? 0.025 : 1 },
-      uEnergy: { value: shouldJump ? 0.24 : 1 },
+      uEnergy: { value: shouldJump ? 0.28 : 1 },
       uResolution: { value: new THREE.Vector2(1, 1) },
     };
     const geometry = createTunnelGeometry(isMobile ? 900 : 1650);
@@ -477,7 +469,7 @@ export function HyperspaceIntro() {
 
     const composer = new EffectComposer(renderer);
     composer.addPass(new RenderPass(scene, camera));
-    const bloomPass = new UnrealBloomPass(new THREE.Vector2(1, 1), isMobile ? 0.34 : 0.42, 0.16, 0.78);
+    const bloomPass = new UnrealBloomPass(new THREE.Vector2(1, 1), isMobile ? 0.48 : 0.58, 0.18, 0.72);
     composer.addPass(bloomPass);
     const filmPass = new ShaderPass(filmicCameraShader);
     composer.addPass(filmPass);
@@ -537,7 +529,7 @@ export function HyperspaceIntro() {
         travel += speed * delta;
         uniforms.uTravel.value = travel;
         uniforms.uStretch.value = (0.025 + launch * 0.975 + launchKick * 0.26) * (1 - braking) + braking * 0.035;
-        uniforms.uEnergy.value = (0.24 + charge * 0.2 + launch * 0.56) * (1 - braking * 0.5);
+        uniforms.uEnergy.value = (0.28 + charge * 0.2 + launch * 0.62) * (1 - braking * 0.5);
         uniforms.uOpacity.value = smoothstep(progress / 0.035) * (1 - smoothstep((progress - 0.84) / 0.16));
         world.setOpacity(smoothstep((progress - 0.87) / 0.13));
 
@@ -590,7 +582,6 @@ export function HyperspaceIntro() {
         world.orbitalRing.rotation.z = 0.45 + elapsed * 0.000025;
       }
 
-      filmPass.uniforms.uTime.value = elapsed / 1000;
       filmPass.uniforms.uFlash.value = flash;
       composer.render(delta);
     };
@@ -616,7 +607,7 @@ export function HyperspaceIntro() {
       uniforms.uResolution.value.copy(fullResolution);
       uniforms.uTravel.value = 0;
       uniforms.uStretch.value = 0.025;
-      uniforms.uEnergy.value = 0.24;
+      uniforms.uEnergy.value = 0.28;
       const hasLightGeometry = probePixels.some((value, index) => index % 4 !== 3 && value > 6);
       if (!hasLightGeometry) {
         geometry.dispose();
