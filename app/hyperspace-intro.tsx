@@ -89,17 +89,25 @@ const fragmentShader = `
 
   uniform float uOpacity;
   uniform float uEnergy;
+  uniform float uSymmetry;
 
   void main() {
-    float taper = mix(0.12, 1.0, smoothstep(0.0, 0.24, vRibbonUv.y));
+    float directionalTaper = mix(0.12, 1.0, smoothstep(0.0, 0.24, vRibbonUv.y));
+    float centerDistance = abs(vRibbonUv.y - 0.5) * 2.0;
+    float symmetricTaper = mix(1.0, 0.68, smoothstep(0.72, 1.0, centerDistance));
+    float taper = mix(directionalTaper, symmetricTaper, uSymmetry);
     float side = abs(vRibbonUv.x) / max(taper, 0.001);
     float body = 1.0 - smoothstep(0.58, 0.96, side);
     float core = 1.0 - smoothstep(0.0, 0.22, side);
     float shoulder = (1.0 - smoothstep(0.3, 0.98, side)) * 0.12;
     float tailFade = smoothstep(0.0, 0.055, vRibbonUv.y);
     float headFade = 1.0 - smoothstep(0.975, 1.0, vRibbonUv.y);
-    float headExposure = mix(0.3, 1.0, pow(vRibbonUv.y, 0.44));
-    float longitudinal = tailFade * headFade * mix(0.24, 1.0, pow(vRibbonUv.y, 0.5));
+    float directionalExposure = mix(0.3, 1.0, pow(vRibbonUv.y, 0.44));
+    float directionalLongitudinal = tailFade * headFade * mix(0.24, 1.0, pow(vRibbonUv.y, 0.5));
+    float symmetricLongitudinal = smoothstep(0.0, 0.045, vRibbonUv.y)
+      * (1.0 - smoothstep(0.955, 1.0, vRibbonUv.y));
+    float headExposure = mix(directionalExposure, 1.0, uSymmetry);
+    float longitudinal = mix(directionalLongitudinal, symmetricLongitudinal, uSymmetry);
 
     vec3 coldBlue = vec3(0.34, 0.67, 1.0);
     vec3 photographicWhite = vec3(0.93, 0.985, 1.0);
@@ -303,7 +311,7 @@ function createTunnelGeometry(count: number) {
     const light = 0.46 + Math.random() * 0.4;
     angles[index] = Math.random() * Math.PI * 2;
     radii[index] = 13.5 + Math.pow(Math.random(), 0.82) * 9;
-    seeds[index] = Math.random() * DEPTH;
+    seeds[index] = Math.random() * (DEPTH - 10);
     lengths[index] = 4.8 + Math.pow(Math.random(), 0.6) * 10.5;
     widths[index] = 0.52 + light * (0.48 + Math.random() * 0.3);
     brightness[index] = light;
@@ -862,6 +870,7 @@ export function HyperspaceIntro() {
       uBackwardStretch: { value: shouldJump ? 0.035 : 1 },
       uWidthScale: { value: shouldJump ? 0.76 : 1 },
       uEnergy: { value: shouldJump ? 0.24 : 1 },
+      uSymmetry: { value: shouldJump ? 1 : 0 },
       uResolution: { value: new THREE.Vector2(1, 1) },
     };
     const geometry = createTunnelGeometry(isMobile ? 1350 : 2300);
@@ -1045,6 +1054,7 @@ export function HyperspaceIntro() {
         uniforms.uBackwardStretch.value = (staticStretch + visualLaunch * 0.89) * (1 - braking) + braking * 0.03;
         uniforms.uWidthScale.value = (0.76 + charge * 0.4 + visualLaunch * 0.38) * (1 - braking * 0.35);
         uniforms.uEnergy.value = (0.24 + charge * 0.88 + visualLaunch * 0.34) * (1 - braking * 0.48);
+        uniforms.uSymmetry.value = 1 - visualLaunch;
         uniforms.uOpacity.value = smoothstep(progress / 0.015) * (0.24 + charge * 0.76) * (1 - smoothstep((progress - 0.88) / 0.055));
         exitWakeUniforms.uTime.value = Math.max(0, (elapsed - DURATION * 0.78) / 1000);
         exitWakeUniforms.uOpacity.value = smoothstep((progress - 0.82) / 0.075) * 0.08;
@@ -1144,6 +1154,7 @@ export function HyperspaceIntro() {
       uniforms.uBackwardStretch.value = 0.85;
       uniforms.uWidthScale.value = 1;
       uniforms.uEnergy.value = 1;
+      uniforms.uSymmetry.value = 0;
       renderer.setRenderTarget(probeTarget);
       renderer.render(scene, camera);
       renderer.readRenderTargetPixels(probeTarget, 0, 0, 64, 36, probePixels);
@@ -1156,6 +1167,7 @@ export function HyperspaceIntro() {
       uniforms.uBackwardStretch.value = 0.035;
       uniforms.uWidthScale.value = 0.76;
       uniforms.uEnergy.value = 0.24;
+      uniforms.uSymmetry.value = 1;
       const hasLightGeometry = probePixels.some((value, index) => index % 4 !== 3 && value > 6);
       if (!hasLightGeometry) {
         geometry.dispose();
