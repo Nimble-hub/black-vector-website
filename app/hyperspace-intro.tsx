@@ -2392,6 +2392,15 @@ export function HyperspaceIntro() {
         const fieldSwayEnvelope = (
           charge * 0.45 + visualLaunch * 0.55
         ) * (1 - braking);
+        const cruiseFloatEnvelope = smoothstep(
+          (visualLaunch - 0.08) / 0.72,
+        ) * (1 - braking);
+        const cruiseFloatX = Math.sin(elapsed * 0.00043 + 0.8)
+          + Math.sin(elapsed * 0.00019 + 2.3) * 0.48;
+        const cruiseFloatY = Math.cos(elapsed * 0.00037 + 1.4)
+          + Math.sin(elapsed * 0.00023 + 0.4) * 0.42;
+        const cruiseFloatZ = Math.sin(elapsed * 0.00031 + 2.1)
+          + Math.cos(elapsed * 0.00017 + 0.2) * 0.36;
         const chargePulse = Math.pow(
           0.5 + Math.sin(elapsed * 0.012) * 0.5,
           3,
@@ -2471,15 +2480,19 @@ export function HyperspaceIntro() {
         lensPass.enabled = lensStrength > 0.002;
         lensPass.uniforms.uStrength.value = lensStrength;
         lensPass.uniforms.uCenter.value.set(
-          0.5 + fieldSwayX * fieldSwayEnvelope * 0.0035,
-          0.5 + fieldSwayY * fieldSwayEnvelope * 0.0048,
+          0.5
+            + fieldSwayX * fieldSwayEnvelope * 0.0035
+            + cruiseFloatX * cruiseFloatEnvelope * 0.0048,
+          0.5
+            + fieldSwayY * fieldSwayEnvelope * 0.0048
+            + cruiseFloatY * cruiseFloatEnvelope * 0.0038,
         );
         lensPass.uniforms.uRadius.value = 0.05
           + charge * 0.145
           - cruiseLens * 0.04
           + launchImpulse * 0.02;
         lensPass.uniforms.uStretch.value = warpTension * 0.052
-          + launchImpulse * 0.21
+          + launchImpulse * 0.27
           + warpRelease * lensTravelFade * 0.125
           + cruiseLens * 0.006;
         lensPass.uniforms.uFlash.value = launchImpulse;
@@ -2536,11 +2549,11 @@ export function HyperspaceIntro() {
           * (1 - smoothstep((progress - (LAUNCH_PROGRESS + 0.07)) / 0.06));
         const brakingShake = smoothstep((progress - 0.82) / 0.05)
           * (1 - smoothstep((progress - 0.965) / 0.035));
-        const cruiseShake = visualLaunch * (1 - braking) * 0.009;
+        const cruiseShake = visualLaunch * (1 - braking) * 0.015;
         const impactDecay = launchShake * (1 - smoothstep(launchLocal));
-        const shakeStrength = impactKick * 0.34
-          + impactDecay * 0.18
-          + launchShake * 0.06
+        const shakeStrength = impactKick * 0.45
+          + impactDecay * 0.24
+          + launchShake * 0.092
           + chargePulse * 0.032
           + brakingShake * 0.032
           + cruiseShake;
@@ -2553,13 +2566,14 @@ export function HyperspaceIntro() {
           (progress - (LAUNCH_PROGRESS - 0.001)) / 0.003,
         );
         const recoilRelease = 1 - smoothstep(
-          (progress - (LAUNCH_PROGRESS + 0.014)) / 0.012,
+          (progress - (LAUNCH_PROGRESS + 0.025)) / 0.02,
         );
-        const launchRecoil = recoilAttack * recoilRelease * 3.05;
+        const recoilEnvelope = recoilAttack * recoilRelease;
+        const launchRecoil = recoilEnvelope * 4.8;
         const recoilSettle = smoothstep(
-          (progress - (LAUNCH_PROGRESS + 0.012)) / 0.01,
+          (progress - (LAUNCH_PROGRESS + 0.024)) / 0.014,
         ) * (1 - smoothstep(
-          (progress - (LAUNCH_PROGRESS + 0.042)) / 0.022,
+          (progress - (LAUNCH_PROGRESS + 0.075)) / 0.035,
         ));
         const shakeX = Math.sin(elapsed * 0.043)
           + Math.sin(elapsed * 0.071 + 1.7) * 0.38;
@@ -2573,40 +2587,53 @@ export function HyperspaceIntro() {
         const cinematicDriftY = fieldSwayY
           * (charge * 0.052 + visualLaunch * 0.076)
           * (1 - braking);
+        const cruiseDriftX = cruiseFloatX * cruiseFloatEnvelope * 0.18;
+        const cruiseDriftY = cruiseFloatY * cruiseFloatEnvelope * 0.13;
+        const cruiseDriftZ = cruiseFloatZ * cruiseFloatEnvelope * 0.22;
         camera.position.x = shakeX * shakeStrength
           + Math.sin(elapsed * 0.0018) * pressureDrift
-          + cinematicDriftX;
+          + cinematicDriftX
+          + cruiseDriftX;
         camera.position.y = shakeY * shakeStrength * 0.7
           - pressureDrift * 0.42
-          + cinematicDriftY;
+          + cinematicDriftY
+          + cruiseDriftY;
         camera.position.z = -0.9 * exitArrival
-          - charge * (1 - launch) * 0.48
+          - charge * (1 - launch) * 1.2
           + launchRecoil
-          - recoilSettle * 0.24
-          - cameraDive * 1.75
-          + shakeZ * shakeStrength * 0.28;
+          - recoilSettle * 0.62
+          - cameraDive * 3.1
+          + shakeZ * shakeStrength * 0.34
+          + cruiseDriftZ;
         cameraTarget.set(
           shakeX * shakeStrength * 0.76
             + impactKick * 0.08
-            - cinematicDriftX * 0.62,
+            - cinematicDriftX * 0.62
+            - cruiseDriftX * 0.46,
           shakeY * shakeStrength * 0.5
             - impactKick * 0.075
-            - cinematicDriftY * 0.48,
-          THREE.MathUtils.lerp(-100, -38, exitArrival),
+            - cinematicDriftY * 0.48
+            - cruiseDriftY * 0.4,
+          THREE.MathUtils.lerp(-100, -38, exitArrival)
+            + cruiseDriftZ * 0.75,
         );
         camera.lookAt(cameraTarget);
         camera.rotation.z += shakeX * shakeStrength * 0.022
           + impactKick * 0.006
-          + fieldSwayX * fieldSwayEnvelope * 0.0022;
+          + recoilEnvelope * 0.012
+          + fieldSwayX * fieldSwayEnvelope * 0.0022
+          + cruiseFloatX * cruiseFloatEnvelope * 0.0046;
         camera.fov = 62
           + charge * 2.5
           - warpTension * 9.5
-          - preLaunchZoom * 7.2
+          - preLaunchZoom * 10.5
           - chargePulse * 1.4
-          + launch * 21.5
-          + impactKick * 12.5
-          + cameraDive * 4.5
-          + Math.sin(elapsed * 0.00135) * visualLaunch * (1 - braking) * 0.7
+          + launch * 24.5
+          + impactKick * 16.5
+          + recoilEnvelope * 5.5
+          + cameraDive * 6.5
+          + Math.sin(elapsed * 0.00135) * visualLaunch * (1 - braking) * 1.05
+          + cruiseFloatZ * cruiseFloatEnvelope * 0.48
           - braking * 23.5;
         camera.updateProjectionMatrix();
 
