@@ -9,6 +9,9 @@ import { HyperspaceAudio } from "./hyperspace-audio";
 const DURATION = 15000;
 const DEPTH = 132;
 const NEAR = 0.68;
+const SCENE_EXPOSURE = 1.18;
+const SCENE_RIM_BASE = 48;
+const EXIT_RIM_BOOST = 86;
 const SEEN_KEY = "black-vector-jump-seen-3d-v20";
 const BASE_PATH = process.env.NEXT_PUBLIC_BASE_PATH ?? "";
 
@@ -1057,7 +1060,7 @@ function createDeepSpaceWorld(isMobile: boolean) {
   const planetMaterial = trackMaterial(new THREE.MeshStandardMaterial({
     color: 0xffffff,
     map: planetTexture,
-    roughness: 0.88,
+    roughness: 0.78,
     metalness: 0.02,
   }));
   const planetGeometry = trackGeometry(new THREE.SphereGeometry(12.8, isMobile ? 40 : 64, isMobile ? 24 : 40));
@@ -1084,14 +1087,14 @@ function createDeepSpaceWorld(isMobile: boolean) {
   const antennaGeometry = trackGeometry(new THREE.CylinderGeometry(0.035, 0.035, 1, 6));
 
   const hullMaterial = trackMaterial(new THREE.MeshStandardMaterial({
-    color: 0x3e4950,
-    metalness: 0.82,
-    roughness: 0.32,
+    color: 0x46535b,
+    metalness: 0.88,
+    roughness: 0.2,
   }));
   const armorMaterial = trackMaterial(new THREE.MeshStandardMaterial({
     color: 0x151b20,
-    metalness: 0.72,
-    roughness: 0.48,
+    metalness: 0.8,
+    roughness: 0.34,
   }));
   const engineMaterial = trackMaterial(new THREE.MeshBasicMaterial({
     color: 0x71e5f0,
@@ -1218,11 +1221,11 @@ function createDeepSpaceWorld(isMobile: boolean) {
   orbitalRing.rotation.set(0, 0, 0.12);
   group.add(orbitalRing);
 
-  const hemisphere = new THREE.HemisphereLight(0x9ad8e5, 0x030508, 1.15);
-  const keyLight = new THREE.DirectionalLight(0xe7e2d6, 3.8);
-  keyLight.position.set(-9, 14, 7);
-  const rimLight = new THREE.PointLight(0x44cad1, 22, 68, 1.7);
-  rimLight.position.set(10, -4, -5);
+  const hemisphere = new THREE.HemisphereLight(0x78b7cf, 0x010204, 0.48);
+  const keyLight = new THREE.DirectionalLight(0xf4f8ff, 7.2);
+  keyLight.position.set(-14, 18, 9);
+  const rimLight = new THREE.PointLight(0x63ddec, SCENE_RIM_BASE, 82, 1.55);
+  rimLight.position.set(8, -3, -9);
   group.add(hemisphere, keyLight, rimLight);
 
   const setOpacity = (opacity: number) => {
@@ -1378,7 +1381,7 @@ export function HyperspaceIntro() {
 
     renderer.outputColorSpace = THREE.SRGBColorSpace;
     renderer.toneMapping = THREE.ACESFilmicToneMapping;
-    renderer.toneMappingExposure = 0.98;
+    renderer.toneMappingExposure = SCENE_EXPOSURE;
 
     const uniforms = {
       uTravel: { value: 0 },
@@ -1679,8 +1682,11 @@ export function HyperspaceIntro() {
         world.setOpacity(smoothstep((progress - 0.9) / 0.085));
         const exitIllumination = smoothstep((progress - 0.842) / 0.042)
           * (1 - smoothstep((progress - 0.982) / 0.034));
-        world.rimLight.intensity = 22 + exitIllumination * 52;
-        renderer.toneMappingExposure = 0.94 + charge * 0.1 + launch * 0.06;
+        world.rimLight.intensity = SCENE_RIM_BASE + exitIllumination * EXIT_RIM_BOOST;
+        renderer.toneMappingExposure = 1.0
+          + charge * 0.11
+          + launch * 0.08
+          + exitIllumination * 0.13;
 
         const launchShake = smoothstep((progress - 0.285) / 0.012) * (1 - smoothstep((progress - 0.36) / 0.055));
         const brakingShake = smoothstep((progress - 0.82) / 0.05) * (1 - smoothstep((progress - 0.965) / 0.035));
@@ -1707,7 +1713,7 @@ export function HyperspaceIntro() {
           tunnelDust.visible = false;
           warpBubble.visible = false;
           world.setOpacity(1);
-          renderer.toneMappingExposure = 0.98;
+          renderer.toneMappingExposure = SCENE_EXPOSURE;
           if (!finishQueued) {
             finishQueued = true;
             finish();
@@ -1723,7 +1729,8 @@ export function HyperspaceIntro() {
         exitCrystalUniforms.uOpacity.value = 0;
         exitDustUniforms.uTime.value = Math.max(0, (elapsed - DURATION * 0.825) / 1000);
         exitDustUniforms.uOpacity.value = dustFade;
-        world.rimLight.intensity = 22 + (exitDust.visible ? dustFade * 24 : 0);
+        world.rimLight.intensity = SCENE_RIM_BASE
+          + (exitDust.visible ? dustFade * EXIT_RIM_BOOST * 0.46 : 0);
         if (wakeFade <= 0.001) {
           exitWake.visible = false;
           exitCrystals.visible = false;
