@@ -10,10 +10,15 @@ type Star = {
 };
 
 const DURATION = 15000;
-const SEEN_KEY = "black-vector-jump-seen-v4";
+const SEEN_KEY = "black-vector-jump-seen-v6";
 
-function easeInCubic(value: number) {
-  return value * value * value;
+function clamp01(value: number) {
+  return Math.max(0, Math.min(1, value));
+}
+
+function smoothstep(value: number) {
+  const t = clamp01(value);
+  return t * t * (3 - 2 * t);
 }
 
 export function HyperspaceIntro() {
@@ -64,13 +69,13 @@ export function HyperspaceIntro() {
 
     let width = window.innerWidth;
     let height = window.innerHeight;
-    let pixelRatio = Math.min(window.devicePixelRatio || 1, 2);
+    let pixelRatio = Math.min(window.devicePixelRatio || 1, 1.6);
     let stars: Star[] = [];
     let startTime = 0;
     let lastTime = 0;
 
     const makeStars = () => {
-      const count = width < 720 ? 440 : 860;
+      const count = width < 720 ? 340 : 620;
       stars = Array.from({ length: count }, () => ({
         x: (Math.random() - 0.5) * 2.55,
         y: (Math.random() - 0.5) * 1.82,
@@ -82,7 +87,7 @@ export function HyperspaceIntro() {
     const resize = () => {
       width = window.innerWidth;
       height = window.innerHeight;
-      pixelRatio = Math.min(window.devicePixelRatio || 1, 2);
+      pixelRatio = Math.min(window.devicePixelRatio || 1, width < 720 ? 1.35 : 1.6);
       canvas.width = width * pixelRatio;
       canvas.height = height * pixelRatio;
       canvas.style.width = `${width}px`;
@@ -98,23 +103,18 @@ export function HyperspaceIntro() {
       }
 
       const elapsed = time - startTime;
-      const delta = Math.min(time - lastTime, 34) / 1000;
+      const delta = Math.min(time - lastTime, 50) / 1000;
       const progress = Math.min(elapsed / DURATION, 1);
       lastTime = time;
 
-      let speed = 0.035;
-      if (progress > 0.065 && progress < 0.17) {
-        speed = 0.08 + easeInCubic((progress - 0.065) / 0.105) * 2.72;
-      } else if (progress >= 0.17 && progress < 0.86) {
-        speed = 2.74 + Math.sin(progress * Math.PI * 12) * 0.14;
-      } else if (progress >= 0.86 && progress < 0.925) {
-        speed = 2.9 + easeInCubic((progress - 0.86) / 0.065) * 0.95;
-      } else if (progress >= 0.925) {
-        speed = Math.max(0.04, 3.85 * (1 - (progress - 0.925) / 0.075));
-      }
+      const exitBoost = smoothstep((progress - 0.8) / 0.105);
+      const braking = smoothstep((progress - 0.915) / 0.085);
+      const trailStrength = 1 - smoothstep((progress - 0.94) / 0.06);
+      const cruiseSpeed = 2.73 + Math.sin(progress * Math.PI * 5) * 0.055 + exitBoost * 0.94;
+      const speed = cruiseSpeed * (1 - braking) + 0.04 * braking;
+      const transit = 1 - smoothstep((progress - 0.96) / 0.04);
 
-      const transit = Math.max(0, Math.min(1, (progress - 0.055) / 0.12));
-      context.fillStyle = transit > 0.05 ? "#010817" : "#020305";
+      context.fillStyle = "#020305";
       context.fillRect(0, 0, width, height);
       const centerX = width * 0.5;
       const centerY = height * 0.48;
@@ -137,8 +137,10 @@ export function HyperspaceIntro() {
         context.fillRect(0, 0, width, height);
       }
 
-      context.globalCompositeOperation = "lighter";
-      context.lineCap = "round";
+      const whitePaths = [new Path2D(), new Path2D(), new Path2D()];
+      const bluePaths = [new Path2D(), new Path2D(), new Path2D()];
+      const glowPaths = [new Path2D(), new Path2D(), new Path2D()];
+
       for (const star of stars) {
         const previousZ = star.z;
         star.z -= speed * delta;
@@ -150,33 +152,45 @@ export function HyperspaceIntro() {
 
         const x = centerX + (star.x / star.z) * focal;
         const y = centerY + (star.y / star.z) * focal;
-        const tailZ = Math.min(1.35, previousZ + speed * (0.025 + transit * 0.13));
+        const tailZ = Math.min(1.35, previousZ + speed * (0.018 + trailStrength * 0.135));
         const tailX = centerX + (star.x / tailZ) * focal;
         const tailY = centerY + (star.y / tailZ) * focal;
-        const alpha = Math.min(1, star.brightness * (1.24 - star.z) * (0.72 + transit * 0.38));
-        const cyan = star.brightness < 0.72;
-        const lineWidth = Math.max(0.75, (1.12 - star.z) * (2.25 + transit * 1.3));
+        const depth = star.z < 0.24 ? 2 : star.z < 0.56 ? 1 : 0;
+        const path = star.brightness < 0.7 ? bluePaths[depth] : whitePaths[depth];
 
-        if (transit > 0.12 && star.brightness > 0.64) {
-          context.beginPath();
-          context.moveTo(tailX, tailY);
-          context.lineTo(x, y);
-          context.strokeStyle = `rgba(75, 153, 255, ${alpha * transit * 0.2})`;
-          context.lineWidth = lineWidth * 4.6;
-          context.stroke();
+        path.moveTo(tailX, tailY);
+        path.lineTo(x, y);
+        if (star.brightness > 0.64) {
+          glowPaths[depth].moveTo(tailX, tailY);
+          glowPaths[depth].lineTo(x, y);
         }
-
-        context.beginPath();
-        context.moveTo(tailX, tailY);
-        context.lineTo(x, y);
-        context.strokeStyle = cyan
-          ? `rgba(125, 192, 255, ${alpha})`
-          : `rgba(238, 249, 255, ${alpha})`;
-        context.lineWidth = lineWidth;
-        context.stroke();
       }
 
-      const charge = Math.max(0, Math.min(1, (progress - 0.07) / 0.1));
+      context.globalCompositeOperation = "lighter";
+      context.lineCap = "round";
+      const crispWidths = [0.75, 1.45, 2.55];
+      const glowWidths = [3.2, 6.4, 11.5];
+      const depthAlpha = [0.5, 0.72, 0.96];
+
+      for (let depth = 0; depth < 3; depth += 1) {
+        context.globalAlpha = trailStrength * (0.08 + depth * 0.055);
+        context.strokeStyle = "#4d97ff";
+        context.lineWidth = glowWidths[depth];
+        context.stroke(glowPaths[depth]);
+      }
+
+      for (let depth = 0; depth < 3; depth += 1) {
+        context.globalAlpha = depthAlpha[depth] * (0.72 + transit * 0.28);
+        context.lineWidth = crispWidths[depth] * (0.82 + trailStrength * 0.3);
+        context.strokeStyle = "#82c9ff";
+        context.stroke(bluePaths[depth]);
+        context.strokeStyle = "#effaff";
+        context.stroke(whitePaths[depth]);
+      }
+
+      context.globalAlpha = 1;
+
+      const charge = 1 - smoothstep((progress - 0.95) / 0.05);
       const glow = context.createRadialGradient(centerX, centerY, 0, centerX, centerY, width * 0.5);
       glow.addColorStop(0, `rgba(244, 252, 255, ${charge * 0.48})`);
       glow.addColorStop(0.055, `rgba(147, 208, 255, ${charge * 0.28})`);
@@ -199,9 +213,11 @@ export function HyperspaceIntro() {
       context.fillStyle = vignette;
       context.fillRect(0, 0, width, height);
 
-      if (progress > 0.89 && progress < 0.955) {
-        const flashProgress = (progress - 0.89) / 0.065;
-        const flash = Math.pow(Math.sin(flashProgress * Math.PI), 0.72) * 0.96;
+      if (progress > 0.87 && progress < 0.95) {
+        const flashProgress = (progress - 0.87) / 0.08;
+        const flashIn = smoothstep(flashProgress / 0.46);
+        const flashOut = 1 - smoothstep((flashProgress - 0.46) / 0.54);
+        const flash = flashIn * flashOut * 0.96;
         context.fillStyle = `rgba(239, 249, 255, ${flash})`;
         context.fillRect(0, 0, width, height);
       }
