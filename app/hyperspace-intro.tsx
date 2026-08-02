@@ -704,7 +704,7 @@ const environmentStarVertexShader = `
       + sin(uTime * (0.42 + aPhase * 0.28) + aPhase * 31.0) * twinkleAmount;
     float glintPulse = 0.88 + sin(uTime * 0.68 + aPhase * 47.0) * 0.12;
     gl_PointSize = clamp(
-      aSize * (92.0 / max(-viewPosition.z, 1.0)) * mix(1.0, glintPulse, aGlint),
+      aSize * (260.0 / max(-viewPosition.z, 1.0)) * mix(1.0, glintPulse, aGlint),
       0.65,
       7.5
     );
@@ -756,7 +756,7 @@ const stellarVeilVertexShader = `
     vec4 viewPosition = modelViewMatrix * vec4(position, 1.0);
     gl_Position = projectionMatrix * viewPosition;
     float breathe = 0.97 + sin(uTime * 0.055 + aPhase * 6.2831853) * 0.03;
-    gl_PointSize = clamp(aSize * breathe * (92.0 / max(-viewPosition.z, 1.0)), 4.0, 38.0);
+    gl_PointSize = clamp(aSize * breathe * (260.0 / max(-viewPosition.z, 1.0)), 4.0, 38.0);
     vVeilColor = color;
     vVeilAlpha = aIntensity * uOpacity;
     vPhase = aPhase;
@@ -1107,6 +1107,9 @@ function createExitDustGeometry(count: number) {
 function createDeepSpaceWorld(isMobile: boolean) {
   const group = new THREE.Group();
   const fleet = new THREE.Group();
+  const planetRadius = isMobile ? 16 : 18;
+  const planetPosition = new THREE.Vector3(isMobile ? 10.5 : 14.5, 0.8, -58);
+  const flagshipBaseY = -1.45;
   const interfaceAnchor = new THREE.Object3D();
   interfaceAnchor.position.set(0, 0, -118);
   group.add(interfaceAnchor);
@@ -1140,7 +1143,9 @@ function createDeepSpaceWorld(isMobile: boolean) {
     [-0.08, 0.11],
   ] as const;
   for (let index = 0; index < starCount; index += 1) {
-    const depth = 38 + Math.pow(Math.random(), 0.52) * 111;
+    // Keep the stellar field on a genuinely distant shell. Nearby stars read
+    // like small objects floating beside the planet and flatten the scene.
+    const depth = 180 + Math.pow(Math.random(), 0.52) * 150;
     const clusterRoll = Math.random();
     const clusterIndex = clusterRoll < 0.2
       ? Math.floor(Math.random() * starClusterCenters.length)
@@ -1181,10 +1186,18 @@ function createDeepSpaceWorld(isMobile: boolean) {
     starColors[positionOffset + 1] = starColor.g;
     starColors[positionOffset + 2] = starColor.b;
 
-    const heroStar = Math.random() < 0.018;
+    const projectedPlanetX = planetPosition.x / -planetPosition.z;
+    const projectedPlanetY = planetPosition.y / -planetPosition.z;
+    const projectedPlanetRadius = planetRadius / -planetPosition.z;
+    const distanceFromPlanet = Math.hypot(
+      screenX - projectedPlanetX,
+      screenY - projectedPlanetY,
+    );
+    const clearsPlanetaryNeighborhood = distanceFromPlanet > projectedPlanetRadius * 1.85;
+    const heroStar = clearsPlanetaryNeighborhood && Math.random() < 0.014;
     const midStar = !heroStar && Math.random() < 0.105;
     starSizes[index] = heroStar
-      ? 3.4 + Math.random() * 2.8
+      ? 2.8 + Math.random() * 2.2
       : midStar
         ? 1.45 + Math.random() * 1.35
         : 0.46 + Math.pow(Math.random(), 1.95) * 0.72;
@@ -1229,7 +1242,7 @@ function createDeepSpaceWorld(isMobile: boolean) {
   const veilPhases = new Float32Array(veilCount);
   const veilColor = new THREE.Color();
   for (let index = 0; index < veilCount; index += 1) {
-    const depth = 68 + Math.random() * 70;
+    const depth = 175 + Math.random() * 145;
     const bandX = (Math.random() - 0.5) * 2.28;
     const clusterWave = Math.sin(bandX * 2.7 + 0.8) * 0.055;
     const bandY = 0.16 - bandX * 0.23 + clusterWave
@@ -1287,9 +1300,9 @@ function createDeepSpaceWorld(isMobile: boolean) {
     roughness: 0.78,
     metalness: 0.02,
   }));
-  const planetGeometry = trackGeometry(new THREE.SphereGeometry(12.8, isMobile ? 40 : 64, isMobile ? 24 : 40));
+  const planetGeometry = trackGeometry(new THREE.SphereGeometry(planetRadius, isMobile ? 40 : 64, isMobile ? 24 : 40));
   const planet = new THREE.Mesh(planetGeometry, planetMaterial);
-  planet.position.set(10.5, 0.8, -43);
+  planet.position.copy(planetPosition);
   planet.rotation.set(-0.08, -1.12, 0.04);
   group.add(planet);
 
@@ -1300,7 +1313,7 @@ function createDeepSpaceWorld(isMobile: boolean) {
     depthWrite: false,
   }));
   const atmosphere = new THREE.Mesh(planetGeometry, atmosphereMaterial);
-  atmosphere.scale.setScalar(1.035);
+  atmosphere.scale.setScalar(1.024);
   atmosphere.position.copy(planet.position);
   group.add(atmosphere);
 
@@ -1371,10 +1384,13 @@ function createDeepSpaceWorld(isMobile: boolean) {
     return ship;
   };
 
-  const flagship = createShip(1.05, new THREE.Vector3(-2.8, -0.8, -20), 0.18);
-  createShip(0.34, new THREE.Vector3(5.8, 4.2, -31), -0.2);
-  createShip(0.27, new THREE.Vector3(15.8, -3.8, -37), 0.28);
-  createShip(0.2, new THREE.Vector3(-9.2, 3.4, -29), 0.08);
+  // Foreground contacts occupy their own depth band, well clear of the
+  // planetary sphere. Smaller silhouettes deeper in frame sell orbital scale
+  // without making a carrier look comparable to a world.
+  const flagship = createShip(0.72, new THREE.Vector3(-7.2, flagshipBaseY, -27), 0.18);
+  createShip(0.22, new THREE.Vector3(2.5, 4.8, -39), -0.2);
+  createShip(0.17, new THREE.Vector3(-3.2, -4.2, -45), 0.28);
+  createShip(0.15, new THREE.Vector3(-13.5, 3.5, -43), 0.08);
   group.add(fleet);
 
   let assetLoadCancelled = false;
@@ -1434,7 +1450,7 @@ function createDeepSpaceWorld(isMobile: boolean) {
     },
   );
 
-  const ringGeometry = trackGeometry(new THREE.TorusGeometry(14.5, 0.022, 4, 128));
+  const ringGeometry = trackGeometry(new THREE.TorusGeometry(planetRadius * 1.13, 0.022, 4, 128));
   const ringMaterial = trackMaterial(new THREE.MeshBasicMaterial({
     color: 0x44cad1,
     blending: THREE.AdditiveBlending,
@@ -1611,7 +1627,7 @@ export function HyperspaceIntro() {
     const isMobile = window.matchMedia("(max-width: 720px)").matches;
     const scene = new THREE.Scene();
     scene.background = new THREE.Color(captureMode ? 0x000000 : 0x000104);
-    const camera = new THREE.PerspectiveCamera(74, 1, 0.1, 160);
+    const camera = new THREE.PerspectiveCamera(74, 1, 0.1, 420);
     camera.position.set(0, 0, 0);
 
     renderer.outputColorSpace = THREE.SRGBColorSpace;
@@ -1985,7 +2001,7 @@ export function HyperspaceIntro() {
         camera.updateProjectionMatrix();
 
         world.fleet.rotation.y = Math.sin(elapsed * 0.00008) * 0.022;
-        world.flagship.position.y = -0.9 + Math.sin(elapsed * 0.00034) * 0.08;
+        world.flagship.position.y = -1.45 + Math.sin(elapsed * 0.00034) * 0.08;
         world.planet.rotation.y = -1.12 + elapsed * 0.000008;
         world.orbitalRing.rotation.z = 0.12 + elapsed * 0.000018;
       }
