@@ -12,7 +12,7 @@ import { HyperspaceIntro2D } from "./hyperspace-intro-2d";
 const DURATION = 15000;
 const DEPTH = 132;
 const NEAR = 0.68;
-const SEEN_KEY = "black-vector-jump-seen-3d-v5";
+const SEEN_KEY = "black-vector-jump-seen-3d-v6";
 
 function clamp01(value: number) {
   return Math.max(0, Math.min(1, value));
@@ -72,7 +72,7 @@ const vertexShader = `
     vRibbonUv = uv;
     vBrightness = aBrightness;
     vHue = aHue;
-    vDepthFade = smoothstep(0.0, 7.0, travel) * (1.0 - smoothstep(uDepth - 4.5, uDepth, travel));
+    vDepthFade = smoothstep(0.0, 2.2, travel) * (1.0 - smoothstep(uDepth - 0.85, uDepth, travel));
   }
 `;
 
@@ -169,7 +169,7 @@ function createTunnelGeometry(count: number) {
   for (let index = 0; index < count; index += 1) {
     const light = 0.46 + Math.random() * 0.4;
     angles[index] = Math.random() * Math.PI * 2;
-    radii[index] = 2.8 + Math.pow(Math.random(), 0.68) * 13.2;
+    radii[index] = 0.42 + Math.pow(Math.random(), 1.18) * 15.3;
     seeds[index] = Math.random() * DEPTH;
     lengths[index] = 4.8 + Math.pow(Math.random(), 0.6) * 10.5;
     widths[index] = 0.32 + light * (0.38 + Math.random() * 0.24);
@@ -444,7 +444,7 @@ export function HyperspaceIntro() {
       uEnergy: { value: shouldJump ? 0.28 : 1 },
       uResolution: { value: new THREE.Vector2(1, 1) },
     };
-    const geometry = createTunnelGeometry(isMobile ? 900 : 1650);
+    const geometry = createTunnelGeometry(isMobile ? 1200 : 2200);
     const material = new THREE.ShaderMaterial({
       uniforms,
       vertexShader,
@@ -521,29 +521,33 @@ export function HyperspaceIntro() {
         const launch = smoothstep((progress - 0.18) / 0.075);
         const launchPhase = clamp01((progress - 0.17) / 0.12);
         const launchKick = Math.sin(launchPhase * Math.PI);
+        const chargeWall = charge * (1 - launch);
         const exitBoost = smoothstep((progress - 0.8) / 0.11);
         const braking = smoothstep((progress - 0.92) / 0.08);
-        const preLaunchSpeed = 0.35 + charge * 3.1;
-        const hyperspaceSpeed = 25.5 + exitBoost * 10.5 + launchKick * 16;
+        const preLaunchSpeed = 0.22 + charge * 5.2;
+        const hyperspaceSpeed = 38 + exitBoost * 14 + launchKick * 28;
         const speed = THREE.MathUtils.lerp(preLaunchSpeed, hyperspaceSpeed, launch) * (1 - braking) + 0.35 * braking;
         travel += speed * delta;
         uniforms.uTravel.value = travel;
-        uniforms.uStretch.value = (0.025 + launch * 0.975 + launchKick * 0.26) * (1 - braking) + braking * 0.035;
-        uniforms.uEnergy.value = (0.28 + charge * 0.2 + launch * 0.62) * (1 - braking * 0.5);
+        uniforms.uStretch.value = (0.018 + charge * 0.035 + launch * 1.22 + launchKick * 0.4) * (1 - braking) + braking * 0.04;
+        uniforms.uEnergy.value = (0.32 + chargeWall * 0.92 + launch * 0.83 + launchKick * 0.35) * (1 - braking * 0.48);
         uniforms.uOpacity.value = smoothstep(progress / 0.035) * (1 - smoothstep((progress - 0.84) / 0.16));
         world.setOpacity(smoothstep((progress - 0.87) / 0.13));
+        bloomPass.strength = (isMobile ? 0.48 : 0.58) + chargeWall * (isMobile ? 0.32 : 0.44) + launchKick * (isMobile ? 0.38 : 0.54);
+        bloomPass.threshold = 0.72 - chargeWall * 0.11 - launchKick * 0.12;
+        renderer.toneMappingExposure = 0.98 + chargeWall * 0.18 + launchKick * 0.26 + launch * 0.05;
 
         const cruiseRumble = launch * (1 - braking);
         camera.position.x = Math.sin(elapsed * 0.0037) * (0.003 + launchKick * 0.04 + cruiseRumble * 0.007);
         camera.position.y = Math.cos(elapsed * 0.0031) * (0.002 + launchKick * 0.03 + cruiseRumble * 0.006);
         camera.position.z = launchKick * 0.055;
         camera.rotation.set(0, 0, Math.sin(elapsed * 0.0017) * (0.0006 + launchKick * 0.004));
-        camera.fov = 64 + launch * 10 + launchKick * 8 - braking * 4;
+        camera.fov = 64 + launch * 14 + launchKick * 10 - braking * 4;
         camera.updateProjectionMatrix();
 
         if (progress > 0.175 && progress < 0.255) {
           const ignition = (progress - 0.175) / 0.08;
-          flash = Math.sin(ignition * Math.PI) * 0.16;
+          flash = Math.sin(ignition * Math.PI) * 0.32;
         }
 
         if (progress > 0.87 && progress < 0.97) {
@@ -555,6 +559,9 @@ export function HyperspaceIntro() {
           jumpComplete = true;
           tunnel.visible = false;
           world.setOpacity(1);
+          bloomPass.strength = isMobile ? 0.48 : 0.58;
+          bloomPass.threshold = 0.72;
+          renderer.toneMappingExposure = 0.98;
           if (!finishQueued) {
             finishQueued = true;
             finish();
