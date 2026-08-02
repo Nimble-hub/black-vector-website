@@ -608,6 +608,7 @@ const gravitationalLensShader = {
     uDarkness: { value: 0 },
     uFlash: { value: 0 },
     uMotionBlur: { value: 0 },
+    uSceneWarp: { value: 0 },
     uTime: { value: 0 },
     uCruise: { value: 0 },
   },
@@ -631,6 +632,7 @@ const gravitationalLensShader = {
     uniform float uDarkness;
     uniform float uFlash;
     uniform float uMotionBlur;
+    uniform float uSceneWarp;
     uniform float uTime;
     uniform float uCruise;
 
@@ -691,8 +693,27 @@ const gravitationalLensShader = {
         * wideField
         * uStrength
         * (0.0007 + uFlash * 0.0028);
+      // The central horizon supplies the focal event, while this broader
+      // optical compression carries the same pressure through the full star
+      // wall. Sampling inward keeps the frame filled and avoids rectangular
+      // clamping smears at the display edges.
+      float frameReach = smoothstep(
+        horizon * 0.4,
+        max(horizon * 1.35, 0.2),
+        radius
+      );
+      float frameCurve = pow(clamp(radius / 1.08, 0.0, 1.0), 1.25);
+      float sceneCompression = uSceneWarp
+        * frameReach
+        * (0.003 + frameCurve * 0.011);
+      float sceneShear = sin(angle * 2.0 - uTime * 0.18)
+        * uSceneWarp
+        * frameReach
+        * (0.0007 + frameCurve * 0.0012);
       vec2 warpedUv = clamp(
-        vUv + radialUv * deflection + tangentUv * (orbitalShear + pressureShear),
+        vUv
+          + radialUv * (deflection - sceneCompression)
+          + tangentUv * (orbitalShear + pressureShear + sceneShear),
         uvMin,
         uvMax
       );
@@ -746,10 +767,14 @@ const gravitationalLensShader = {
 
       float fieldBlend = max(
         outerField,
-        wideField * (0.2 + uFlash * 0.48 + uCruise * 0.12)
+        max(
+          wideField * (0.2 + uFlash * 0.48 + uCruise * 0.12),
+          uSceneWarp * frameReach * (0.44 + frameCurve * 0.24)
+        )
       );
       float chroma = (shellStack * uStrength * 0.00145 + uStretch * 0.0034)
-        * fieldBlend;
+        * fieldBlend
+        + uSceneWarp * frameReach * (0.00018 + frameCurve * 0.00022);
       lensed.r = texture2D(tDiffuse, clamp(warpedUv - radialUv * chroma, uvMin, uvMax)).r;
       lensed.b = texture2D(tDiffuse, clamp(warpedUv + radialUv * chroma, uvMin, uvMax)).b;
       float compressedLight = max(sceneLuma(lensed) - sceneLuma(base), 0.0);
@@ -2538,8 +2563,16 @@ export function HyperspaceIntro() {
           + crashZoom * 3.35
           + cruiseLens * cruiseBreath
         ) * (1 - braking);
+        const sceneWarp = Math.min(1, (
+          warpTension * (0.34 + sequencePressure * 0.66)
+            + streakStretch * 0.4
+            + crashZoom * 0.3
+            + launchImpulse * 0.2
+            + cruiseLens * 0.08
+        ) * (1 - braking));
         lensPass.enabled = lensStrength > 0.002;
         lensPass.uniforms.uStrength.value = lensStrength;
+        lensPass.uniforms.uSceneWarp.value = sceneWarp;
         // Keep the optical axis locked to the camera. Moving the distortion
         // center independently from the rig creates a visible rocking motion
         // even when the actual flight path is smooth.
