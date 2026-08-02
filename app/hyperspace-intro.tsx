@@ -12,7 +12,7 @@ import { HyperspaceIntro2D } from "./hyperspace-intro-2d";
 const DURATION = 15000;
 const DEPTH = 132;
 const NEAR = 0.68;
-const SEEN_KEY = "black-vector-jump-seen-3d-v7";
+const SEEN_KEY = "black-vector-jump-seen-3d-v8";
 
 function clamp01(value: number) {
   return Math.max(0, Math.min(1, value));
@@ -39,6 +39,7 @@ const vertexShader = `
   uniform float uNear;
   uniform float uOpacity;
   uniform float uStretch;
+  uniform float uWidthScale;
   uniform vec2 uResolution;
 
   varying vec2 vRibbonUv;
@@ -63,12 +64,13 @@ const vertexShader = `
     vec2 direction = normalize(screenHead - screenTail + vec2(0.00001));
     vec2 perpendicular = vec2(direction.y, -direction.x);
     float coreLength = length(screenHead - screenTail);
-    vec2 renderedTail = screenTail - direction * aWidth;
-    vec2 renderedHead = screenHead + direction * aWidth;
+    float halfWidth = aWidth * uWidthScale;
+    vec2 renderedTail = screenTail - direction * halfWidth;
+    vec2 renderedHead = screenHead + direction * halfWidth;
 
     float along = uv.y;
     vec2 screenPosition = mix(renderedTail, renderedHead, along);
-    screenPosition += perpendicular * uv.x * aWidth;
+    screenPosition += perpendicular * uv.x * halfWidth;
     vec2 ndcPosition = screenPosition / (uResolution * 0.5);
     float clipW = mix(clipTail.w, clipHead.w, along);
     float ndcZ = mix(clipTail.z / clipTail.w, clipHead.z / clipHead.w, along);
@@ -78,7 +80,7 @@ const vertexShader = `
     vBrightness = aBrightness;
     vHue = aHue;
     vDepthFade = smoothstep(0.0, 2.2, travel) * (1.0 - smoothstep(uDepth - 0.85, uDepth, travel));
-    vRenderedLength = coreLength + aWidth * 2.0;
+    vRenderedLength = coreLength + halfWidth * 2.0;
     vHalfSegment = coreLength * 0.5;
   }
 `;
@@ -453,6 +455,7 @@ export function HyperspaceIntro() {
       uNear: { value: NEAR },
       uOpacity: { value: shouldJump ? 1 : 0 },
       uStretch: { value: shouldJump ? 0.025 : 1 },
+      uWidthScale: { value: shouldJump ? 0.72 : 1 },
       uEnergy: { value: shouldJump ? 0.28 : 1 },
       uResolution: { value: new THREE.Vector2(1, 1) },
     };
@@ -529,25 +532,26 @@ export function HyperspaceIntro() {
 
       if (!jumpComplete) {
         const progress = skipJumpRef.current ? 1 : clamp01(elapsed / DURATION);
-        const charge = smoothstep(progress / 0.18);
-        const launch = smoothstep((progress - 0.18) / 0.075);
-        const launchPhase = clamp01((progress - 0.17) / 0.12);
+        const charge = smoothstep(progress / 0.25);
+        const launch = smoothstep((progress - 0.25) / 0.075);
+        const launchPhase = clamp01((progress - 0.24) / 0.12);
         const launchKick = Math.sin(launchPhase * Math.PI);
         const chargeWall = charge * (1 - launch);
         const exitBoost = smoothstep((progress - 0.8) / 0.11);
         const braking = smoothstep((progress - 0.92) / 0.08);
-        const preLaunchSpeed = 0.22 + charge * 5.2;
-        const hyperspaceSpeed = 38 + exitBoost * 14 + launchKick * 28;
+        const preLaunchSpeed = 0.18 + charge * 8.2;
+        const hyperspaceSpeed = 42 + exitBoost * 14 + launchKick * 30;
         const speed = THREE.MathUtils.lerp(preLaunchSpeed, hyperspaceSpeed, launch) * (1 - braking) + 0.35 * braking;
         travel += speed * delta;
         uniforms.uTravel.value = travel;
-        uniforms.uStretch.value = (0.018 + charge * 0.035 + launch * 1.22 + launchKick * 0.4) * (1 - braking) + braking * 0.04;
-        uniforms.uEnergy.value = (0.32 + chargeWall * 0.92 + launch * 0.83 + launchKick * 0.35) * (1 - braking * 0.48);
+        uniforms.uStretch.value = (0.018 + chargeWall * 0.92 + launch * 1.06 + launchKick * 0.5) * (1 - braking) + braking * 0.04;
+        uniforms.uWidthScale.value = (0.72 + chargeWall * 1.25 + launch * 0.36 + launchKick * 0.48) * (1 - braking * 0.35);
+        uniforms.uEnergy.value = (0.28 + chargeWall * 1.38 + launch * 0.88 + launchKick * 0.46) * (1 - braking * 0.48);
         uniforms.uOpacity.value = smoothstep(progress / 0.035) * (1 - smoothstep((progress - 0.84) / 0.16));
         world.setOpacity(smoothstep((progress - 0.87) / 0.13));
-        bloomPass.strength = (isMobile ? 0.48 : 0.58) + chargeWall * (isMobile ? 0.32 : 0.44) + launchKick * (isMobile ? 0.38 : 0.54);
-        bloomPass.threshold = 0.72 - chargeWall * 0.11 - launchKick * 0.12;
-        renderer.toneMappingExposure = 0.98 + chargeWall * 0.18 + launchKick * 0.26 + launch * 0.05;
+        bloomPass.strength = (isMobile ? 0.48 : 0.58) + chargeWall * (isMobile ? 0.58 : 0.74) + launchKick * (isMobile ? 0.42 : 0.58);
+        bloomPass.threshold = 0.72 - chargeWall * 0.2 - launchKick * 0.13;
+        renderer.toneMappingExposure = 0.98 + chargeWall * 0.28 + launchKick * 0.28 + launch * 0.05;
 
         const cruiseRumble = launch * (1 - braking);
         camera.position.x = Math.sin(elapsed * 0.0037) * (0.003 + launchKick * 0.04 + cruiseRumble * 0.007);
@@ -557,8 +561,8 @@ export function HyperspaceIntro() {
         camera.fov = 64 + launch * 14 + launchKick * 10 - braking * 4;
         camera.updateProjectionMatrix();
 
-        if (progress > 0.175 && progress < 0.255) {
-          const ignition = (progress - 0.175) / 0.08;
+        if (progress > 0.245 && progress < 0.335) {
+          const ignition = (progress - 0.245) / 0.09;
           flash = Math.sin(ignition * Math.PI) * 0.32;
         }
 
@@ -617,6 +621,7 @@ export function HyperspaceIntro() {
       uniforms.uResolution.value.set(64, 36);
       uniforms.uTravel.value = 18;
       uniforms.uStretch.value = 0.85;
+      uniforms.uWidthScale.value = 1;
       uniforms.uEnergy.value = 1;
       renderer.setRenderTarget(probeTarget);
       renderer.render(scene, camera);
@@ -626,6 +631,7 @@ export function HyperspaceIntro() {
       uniforms.uResolution.value.copy(fullResolution);
       uniforms.uTravel.value = 0;
       uniforms.uStretch.value = 0.025;
+      uniforms.uWidthScale.value = 0.72;
       uniforms.uEnergy.value = 0.28;
       const hasLightGeometry = probePixels.some((value, index) => index % 4 !== 3 && value > 6);
       if (!hasLightGeometry) {
