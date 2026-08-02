@@ -976,8 +976,9 @@ export function HyperspaceIntro() {
         const speed = THREE.MathUtils.lerp(preLaunchSpeed, hyperspaceSpeed, launch) * (1 - braking) + 0.35 * braking;
         travel += speed * delta;
         uniforms.uTravel.value = travel;
-        const staticStretch = THREE.MathUtils.lerp(0.035, 0.32, charge);
-        uniforms.uStretch.value = (staticStretch + launch * 1.43) * (1 - braking) + braking * 0.04;
+        const stretchCharge = Math.pow(charge, 0.7);
+        const staticStretch = THREE.MathUtils.lerp(0.035, 0.43, stretchCharge);
+        uniforms.uStretch.value = (staticStretch + launch * 1.32) * (1 - braking) + braking * 0.04;
         uniforms.uWidthScale.value = (0.76 + charge * 0.4 + launch * 0.38) * (1 - braking * 0.35);
         uniforms.uEnergy.value = (0.24 + charge * 0.88 + launch * 0.34) * (1 - braking * 0.48);
         uniforms.uOpacity.value = smoothstep(progress / 0.015) * (0.24 + charge * 0.76) * (1 - smoothstep((progress - 0.88) / 0.055));
