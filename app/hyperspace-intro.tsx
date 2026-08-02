@@ -10,7 +10,7 @@ type Star = {
 };
 
 const DURATION = 15000;
-const SEEN_KEY = "black-vector-jump-seen-v7";
+const SEEN_KEY = "black-vector-jump-seen-v8";
 
 function clamp01(value: number) {
   return Math.max(0, Math.min(1, value));
@@ -138,7 +138,7 @@ export function HyperspaceIntro() {
       const speed = cruiseSpeed * (1 - braking) + 0.04 * braking;
       const transit = 1 - smoothstep((progress - 0.96) / 0.04);
 
-      context.fillStyle = "#020305";
+      context.fillStyle = "#000104";
       context.fillRect(0, 0, width, height);
       const lensBreath = Math.sin(elapsed * 0.00027) * 0.0022;
       const centerX = width * (0.5 + Math.sin(elapsed * 0.00019) * 0.0015);
@@ -154,10 +154,11 @@ export function HyperspaceIntro() {
           centerY,
           Math.max(width, height) * 0.74,
         );
-        fieldGlow.addColorStop(0, `rgba(180, 224, 255, ${transit * 0.16})`);
-        fieldGlow.addColorStop(0.16, `rgba(62, 130, 230, ${transit * 0.17})`);
-        fieldGlow.addColorStop(0.6, `rgba(5, 34, 86, ${transit * 0.24})`);
-        fieldGlow.addColorStop(1, "rgba(0, 4, 16, 0)");
+        fieldGlow.addColorStop(0, `rgba(178, 221, 255, ${transit * 0.085})`);
+        fieldGlow.addColorStop(0.1, `rgba(48, 116, 216, ${transit * 0.045})`);
+        fieldGlow.addColorStop(0.34, `rgba(7, 35, 83, ${transit * 0.022})`);
+        fieldGlow.addColorStop(0.7, `rgba(2, 13, 38, ${transit * 0.01})`);
+        fieldGlow.addColorStop(1, "rgba(0, 0, 0, 0)");
         context.fillStyle = fieldGlow;
         context.fillRect(0, 0, width, height);
       }
@@ -235,10 +236,18 @@ export function HyperspaceIntro() {
       context.globalAlpha = 1;
 
       const charge = 1 - smoothstep((progress - 0.95) / 0.05);
-      const glow = context.createRadialGradient(centerX, centerY, 0, centerX, centerY, width * 0.5);
-      glow.addColorStop(0, `rgba(244, 252, 255, ${charge * 0.48})`);
-      glow.addColorStop(0.055, `rgba(147, 208, 255, ${charge * 0.28})`);
-      glow.addColorStop(0.24, `rgba(44, 116, 225, ${charge * 0.14})`);
+      const glow = context.createRadialGradient(
+        centerX,
+        centerY,
+        0,
+        centerX,
+        centerY,
+        Math.min(width, height) * 0.7,
+      );
+      glow.addColorStop(0, `rgba(248, 253, 255, ${charge * 0.44})`);
+      glow.addColorStop(0.04, `rgba(151, 210, 255, ${charge * 0.21})`);
+      glow.addColorStop(0.12, `rgba(48, 118, 224, ${charge * 0.065})`);
+      glow.addColorStop(0.42, `rgba(14, 57, 135, ${charge * 0.012})`);
       glow.addColorStop(1, "rgba(0, 0, 0, 0)");
       context.fillStyle = glow;
       context.fillRect(0, 0, width, height);
@@ -262,8 +271,9 @@ export function HyperspaceIntro() {
         Math.max(width, height) * 0.72,
       );
       vignette.addColorStop(0, "rgba(0, 0, 0, 0)");
-      vignette.addColorStop(0.68, "rgba(0, 2, 12, 0.08)");
-      vignette.addColorStop(1, `rgba(0, 2, 12, ${0.48 - transit * 0.16})`);
+      vignette.addColorStop(0.58, "rgba(0, 0, 3, 0.06)");
+      vignette.addColorStop(0.82, "rgba(0, 0, 3, 0.24)");
+      vignette.addColorStop(1, `rgba(0, 0, 2, ${0.68 - transit * 0.1})`);
       context.fillStyle = vignette;
       context.fillRect(0, 0, width, height);
 

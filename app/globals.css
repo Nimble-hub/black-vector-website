@@ -50,7 +50,7 @@ a:focus-visible {
   inset: 0;
   z-index: 100;
   overflow: hidden;
-  background: #020305;
+  background: #000104;
   opacity: 1;
   transition: opacity 500ms ease, filter 500ms ease;
 }
