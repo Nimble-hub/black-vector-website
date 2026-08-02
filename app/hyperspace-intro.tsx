@@ -1033,12 +1033,12 @@ export function HyperspaceIntro() {
         // Keep the light wall charging while acceleration begins so the short
         // traces stretch into hyperspace as one uninterrupted motion.
         const charge = smoothstep(progress / 0.35);
-        const launchProgress = clamp01((progress - 0.285) / 0.05);
-        const launch = 1 - Math.pow(1 - launchProgress, 3);
+        const launchProgress = clamp01((progress - 0.285) / 0.028);
+        const launch = 1 - Math.pow(1 - launchProgress, 4);
         const braking = smoothstep((progress - 0.84) / 0.055);
         const exitArrival = smoothstep((progress - 0.89) / 0.11);
         const preLaunchSpeed = 0.12 + charge * 0.72;
-        const hyperspaceSpeed = 74;
+        const hyperspaceSpeed = 92;
         const speed = THREE.MathUtils.lerp(preLaunchSpeed, hyperspaceSpeed, launch) * (1 - braking) + 0.35 * braking;
         travel += speed * delta;
         uniforms.uTravel.value = travel;
@@ -1066,7 +1066,7 @@ export function HyperspaceIntro() {
           THREE.MathUtils.lerp(-100, -38, exitArrival),
         );
         camera.lookAt(cameraTarget);
-        camera.fov = 62 + charge * 4 + launch * 16 - braking * 18;
+        camera.fov = 62 + charge * 4 + launch * 20 - braking * 22;
         camera.updateProjectionMatrix();
 
         if (progress >= 1) {
