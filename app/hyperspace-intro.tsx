@@ -405,23 +405,35 @@ const exitCrystalVertexShader = `
     float fade = smoothstep(0.0, 0.055, life) * (1.0 - smoothstep(0.68, 1.0, life));
 
     vec3 localOffset = position - aClusterOrigin;
-    float roll = age * aSwirl + sin(age * 1.45 + aClusterPhase) * 0.34;
+    float roll = age * aSwirl * 1.14 + sin(age * 1.45 + aClusterPhase) * 0.34;
     float rollCos = cos(roll);
     float rollSin = sin(roll);
     localOffset.xy = mat2(rollCos, -rollSin, rollSin, rollCos) * localOffset.xy;
-    localOffset *= 1.0 + age * 0.24;
+    localOffset *= 1.0 + age * 0.16;
 
-    float curl = sin(age * 2.35 + aClusterPhase + aSeed * 1.7);
-    float eddy = cos(age * 1.72 + aClusterPhase * 1.31 + aSeed * 2.4);
-    vec3 windRoll = vec3(curl, eddy * 0.72, curl * eddy * 0.42);
-    windRoll *= aTurbulence * smoothstep(0.0, 0.22, age) * (0.7 + age * 0.38);
+    float orbit = age * aSwirl * 0.58 + sin(age * 1.18 + aClusterPhase) * 0.22;
+    float orbitCos = cos(orbit);
+    float orbitSin = sin(orbit);
+    vec2 clusterOrbit = mat2(orbitCos, -orbitSin, orbitSin, orbitCos) * aClusterOrigin.xy;
+    clusterOrbit *= 1.0 + age * (0.08 + aSeed * 0.045);
+    vec2 radialDirection = normalize(clusterOrbit + vec2(0.0001));
+    vec2 tangentDirection = vec2(-radialDirection.y, radialDirection.x);
+    float curl = sin(age * 3.85 + aClusterPhase + aSeed * 1.7);
+    float eddy = cos(age * 2.45 + aClusterPhase * 1.31 + aSeed * 2.4);
+    float windStrength = aTurbulence * smoothstep(0.0, 0.14, age) * (0.62 + age * 0.3);
+    vec3 windRoll = vec3(
+      tangentDirection * (curl * 0.72 + sin(age * 1.3 + aClusterPhase) * age * 0.28)
+        + radialDirection * eddy * 0.34,
+      curl * eddy * 0.3
+    ) * windStrength;
 
-    vec3 clusterPosition = aClusterOrigin + aClusterVelocity * age;
+    vec3 clusterPosition = vec3(clusterOrbit, aClusterOrigin.z)
+      + aClusterVelocity * age * 0.3;
     vec3 particlePosition = clusterPosition + localOffset + aVelocity * age + windRoll;
-    vec4 viewPosition = modelViewMatrix * vec4(particlePosition, 1.0);
+    vec4 viewPosition = vec4(particlePosition, 1.0);
     gl_Position = projectionMatrix * viewPosition;
     float facetShimmer = 0.92 + sin(age * (4.0 + aSeed * 3.0) + aSeed * 31.0) * 0.08;
-    gl_PointSize = clamp(aSize * facetShimmer * (12.0 / max(-viewPosition.z, 1.0)), 1.35, 22.0);
+    gl_PointSize = clamp(aSize * facetShimmer * (18.0 / max(-viewPosition.z, 1.0)), 1.2, 24.0);
 
     vLife = active * fade * uOpacity;
     vBrightness = aBrightness;
@@ -488,28 +500,42 @@ const exitDustVertexShader = `
     float fade = smoothstep(0.0, 0.045, life) * (1.0 - smoothstep(0.7, 1.0, life));
 
     vec3 localOffset = position - aClusterOrigin;
-    float spin = age * aSwirl + sin(age * 1.9 + aClusterPhase) * 0.28;
+    float spin = age * aSwirl * 1.22 + sin(age * 1.9 + aClusterPhase) * 0.31;
     float spinCos = cos(spin);
     float spinSin = sin(spin);
     localOffset.xy = mat2(spinCos, -spinSin, spinSin, spinCos) * localOffset.xy;
-    localOffset *= 1.0 + age * (0.16 + aSeed * 0.11);
+    localOffset *= 1.0 + age * (0.1 + aSeed * 0.06);
 
-    float gustStrength = aTurbulence * smoothstep(0.0, 0.18, age) * (0.44 + age * 0.38);
+    float clusterTurn = age * aSwirl * 0.62
+      + sin(age * 1.08 + aClusterPhase) * 0.24;
+    float turnCos = cos(clusterTurn);
+    float turnSin = sin(clusterTurn);
+    vec2 clusterOrbit = mat2(turnCos, -turnSin, turnSin, turnCos) * aClusterOrigin.xy;
+    clusterOrbit *= 1.0 + age * (0.1 + aSeed * 0.055);
+    vec2 radialDirection = normalize(clusterOrbit + vec2(0.0001));
+    vec2 tangentDirection = vec2(-radialDirection.y, radialDirection.x);
+
+    float gustStrength = aTurbulence * smoothstep(0.0, 0.1, age) * (0.58 + age * 0.34);
+    float curlA = sin(age * 4.15 + aClusterPhase + aSeed * 2.0);
+    float curlB = cos(age * 2.7 + aClusterPhase * 1.17 + aSeed * 1.6);
     vec3 gust = vec3(
-      sin(age * 2.85 + aClusterPhase + aSeed * 2.0),
-      cos(age * 2.35 + aClusterPhase * 1.17 + aSeed * 1.6),
-      sin(age * 1.95 + aClusterPhase + aSeed * 2.4) * 0.36
+      tangentDirection * (curlA * 0.76 + sin(age * 1.24 + aClusterPhase) * age * 0.34)
+        + radialDirection * curlB * 0.42,
+      sin(age * 2.05 + aClusterPhase + aSeed * 2.4) * 0.32
     ) * gustStrength;
-    vec3 particlePosition = aClusterOrigin + localOffset + aVelocity * age + gust;
-    vec4 viewPosition = modelViewMatrix * vec4(particlePosition, 1.0);
+    vec3 particlePosition = vec3(clusterOrbit, aClusterOrigin.z)
+      + localOffset
+      + vec3(aVelocity.xy * age * 0.34, aVelocity.z * min(age, 3.6))
+      + gust;
+    vec4 viewPosition = vec4(particlePosition, 1.0);
     gl_Position = projectionMatrix * viewPosition;
 
     float sparkleWave = pow(
-      0.5 + 0.5 * sin(uTime * (7.0 + aSeed * 4.5) + aSeed * 83.0),
-      10.0
+      0.5 + 0.5 * sin(uTime * (8.5 + aSeed * 5.5) + aSeed * 83.0),
+      12.0
     );
-    float sparkleSize = 1.0 + aSparkle * sparkleWave * 2.35;
-    gl_PointSize = clamp(aSize * sparkleSize * (24.0 / max(-viewPosition.z, 1.0)), 1.25, 28.0);
+    float sparkleSize = 1.0 + aSparkle * sparkleWave * 2.8;
+    gl_PointSize = clamp(aSize * sparkleSize * (22.0 / max(-viewPosition.z, 1.0)), 0.75, 24.0);
 
     vLife = active * fade * uOpacity;
     vBrightness = aBrightness;
@@ -712,23 +738,23 @@ function createExitCrystalGeometry(count: number) {
   const swirls = new Float32Array(count);
   const clusterPhases = new Float32Array(count);
 
-  const clusterCount = count > 1000 ? 18 : 12;
+  const clusterCount = count > 1000 ? 20 : 13;
   const clusters = Array.from({ length: clusterCount }, (_, clusterIndex) => {
     const angle = (clusterIndex / clusterCount) * Math.PI * 2 + (Math.random() - 0.5) * 0.36;
-    const radius = 1.45 + Math.random() * 2.65;
+    const radius = 3.0 + Math.pow(Math.random(), 0.58) * 5.4;
     return {
       origin: new THREE.Vector3(
         Math.cos(angle) * radius,
-        Math.sin(angle) * radius * 0.68,
-        -4.2 - Math.random() * 3.2,
+        Math.sin(angle) * radius * 0.72,
+        -6.8 - Math.random() * 6.2,
       ),
       velocity: new THREE.Vector3(
-        Math.cos(angle) * (0.42 + Math.random() * 0.92),
-        Math.sin(angle) * (0.3 + Math.random() * 0.68),
-        -2.8 - Math.random() * 3,
+        Math.cos(angle) * (0.18 + Math.random() * 0.44),
+        Math.sin(angle) * (0.14 + Math.random() * 0.38),
+        -0.72 - Math.random() * 1.15,
       ),
-      delay: Math.random() * 0.45,
-      swirl: (Math.random() < 0.5 ? -1 : 1) * (2.3 + Math.random() * 2.9),
+      delay: Math.random() * 0.34,
+      swirl: (Math.random() < 0.5 ? -1 : 1) * (1.35 + Math.random() * 1.9),
       phase: Math.random() * Math.PI * 2,
     };
   });
@@ -751,11 +777,11 @@ function createExitCrystalGeometry(count: number) {
     clusterVelocities[offset + 1] = cluster.velocity.y;
     clusterVelocities[offset + 2] = cluster.velocity.z;
     delays[index] = cluster.delay + Math.random() * 0.2;
-    lifetimes[index] = 2.6 + Math.random() * 1.2;
-    const isMicroFrost = Math.random() < 0.72;
+    lifetimes[index] = 3.8 + Math.random() * 1.7;
+    const isMicroFrost = Math.random() < 0.78;
     sizes[index] = isMicroFrost
-      ? 0.7 + Math.pow(Math.random(), 0.7) * 2.4
-      : 4.4 + Math.pow(Math.random(), 0.72) * 7.2;
+      ? 0.55 + Math.pow(Math.random(), 0.8) * 1.85
+      : 3.6 + Math.pow(Math.random(), 0.72) * 6.8;
     brightness[index] = isMicroFrost ? 0.42 + Math.random() * 0.38 : 0.6 + Math.random() * 0.4;
     turbulence[index] = 0.52 + Math.random() * 1.05;
     seeds[index] = Math.random();
@@ -793,24 +819,25 @@ function createExitDustGeometry(count: number) {
   const swirls = new Float32Array(count);
   const clusterPhases = new Float32Array(count);
 
-  const clusterCount = count > 5000 ? 40 : 22;
+  const clusterCount = count > 5000 ? 32 : 18;
   const clusters = Array.from({ length: clusterCount }, (_, clusterIndex) => {
     const angle = (clusterIndex / clusterCount) * Math.PI * 2 + (Math.random() - 0.5) * 0.42;
-    const radius = 0.4 + Math.pow(Math.random(), 0.72) * 5.3;
-    const speed = 0.65 + Math.random() * 1.55;
+    const radius = 3.2 + Math.pow(Math.random(), 0.46) * 6.2;
+    const radialSpeed = 0.22 + Math.random() * 0.58;
+    const tangentialSpeed = (Math.random() < 0.5 ? -1 : 1) * (0.28 + Math.random() * 0.68);
     return {
       origin: new THREE.Vector3(
         Math.cos(angle) * radius,
-        Math.sin(angle) * radius * 0.7,
-        -4.5 - Math.random() * 7,
+        Math.sin(angle) * radius * 0.72,
+        -7.4 - Math.random() * 6.8,
       ),
       velocity: new THREE.Vector3(
-        Math.cos(angle) * speed,
-        Math.sin(angle) * speed * 0.68,
-        0.35 + Math.random() * 0.9,
+        Math.cos(angle) * radialSpeed - Math.sin(angle) * tangentialSpeed,
+        Math.sin(angle) * radialSpeed * 0.72 + Math.cos(angle) * tangentialSpeed * 0.72,
+        0.18 + Math.random() * 0.58,
       ),
-      delay: Math.random() * 0.18,
-      swirl: (Math.random() < 0.5 ? -1 : 1) * (1.25 + Math.random() * 2.55),
+      delay: Math.random() * 0.32,
+      swirl: (Math.random() < 0.5 ? -1 : 1) * (0.82 + Math.random() * 1.55),
       phase: Math.random() * Math.PI * 2,
     };
   });
@@ -818,7 +845,7 @@ function createExitDustGeometry(count: number) {
   for (let index = 0; index < count; index += 1) {
     const cluster = clusters[index % clusterCount];
     const localAngle = Math.random() * Math.PI * 2;
-    const localRadius = Math.pow(Math.random(), 1.75) * (0.45 + Math.random() * 1.3);
+    const localRadius = Math.pow(Math.random(), 2.15) * (0.34 + Math.random() * 1.12);
     const offset = index * 3;
     positions[offset] = cluster.origin.x + Math.cos(localAngle) * localRadius;
     positions[offset + 1] = cluster.origin.y + Math.sin(localAngle) * localRadius * 0.72;
@@ -829,14 +856,14 @@ function createExitDustGeometry(count: number) {
     clusterOrigins[offset] = cluster.origin.x;
     clusterOrigins[offset + 1] = cluster.origin.y;
     clusterOrigins[offset + 2] = cluster.origin.z;
-    delays[index] = cluster.delay + Math.random() * 0.12;
-    lifetimes[index] = 4.2 + Math.random() * 1.8;
-    const sparkle = Math.random() < 0.3;
+    delays[index] = cluster.delay + Math.random() * 0.18;
+    lifetimes[index] = 4.8 + Math.random() * 2.1;
+    const sparkle = Math.random() < 0.42;
     sizes[index] = sparkle
-      ? 4.5 + Math.pow(Math.random(), 1.45) * 9
-      : 1.8 + Math.pow(Math.random(), 1.55) * 3.2;
-    brightness[index] = 0.7 + Math.random() * 0.3;
-    turbulence[index] = 0.58 + Math.random() * 1.42;
+      ? 2.8 + Math.pow(Math.random(), 1.35) * 5.8
+      : 0.48 + Math.pow(Math.random(), 1.65) * 1.85;
+    brightness[index] = 0.62 + Math.random() * 0.38;
+    turbulence[index] = 0.72 + Math.random() * 1.65;
     seeds[index] = Math.random();
     sparkles[index] = sparkle ? 0.72 + Math.random() * 0.28 : 0;
     swirls[index] = cluster.swirl;
@@ -1366,7 +1393,7 @@ export function HyperspaceIntro() {
       uTime: { value: 0 },
       uOpacity: { value: 0 },
     };
-    const exitCrystalGeometry = createExitCrystalGeometry(isMobile ? 650 : 1350);
+    const exitCrystalGeometry = createExitCrystalGeometry(isMobile ? 900 : 1900);
     const exitCrystalMaterial = new THREE.ShaderMaterial({
       uniforms: exitCrystalUniforms,
       vertexShader: exitCrystalVertexShader,
@@ -1381,6 +1408,7 @@ export function HyperspaceIntro() {
     exitCrystals.frustumCulled = false;
     exitCrystals.matrixAutoUpdate = false;
     exitCrystals.updateMatrix();
+    exitCrystals.renderOrder = 9;
     exitCrystals.visible = shouldJump;
     scene.add(exitCrystals);
 
@@ -1388,7 +1416,7 @@ export function HyperspaceIntro() {
       uTime: { value: 0 },
       uOpacity: { value: 0 },
     };
-    const exitDustGeometry = createExitDustGeometry(isMobile ? 3400 : 8000);
+    const exitDustGeometry = createExitDustGeometry(isMobile ? 5200 : 12000);
     const exitDustMaterial = new THREE.ShaderMaterial({
       uniforms: exitDustUniforms,
       vertexShader: exitDustVertexShader,
@@ -1532,10 +1560,10 @@ export function HyperspaceIntro() {
         uniforms.uOpacity.value = smoothstep(progress / 0.015) * (0.24 + charge * 0.76) * (1 - smoothstep((progress - 0.88) / 0.055));
         exitWakeUniforms.uTime.value = 0;
         exitWakeUniforms.uOpacity.value = 0;
-        exitCrystalUniforms.uTime.value = Math.max(0, (elapsed - DURATION * 0.91) / 1000);
-        exitCrystalUniforms.uOpacity.value = smoothstep((progress - 0.9) / 0.035);
-        exitDustUniforms.uTime.value = Math.max(0, (elapsed - DURATION * 0.91) / 1000);
-        exitDustUniforms.uOpacity.value = smoothstep((progress - 0.905) / 0.025) * 1.25;
+        exitCrystalUniforms.uTime.value = Math.max(0, (elapsed - DURATION * 0.872) / 1000);
+        exitCrystalUniforms.uOpacity.value = smoothstep((progress - 0.875) / 0.04);
+        exitDustUniforms.uTime.value = Math.max(0, (elapsed - DURATION * 0.87) / 1000);
+        exitDustUniforms.uOpacity.value = smoothstep((progress - 0.872) / 0.035) * 1.08;
         world.setOpacity(smoothstep((progress - 0.865) / 0.09));
         renderer.toneMappingExposure = 0.94 + charge * 0.1 + launch * 0.06;
 
@@ -1572,14 +1600,14 @@ export function HyperspaceIntro() {
         }
       } else {
         const landingElapsed = landingStartTime === null ? 1600 : Math.max(0, time - landingStartTime);
-        const wakeFade = 1 - smoothstep(landingElapsed / 2100);
-        const dustFade = 1 - smoothstep(landingElapsed / 3400);
+        const wakeFade = 1 - smoothstep(landingElapsed / 3200);
+        const dustFade = 1 - smoothstep(landingElapsed / 5200);
         exitWakeUniforms.uTime.value = 0;
         exitWakeUniforms.uOpacity.value = 0;
-        exitCrystalUniforms.uTime.value = Math.max(0, (elapsed - DURATION * 0.91) / 1000);
+        exitCrystalUniforms.uTime.value = Math.max(0, (elapsed - DURATION * 0.872) / 1000);
         exitCrystalUniforms.uOpacity.value = wakeFade;
-        exitDustUniforms.uTime.value = Math.max(0, (elapsed - DURATION * 0.91) / 1000);
-        exitDustUniforms.uOpacity.value = dustFade * 1.2;
+        exitDustUniforms.uTime.value = Math.max(0, (elapsed - DURATION * 0.87) / 1000);
+        exitDustUniforms.uOpacity.value = dustFade * 1.04;
         if (wakeFade <= 0.001) {
           exitWake.visible = false;
           exitCrystals.visible = false;
