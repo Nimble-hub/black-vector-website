@@ -142,6 +142,9 @@ const launchOpticsShader = {
     uStrength: { value: 0 },
     uChromatic: { value: 0 },
     uExposureKick: { value: 0 },
+    uLensCompression: { value: 0 },
+    uShockwave: { value: 0 },
+    uLaunchPhase: { value: 0 },
     uAspect: { value: 1 },
   },
   vertexShader: `
@@ -159,6 +162,9 @@ const launchOpticsShader = {
     uniform float uStrength;
     uniform float uChromatic;
     uniform float uExposureKick;
+    uniform float uLensCompression;
+    uniform float uShockwave;
+    uniform float uLaunchPhase;
     uniform float uAspect;
 
     varying vec2 vUv;
@@ -167,14 +173,30 @@ const launchOpticsShader = {
       vec2 fromCenter = vUv - 0.5;
       vec2 aspectVector = vec2(fromCenter.x * uAspect, fromCenter.y);
       float radial = clamp(length(aspectVector), 0.0, 1.0);
+      vec2 radialDirection = radial > 0.0001
+        ? vec2(aspectVector.x / uAspect, aspectVector.y) / radial
+        : vec2(0.0);
+
+      // The lens briefly compresses the charged star wall before the jump.
+      // As launch begins, a refractive pressure front races from the vanishing
+      // point to the edge and hands the image into the radial velocity smear.
+      float radialSquared = radial * radial;
+      float compressionScale = 1.0 + uLensCompression * (0.028 + radialSquared * 0.115);
+      float waveRadius = mix(0.035, 1.15, pow(clamp(uLaunchPhase, 0.0, 1.0), 0.68));
+      float waveDistance = (radial - waveRadius) / 0.105;
+      float pressureWave = exp(-waveDistance * waveDistance) * uShockwave;
+      vec2 opticalUv = 0.5 + fromCenter * compressionScale;
+      opticalUv -= radialDirection * pressureWave * (0.012 + radial * 0.018);
+
       vec3 blur = vec3(0.0);
       float totalWeight = 0.0;
 
-      for (int index = 0; index < 9; index += 1) {
-        float stepAmount = float(index) / 8.0;
-        float weight = 1.0 - stepAmount * 0.52;
+      for (int index = 0; index < 13; index += 1) {
+        float linearStep = float(index) / 12.0;
+        float stepAmount = linearStep * linearStep;
+        float weight = 1.0 - linearStep * 0.58;
         vec2 sampleUv = clamp(
-          vUv - fromCenter * uStrength * stepAmount,
+          opticalUv - fromCenter * uStrength * stepAmount * (0.72 + radial * 0.58),
           vec2(0.001),
           vec2(0.999)
         );
@@ -183,15 +205,16 @@ const launchOpticsShader = {
       }
 
       blur /= totalWeight;
-      float spectralAmount = uChromatic * smoothstep(0.08, 0.82, radial);
-      vec2 spectralOffset = fromCenter * spectralAmount;
-      float red = texture2D(tDiffuse, clamp(vUv - spectralOffset, 0.001, 0.999)).r;
-      float blue = texture2D(tDiffuse, clamp(vUv + spectralOffset, 0.001, 0.999)).b;
-      blur.r = mix(blur.r, red, 0.62);
-      blur.b = mix(blur.b, blue, 0.62);
+      float spectralAmount = uChromatic * smoothstep(0.06, 0.88, radial) * (0.45 + radial);
+      vec2 spectralOffset = radialDirection * spectralAmount;
+      float red = texture2D(tDiffuse, clamp(opticalUv - spectralOffset, 0.001, 0.999)).r;
+      float blue = texture2D(tDiffuse, clamp(opticalUv + spectralOffset, 0.001, 0.999)).b;
+      blur.r = mix(blur.r, red, 0.74);
+      blur.b = mix(blur.b, blue, 0.74);
 
-      float edgeLift = smoothstep(0.18, 0.92, radial) * uExposureKick * 0.08;
-      vec3 color = blur * (1.0 + uExposureKick * 0.12 + edgeLift);
+      float edgeLift = smoothstep(0.16, 0.94, radial) * uExposureKick * 0.105;
+      float waveLift = pressureWave * uExposureKick * 0.13;
+      vec3 color = blur * (1.0 + uExposureKick * 0.135 + edgeLift + waveLift);
       gl_FragColor = vec4(color, 1.0);
     }
   `,
@@ -1961,18 +1984,25 @@ export function HyperspaceIntro() {
       const delta = Math.min((time - previousTime) / 1000, 0.05);
       previousTime = time;
       let launchOptics = 0;
+      let launchCompression = 0;
 
       if (!jumpComplete) {
         const progress = skipJumpRef.current ? 1 : clamp01(elapsed / DURATION);
         // Keep the light wall charging while acceleration begins so the short
         // traces stretch into hyperspace as one uninterrupted motion.
         const charge = smoothstep(progress / 0.35);
-        const launchProgress = clamp01((progress - 0.285) / 0.028);
+        const launchProgress = clamp01((progress - 0.285) / 0.014);
         const launch = 1 - Math.pow(1 - launchProgress, 4);
-        const visualLaunch = smoothstep((progress - 0.285) / 0.055);
-        const opticsAttack = smoothstep((progress - 0.278) / 0.016);
-        const opticsRelease = 1 - smoothstep((progress - 0.337) / 0.038);
+        const visualLaunch = smoothstep((progress - 0.285) / 0.035);
+        const compressionAttack = smoothstep((progress - 0.205) / 0.065);
+        const compressionRelease = 1 - smoothstep((progress - 0.285) / 0.012);
+        launchCompression = compressionAttack * compressionRelease;
+        const opticsAttack = smoothstep((progress - 0.276) / 0.013);
+        const opticsRelease = 1 - smoothstep((progress - 0.354) / 0.052);
         launchOptics = opticsAttack * opticsRelease;
+        const launchImpulse = smoothstep((progress - 0.281) / 0.008)
+          * (1 - smoothstep((progress - 0.305) / 0.022));
+        const launchOpticsPhase = clamp01((progress - 0.278) / 0.074);
         const braking = smoothstep((progress - 0.84) / 0.055);
         const exitArrival = smoothstep((progress - 0.89) / 0.11);
         const lineGrowth = smoothstep((progress - 0.04) / 0.31);
@@ -2010,18 +2040,23 @@ export function HyperspaceIntro() {
           + launchOptics * 0.055
           + exitIllumination * 0.13;
 
-        launchOpticsPass.uniforms.uStrength.value = launchOptics * (isMobile ? 0.028 : 0.043);
-        launchOpticsPass.uniforms.uChromatic.value = launchOptics * 0.0042;
-        launchOpticsPass.uniforms.uExposureKick.value = launchOptics;
+        launchOpticsPass.uniforms.uStrength.value = launchOptics * (isMobile ? 0.048 : 0.07)
+          + launchImpulse * (isMobile ? 0.052 : 0.072);
+        launchOpticsPass.uniforms.uChromatic.value = launchOptics * (isMobile ? 0.0048 : 0.0072)
+          + launchImpulse * (isMobile ? 0.0018 : 0.0028);
+        launchOpticsPass.uniforms.uExposureKick.value = Math.max(launchOptics, launchImpulse);
+        launchOpticsPass.uniforms.uLensCompression.value = launchCompression * (isMobile ? 0.78 : 1.08);
+        launchOpticsPass.uniforms.uShockwave.value = launchOptics * 0.92;
+        launchOpticsPass.uniforms.uLaunchPhase.value = launchOpticsPhase;
 
-        const launchShake = smoothstep((progress - 0.285) / 0.012) * (1 - smoothstep((progress - 0.36) / 0.055));
+        const launchShake = smoothstep((progress - 0.285) / 0.008) * (1 - smoothstep((progress - 0.36) / 0.055));
         const brakingShake = smoothstep((progress - 0.82) / 0.05) * (1 - smoothstep((progress - 0.965) / 0.035));
         const cruiseShake = launch * (1 - braking) * 0.006;
-        const shakeStrength = launchShake * 0.065 + brakingShake * 0.032 + cruiseShake;
-        const launchRecoil = launch * (1 - smoothstep((progress - 0.285) / 0.08));
+        const shakeStrength = launchShake * 0.075 + launchImpulse * 0.035 + brakingShake * 0.032 + cruiseShake;
+        const launchRecoil = launchOptics * 0.55 + launchImpulse * 0.75;
         camera.position.x = Math.sin(elapsed * 0.031) * shakeStrength;
         camera.position.y = Math.cos(elapsed * 0.027) * shakeStrength * 0.68;
-        camera.position.z = -0.9 * exitArrival + launchRecoil * 0.32 + Math.sin(elapsed * 0.019) * shakeStrength * 0.32;
+        camera.position.z = -0.9 * exitArrival + launchRecoil * 0.55 + Math.sin(elapsed * 0.019) * shakeStrength * 0.32;
         cameraTarget.set(
           Math.sin(elapsed * 0.024) * shakeStrength * 0.72,
           Math.cos(elapsed * 0.021) * shakeStrength * 0.46,
@@ -2029,7 +2064,7 @@ export function HyperspaceIntro() {
         );
         camera.lookAt(cameraTarget);
         camera.rotation.z += Math.sin(elapsed * 0.023) * shakeStrength * 0.028;
-        camera.fov = 62 + charge * 4 + launch * 20 - braking * 22;
+        camera.fov = 62 + charge * 4 - launchCompression * 5.5 + launch * 21.5 + launchImpulse * 7.5 - braking * 23.5;
         camera.updateProjectionMatrix();
 
         if (progress >= 1) {
@@ -2096,7 +2131,7 @@ export function HyperspaceIntro() {
         : jumpComplete ? 1 : 0;
       world.update(elapsed * 0.001);
       updateWorldAnchors(currentInterfaceArrival);
-      if (launchOptics > 0.001) composer.render();
+      if (Math.max(launchOptics, launchCompression) > 0.001) composer.render();
       else renderer.render(scene, camera);
     };
 
