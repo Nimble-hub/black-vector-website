@@ -15,9 +15,10 @@ $machinery = Get-ChildItem -LiteralPath $audioRoot -File | Where-Object Name -Li
 $chargePulse = Get-ChildItem -LiteralPath $audioRoot -File | Where-Object Name -Like "*Pulsing, Eerie, Creepy, Horror 02*"
 $growlyImpact = Get-ChildItem -LiteralPath $audioRoot -File | Where-Object Name -Like "*Big, Powerful, Growly, Reverberant*"
 $metallicSub = Get-ChildItem -LiteralPath $audioRoot -File | Where-Object Name -Like "*Metallic Impact, Heavily Distorted Sub 01*"
+$travelEngine = Get-ChildItem -LiteralPath $audioRoot -File | Where-Object Name -Like "*Engine, Gritty Swirl*"
 $score = Join-Path $musicRoot "BVRTS Soundtrack (2).wav"
 
-foreach ($source in @($drop, $impact, $riser, $stinger, $rumble, $machinery, $chargePulse, $growlyImpact, $metallicSub)) {
+foreach ($source in @($drop, $impact, $riser, $stinger, $rumble, $machinery, $chargePulse, $growlyImpact, $metallicSub, $travelEngine)) {
   if ($null -eq $source -or -not (Test-Path -LiteralPath $source.FullName)) {
     throw "A required cinematic source is missing."
   }
@@ -36,7 +37,8 @@ $jumpFilter = @"
 [6:a]atrim=start=4.59:end=9.2,asetpts=PTS-STARTPTS,highpass=f=115,equalizer=f=320:t=q:w=1.0:g=-3.4,equalizer=f=2900:t=q:w=0.82:g=2.8,equalizer=f=7200:t=q:w=0.72:g=3.2,acompressor=threshold=0.22:ratio=1.65:attack=14:release=120:makeup=1.04,afade=t=in:st=0:d=0.2,afade=t=out:st=4.15:d=0.46,volume=0.27[chargeAir];
 [7:a]atrim=start=0:end=5.7,asetpts=PTS-STARTPTS,highpass=f=24,lowpass=f=7600,equalizer=f=58:t=q:w=0.8:g=2.0,equalizer=f=180:t=q:w=1.0:g=-2.0,equalizer=f=2200:t=q:w=0.85:g=1.8,afade=t=out:st=4.8:d=0.9,volume=0.62,adelay=4199|4199[growlyHit];
 [8:a]atrim=start=0:end=3.1,asetpts=PTS-STARTPTS,highpass=f=20,lowpass=f=340,equalizer=f=43:t=q:w=0.72:g=3.2,equalizer=f=88:t=q:w=0.85:g=1.6,equalizer=f=210:t=q:w=1.0:g=-2.5,afade=t=out:st=2.35:d=0.75,volume=0.46,adelay=3930|3930[metalSub];
-[buildA][buildB][launchImpact][travelRumble][exitDrop][machineryMid][chargeAir][growlyHit][metalSub]amix=inputs=9:normalize=0:dropout_transition=0,highpass=f=20,equalizer=f=55:t=q:w=0.8:g=2.0,equalizer=f=125:t=q:w=0.9:g=1.0,equalizer=f=340:t=q:w=1.0:g=-2.0,equalizer=f=1800:t=q:w=0.8:g=1.0,equalizer=f=4800:t=q:w=0.75:g=1.3,acompressor=threshold=0.18:ratio=1.85:attack=18:release=180:makeup=1.05:knee=2.5,loudnorm=I=-12.5:TP=-1.0:LRA=8,atrim=end=20[master]
+[9:a]atrim=start=0.8:end=10.15,asetpts=PTS-STARTPTS,highpass=f=34,lowpass=f=6800,equalizer=f=62:t=q:w=0.82:g=-2.8,equalizer=f=155:t=q:w=0.92:g=1.8,equalizer=f=520:t=q:w=0.9:g=2.2,equalizer=f=2400:t=q:w=0.82:g=1.4,acompressor=threshold=0.19:ratio=2.0:attack=28:release=220:makeup=1.12,afade=t=in:st=0:d=0.42,afade=t=out:st=8.45:d=0.9,volume=0.44,adelay=4380|4380[travelEngine];
+[buildA][buildB][launchImpact][travelRumble][exitDrop][machineryMid][chargeAir][growlyHit][metalSub][travelEngine]amix=inputs=10:normalize=0:dropout_transition=0,highpass=f=20,equalizer=f=55:t=q:w=0.8:g=2.0,equalizer=f=125:t=q:w=0.9:g=1.0,equalizer=f=340:t=q:w=1.0:g=-2.0,equalizer=f=1800:t=q:w=0.8:g=1.0,equalizer=f=4800:t=q:w=0.75:g=1.3,acompressor=threshold=0.18:ratio=1.85:attack=18:release=180:makeup=1.05:knee=2.5,loudnorm=I=-12.5:TP=-1.0:LRA=8,atrim=end=20[master]
 "@ -replace "`r?`n", ""
 
 $jumpOutput = Join-Path $publicAudio "hyperspace-jump.mp3"
@@ -50,9 +52,10 @@ $jumpOutput = Join-Path $publicAudio "hyperspace-jump.mp3"
   -i $chargePulse.FullName `
   -i $growlyImpact.FullName `
   -i $metallicSub.FullName `
+  -i $travelEngine.FullName `
   -filter_complex $jumpFilter `
   -map "[master]" -ar 48000 -ac 2 -c:a libmp3lame -b:a 256k `
-  -metadata title="Black Vector Hyperspace Theater Mix 04" `
+  -metadata title="Black Vector Hyperspace Theater Mix 05" `
   -metadata comment="Licensed source masters preserved locally" `
   $jumpOutput
 if ($LASTEXITCODE -ne 0) { throw "Hyperspace soundtrack build failed." }
