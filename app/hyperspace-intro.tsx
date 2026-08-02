@@ -169,150 +169,137 @@ const tunnelDustFragmentShader = `
   }
 `;
 
-const tunnelCausticVertexShader = `
+const warpBubbleVertexShader = `
   precision highp float;
+
+  attribute float aLayer;
 
   uniform float uTime;
   uniform float uTravel;
 
-  varying vec2 vCausticUv;
-  varying float vMembrane;
+  varying vec2 vFieldUv;
+  varying float vLayer;
+  varying float vPulse;
+  varying float vDistortion;
   varying float vFresnel;
 
   void main() {
     float angle = atan(position.y, position.x);
     float depth = uv.y;
-    float packet = pow(
-      0.5 + 0.5 * sin(depth * 8.0 - uTravel * 0.12 + sin(angle * 2.0) * 1.25),
-      3.0
+    float layerPhase = aLayer * 2.0943951;
+    float pulse = pow(
+      0.5 + 0.5 * sin(
+        depth * 14.0 - uTravel * 0.19 + sin(angle * 2.3 + layerPhase) * 1.7
+      ),
+      6.0
     );
-    float rippleA = sin(
-      depth * 42.0 - uTravel * 0.24 - uTime * 4.2
-        + sin(angle * 3.0 + uTime * 0.7) * 1.35
+    float macroWave = sin(
+      depth * 21.0 - uTravel * 0.16 + angle * 3.1 + layerPhase
+        + sin(angle * 5.0 - depth * 8.0 + uTime * 1.2) * 0.9
     );
-    float rippleB = sin(
-      depth * 19.0 + angle * 6.0 + uTravel * 0.075 + uTime * 1.8
+    float pressureWave = sin(
+      depth * 56.0 - uTravel * 0.47 - uTime * 3.4
+        + sin(angle * 7.0 + depth * 11.0 - layerPhase) * 1.15
     );
-    float displacement = (rippleA * 0.52 + rippleB * 0.26) * (0.34 + packet * 0.66);
+    float displacement = macroWave * 0.48 + pressureWave * (0.12 + pulse * 0.34);
+    vec2 radial = normalize(position.xy);
+    float radialOffset = aLayer * 1.35;
+    float twist = sin(depth * 12.0 - uTravel * 0.08 + layerPhase) * 0.045;
+    float twistCos = cos(twist);
+    float twistSin = sin(twist);
     vec3 displacedPosition = position;
-    displacedPosition.xy += normalize(position.xy) * displacement;
+    displacedPosition.xy += radial * (radialOffset + displacement);
+    displacedPosition.xy = mat2(twistCos, -twistSin, twistSin, twistCos) * displacedPosition.xy;
+    displacedPosition.z += sin(angle * 4.0 + depth * 18.0 - uTime * 2.1 + layerPhase) * pulse * 0.24;
 
     vec4 viewPosition = modelViewMatrix * vec4(displacedPosition, 1.0);
     vec3 viewNormal = normalize(normalMatrix * normal);
     vec3 viewDirection = normalize(-viewPosition.xyz);
-    vCausticUv = uv;
-    vMembrane = 0.5 + displacement * 0.58;
+    vFieldUv = uv;
+    vLayer = aLayer;
+    vPulse = pulse;
+    vDistortion = abs(displacement);
     vFresnel = pow(1.0 - abs(dot(viewNormal, viewDirection)), 1.35);
     gl_Position = projectionMatrix * viewPosition;
   }
 `;
 
-const tunnelCausticFragmentShader = `
+const warpBubbleFragmentShader = `
   precision highp float;
 
   uniform float uTime;
   uniform float uOpacity;
   uniform float uTravel;
 
-  varying vec2 vCausticUv;
-  varying float vMembrane;
+  varying vec2 vFieldUv;
+  varying float vLayer;
+  varying float vPulse;
+  varying float vDistortion;
   varying float vFresnel;
 
-  vec2 hash22(vec2 point) {
-    vec2 hashed = vec2(
-      dot(point, vec2(127.1, 311.7)),
-      dot(point, vec2(269.5, 183.3))
-    );
-    return fract(sin(hashed) * 43758.5453);
-  }
-
-  vec2 causticCells(vec2 point, float flow) {
-    vec2 cell = floor(point);
-    vec2 local = fract(point);
-    float nearest = 8.0;
-    float secondNearest = 8.0;
-
-    for (int y = -1; y <= 1; y += 1) {
-      for (int x = -1; x <= 1; x += 1) {
-        vec2 neighbor = vec2(float(x), float(y));
-        vec2 sampleCell = cell + neighbor;
-        sampleCell.x = mod(sampleCell.x, 7.0);
-        vec2 seed = hash22(sampleCell);
-        vec2 waterMotion = vec2(
-          sin(flow * 0.58 + seed.x * 6.2831853),
-          cos(flow * 0.46 + seed.y * 6.2831853)
-        );
-        vec2 samplePoint = neighbor + 0.5 + waterMotion * 0.36 - local;
-        float distanceSquared = dot(samplePoint, samplePoint);
-        float previousNearest = nearest;
-        nearest = min(nearest, distanceSquared);
-        secondNearest = min(secondNearest, max(previousNearest, distanceSquared));
-      }
-    }
-
-    return vec2(sqrt(nearest), sqrt(secondNearest) - sqrt(nearest));
-  }
-
   void main() {
-    float angle = vCausticUv.x * 6.2831853;
-    float depth = vCausticUv.y;
-    float flow = uTime;
-    float longitudinalWarp = sin(angle * 2.0 - flow * 0.78) * 0.52
-      + sin(angle * 5.0 + depth * 13.0 + flow * 0.46) * 0.24
-      + sin(angle * 9.0 - depth * 7.0 - flow * 0.31) * 0.1;
-    float tunnelFlow = uTravel * (18.0 / 132.0);
-    vec2 causticPoint = vec2(
-      vCausticUv.x * 7.0,
-      depth * 18.0 - tunnelFlow + longitudinalWarp
-    );
-    vec2 cellField = causticCells(causticPoint, flow);
-    float nearestCell = cellField.x;
-    float cellGap = cellField.y;
-    float plasmaCell = 1.0 - smoothstep(0.16, 0.82, nearestCell);
-    float waterWeb = 1.0 - smoothstep(0.022, 0.17, cellGap);
-    float electricCore = 1.0 - smoothstep(0.004, 0.036, cellGap);
+    float angle = vFieldUv.x * 6.2831853;
+    float depth = vFieldUv.y;
+    float layerPhase = vLayer * 2.0943951;
+    float domainWarpA = sin(
+      angle * 2.7 + depth * 17.0 - uTime * 1.8 + layerPhase
+    ) * 0.74 + sin(
+      angle * 6.3 - depth * 9.0 + uTime * 0.9 - layerPhase
+    ) * 0.31;
+    float domainWarpB = sin(
+      angle * 4.6 - depth * 12.0 + uTime * 1.35 + layerPhase
+    ) * 0.58 + sin(
+      angle * 8.1 + depth * 7.0 - uTime * 0.72
+    ) * 0.22;
 
-    float surgeA = pow(
-      0.5 + 0.5 * sin(
-        depth * 33.0 - uTravel * 0.34 + sin(angle * 3.0 + flow * 1.7) * 2.4
-      ),
-      9.0
+    float plasmaA = 0.5 + 0.5 * sin(
+      angle * 4.2 + depth * 26.0 - uTravel * 0.22 + domainWarpA * 2.2
     );
-    float surgeB = pow(
-      0.5 + 0.5 * sin(
-        depth * 21.0 - uTravel * 0.23 - angle * 1.7
-          + sin(angle * 7.0 - depth * 9.0 + flow * 2.2) * 1.65
-      ),
-      11.0
+    float plasmaB = 0.5 + 0.5 * sin(
+      angle * 7.1 - depth * 19.0 + uTravel * 0.13 + domainWarpB * 1.8 + layerPhase
     );
-    float electricSurge = clamp(surgeA + surgeB, 0.0, 1.0);
+    float turbulentPlasma = smoothstep(0.54, 0.94, plasmaA * 0.58 + plasmaB * 0.42);
+
+    float shockFront = pow(
+      0.5 + 0.5 * sin(
+        depth * 43.0 - uTravel * 0.42 + domainWarpA * 2.6 + layerPhase
+      ),
+      15.0
+    );
+    float pressureFront = pow(
+      0.5 + 0.5 * sin(
+        depth * 15.0 - uTravel * 0.18 + domainWarpB * 1.3 - layerPhase
+      ),
+      8.0
+    );
+
     float branchField = abs(sin(
-      angle * 1.5 + depth * 27.0 - uTravel * 0.19
-        + sin(angle * 5.0 - depth * 11.0 + flow * 2.6) * 1.15
+      angle * 1.85 + depth * 32.0 - uTravel * 0.31
+        + sin(angle * 5.2 - depth * 13.0 + uTime * 2.3) * 1.8
+        + layerPhase
     ));
-    float branchingArc = (1.0 - smoothstep(0.018, 0.075, branchField))
-      * smoothstep(0.18, 0.78, plasmaCell + waterWeb)
-      * electricSurge;
-    float rollingRefraction = 0.48 + 0.52 * pow(
-      0.5 + 0.5 * sin(angle * 3.0 + depth * 31.0 - flow * 1.4),
-      2.0
-    );
-    float plasma = plasmaCell * (0.08 + electricSurge * 0.34);
-    float filaments = waterWeb * (0.08 + electricSurge * 0.24)
-      + electricCore * (0.38 + electricSurge * 1.42)
-      + branchingArc * 1.25
-      + plasma;
+    float arcHalo = 1.0 - smoothstep(0.025, 0.18, branchField);
+    float arcCore = 1.0 - smoothstep(0.006, 0.045, branchField);
+    float stormGate = clamp(shockFront + pressureFront * turbulentPlasma, 0.0, 1.0);
+    float electricArc = (arcHalo * 0.32 + arcCore * 1.28) * stormGate;
+
+    float membrane = turbulentPlasma * (0.055 + pressureFront * 0.25)
+      * (0.32 + vFresnel * 0.92);
+    float shockEnergy = shockFront * (0.2 + turbulentPlasma * 0.72)
+      * (0.46 + vFresnel * 0.7 + vPulse * 0.5);
+    float distortionGlow = vDistortion * pressureFront * 0.16;
+    float energy = membrane + shockEnergy + electricArc + distortionGlow;
     float depthFade = smoothstep(0.015, 0.1, depth)
       * (1.0 - smoothstep(0.92, 0.995, depth));
-    float volume = 0.46 + vFresnel * 0.82 + abs(vMembrane - 0.5) * 0.72;
-    float alpha = filaments * rollingRefraction * volume * depthFade * uOpacity;
-    vec3 quantumBlue = vec3(0.025, 0.18, 0.68);
-    vec3 electricCyan = vec3(0.12, 0.72, 1.0);
+    float layerWeight = mix(0.58, 1.0, 1.0 - abs(vLayer));
+    float alpha = energy * layerWeight * depthFade * uOpacity;
+    vec3 deepWarpBlue = vec3(0.015, 0.09, 0.42);
+    vec3 ionCyan = vec3(0.08, 0.64, 1.0);
     vec3 lightningWhite = vec3(0.94, 0.992, 1.0);
-    vec3 plasmaColor = mix(quantumBlue, electricCyan, plasmaCell * 0.66 + waterWeb * 0.34);
-    float whiteHot = clamp(electricCore * (0.46 + electricSurge * 0.72) + branchingArc, 0.0, 1.0);
+    vec3 plasmaColor = mix(deepWarpBlue, ionCyan, turbulentPlasma * 0.72 + shockFront * 0.28);
+    float whiteHot = clamp(arcCore * stormGate + shockFront * 0.54, 0.0, 1.0);
     vec3 color = mix(plasmaColor, lightningWhite, whiteHot);
-    gl_FragColor = vec4(color * (0.42 + plasma * 0.52 + whiteHot * 1.52), alpha);
+    gl_FragColor = vec4(color * (0.46 + shockEnergy * 0.8 + whiteHot * 1.65), alpha);
   }
 `;
 
@@ -636,6 +623,27 @@ function createTunnelDustGeometry(count: number) {
   geometry.setAttribute("aSeedZ", new THREE.BufferAttribute(seeds, 1));
   geometry.setAttribute("aSize", new THREE.BufferAttribute(sizes, 1));
   geometry.setAttribute("aBrightness", new THREE.BufferAttribute(brightness, 1));
+  return geometry;
+}
+
+function createWarpBubbleGeometry(isMobile: boolean) {
+  const baseGeometry = new THREE.CylinderGeometry(
+    18.2,
+    18.2,
+    DEPTH,
+    isMobile ? 36 : 64,
+    isMobile ? 40 : 72,
+    true,
+  );
+  baseGeometry.rotateX(Math.PI / 2);
+  const geometry = new THREE.InstancedBufferGeometry();
+  geometry.copy(baseGeometry);
+  baseGeometry.dispose();
+  geometry.setAttribute(
+    "aLayer",
+    new THREE.InstancedBufferAttribute(new Float32Array([-1, 0, 1]), 1),
+  );
+  geometry.instanceCount = 3;
   return geometry;
 }
 
@@ -1305,24 +1313,16 @@ export function HyperspaceIntro() {
     tunnelDust.visible = shouldJump;
     scene.add(tunnelDust);
 
-    const tunnelCausticUniforms = {
+    const warpBubbleUniforms = {
       uTime: { value: 0 },
       uOpacity: { value: 0 },
       uTravel: { value: 0 },
     };
-    const tunnelCausticGeometry = new THREE.CylinderGeometry(
-      18.2,
-      18.2,
-      DEPTH,
-      isMobile ? 36 : 64,
-      isMobile ? 40 : 72,
-      true,
-    );
-    tunnelCausticGeometry.rotateX(Math.PI / 2);
-    const tunnelCausticMaterial = new THREE.ShaderMaterial({
-      uniforms: tunnelCausticUniforms,
-      vertexShader: tunnelCausticVertexShader,
-      fragmentShader: tunnelCausticFragmentShader,
+    const warpBubbleGeometry = createWarpBubbleGeometry(isMobile);
+    const warpBubbleMaterial = new THREE.ShaderMaterial({
+      uniforms: warpBubbleUniforms,
+      vertexShader: warpBubbleVertexShader,
+      fragmentShader: warpBubbleFragmentShader,
       transparent: true,
       blending: THREE.AdditiveBlending,
       depthTest: false,
@@ -1330,13 +1330,13 @@ export function HyperspaceIntro() {
       toneMapped: false,
       side: THREE.BackSide,
     });
-    const tunnelCaustics = new THREE.Mesh(tunnelCausticGeometry, tunnelCausticMaterial);
-    tunnelCaustics.position.z = -DEPTH / 2;
-    tunnelCaustics.frustumCulled = false;
-    tunnelCaustics.matrixAutoUpdate = false;
-    tunnelCaustics.updateMatrix();
-    tunnelCaustics.visible = shouldJump;
-    scene.add(tunnelCaustics);
+    const warpBubble = new THREE.Mesh(warpBubbleGeometry, warpBubbleMaterial);
+    warpBubble.position.z = -DEPTH / 2;
+    warpBubble.frustumCulled = false;
+    warpBubble.matrixAutoUpdate = false;
+    warpBubble.updateMatrix();
+    warpBubble.visible = shouldJump;
+    scene.add(warpBubble);
 
     const exitWakeUniforms = {
       uTime: { value: 0 },
@@ -1519,9 +1519,9 @@ export function HyperspaceIntro() {
         uniforms.uTravel.value = travel;
         tunnelDustUniforms.uTravel.value = travel;
         tunnelDustUniforms.uOpacity.value = (0.025 + charge * 0.04 + visualLaunch * 0.42) * (1 - braking);
-        tunnelCausticUniforms.uTime.value = elapsed * 0.001;
-        tunnelCausticUniforms.uTravel.value = travel;
-        tunnelCausticUniforms.uOpacity.value = (charge * 0.012 + visualLaunch * 0.18) * (1 - braking);
+        warpBubbleUniforms.uTime.value = elapsed * 0.001;
+        warpBubbleUniforms.uTravel.value = travel;
+        warpBubbleUniforms.uOpacity.value = (charge * 0.008 + visualLaunch * 0.15) * (1 - braking);
         const stretchCharge = Math.pow(lineGrowth, 0.7);
         const staticStretch = THREE.MathUtils.lerp(0.035, 0.43, stretchCharge);
         uniforms.uForwardStretch.value = staticStretch * (1 - braking) + braking * 0.01;
@@ -1562,7 +1562,7 @@ export function HyperspaceIntro() {
           landingStartTime = time;
           tunnel.visible = false;
           tunnelDust.visible = false;
-          tunnelCaustics.visible = false;
+          warpBubble.visible = false;
           world.setOpacity(1);
           renderer.toneMappingExposure = 0.98;
           if (!finishQueued) {
@@ -1656,8 +1656,8 @@ export function HyperspaceIntro() {
         material.dispose();
         tunnelDustGeometry.dispose();
         tunnelDustMaterial.dispose();
-        tunnelCausticGeometry.dispose();
-        tunnelCausticMaterial.dispose();
+        warpBubbleGeometry.dispose();
+        warpBubbleMaterial.dispose();
         exitWakeGeometry.dispose();
         exitWakeMaterial.dispose();
         exitCrystalGeometry.dispose();
@@ -1685,7 +1685,7 @@ export function HyperspaceIntro() {
       canvas.removeEventListener("webglcontextlost", onContextLost);
       scene.remove(tunnel);
       scene.remove(tunnelDust);
-      scene.remove(tunnelCaustics);
+      scene.remove(warpBubble);
       scene.remove(exitWake);
       scene.remove(exitCrystals);
       scene.remove(exitDust);
@@ -1693,8 +1693,8 @@ export function HyperspaceIntro() {
       material.dispose();
       tunnelDustGeometry.dispose();
       tunnelDustMaterial.dispose();
-      tunnelCausticGeometry.dispose();
-      tunnelCausticMaterial.dispose();
+      warpBubbleGeometry.dispose();
+      warpBubbleMaterial.dispose();
       exitWakeGeometry.dispose();
       exitWakeMaterial.dispose();
       exitCrystalGeometry.dispose();
