@@ -112,6 +112,78 @@ const fragmentShader = `
   }
 `;
 
+const exitWakeVertexShader = `
+  precision highp float;
+
+  attribute float aAngle;
+  attribute float aRadius;
+  attribute float aSeed;
+  attribute float aLength;
+  attribute float aWidth;
+  attribute float aBrightness;
+  attribute float aDrift;
+
+  uniform float uTime;
+  uniform float uOpacity;
+  uniform vec2 uResolution;
+
+  varying vec2 vShardUv;
+  varying float vBrightness;
+  varying float vLife;
+
+  void main() {
+    float cycle = fract(aSeed + uTime * (0.42 + aDrift * 0.18));
+    float advance = pow(cycle, 1.55);
+    float headZ = mix(-86.0, -0.82, advance);
+    float tailZ = headZ - aLength * (0.45 + cycle * 1.4);
+    float radialScale = mix(0.52, 1.55, pow(cycle, 1.2));
+    vec2 radial = vec2(cos(aAngle), sin(aAngle)) * aRadius * radialScale;
+
+    vec4 clipTail = projectionMatrix * modelViewMatrix * vec4(radial, tailZ, 1.0);
+    vec4 clipHead = projectionMatrix * modelViewMatrix * vec4(radial, headZ, 1.0);
+    vec2 ndcTail = clipTail.xy / clipTail.w;
+    vec2 ndcHead = clipHead.xy / clipHead.w;
+    vec2 screenTail = ndcTail * uResolution * 0.5;
+    vec2 screenHead = ndcHead * uResolution * 0.5;
+    vec2 direction = normalize(screenHead - screenTail + vec2(0.00001));
+    vec2 perpendicular = vec2(direction.y, -direction.x);
+    float perspectiveWidth = clamp(13.0 / max(clipHead.w, 0.5), 0.75, 4.0);
+    float halfWidth = max(aWidth * perspectiveWidth, 1.05);
+
+    float along = uv.y;
+    vec2 screenPosition = mix(screenTail, screenHead, along);
+    screenPosition += perpendicular * uv.x * halfWidth;
+    vec2 ndcPosition = screenPosition / (uResolution * 0.5);
+    float clipW = mix(clipTail.w, clipHead.w, along);
+    float ndcZ = mix(clipTail.z / clipTail.w, clipHead.z / clipHead.w, along);
+
+    gl_Position = vec4(ndcPosition * clipW, ndcZ * clipW, clipW);
+    vShardUv = uv;
+    vBrightness = aBrightness;
+    vLife = smoothstep(0.0, 0.08, cycle) * (1.0 - smoothstep(0.72, 1.0, cycle)) * uOpacity;
+  }
+`;
+
+const exitWakeFragmentShader = `
+  precision highp float;
+
+  varying vec2 vShardUv;
+  varying float vBrightness;
+  varying float vLife;
+
+  void main() {
+    float taper = mix(0.08, 1.0, smoothstep(0.0, 0.82, vShardUv.y));
+    float side = abs(vShardUv.x) / max(taper, 0.001);
+    float shard = 1.0 - smoothstep(0.34, 0.94, side);
+    float tail = smoothstep(0.0, 0.2, vShardUv.y);
+    float tip = 1.0 - smoothstep(0.965, 1.0, vShardUv.y);
+    float crystal = smoothstep(0.7, 0.96, vShardUv.y) * tip;
+    float alpha = shard * tail * tip * vLife * vBrightness;
+    vec3 ice = mix(vec3(0.28, 0.72, 1.0), vec3(0.97, 0.995, 1.0), crystal);
+    gl_FragColor = vec4(ice * (0.7 + crystal * 1.8), alpha);
+  }
+`;
+
 function createTunnelGeometry(count: number) {
   const geometry = new THREE.InstancedBufferGeometry();
   geometry.setAttribute(
@@ -160,6 +232,57 @@ function createTunnelGeometry(count: number) {
   geometry.setAttribute("aWidth", new THREE.InstancedBufferAttribute(widths, 1));
   geometry.setAttribute("aBrightness", new THREE.InstancedBufferAttribute(brightness, 1));
   geometry.setAttribute("aHue", new THREE.InstancedBufferAttribute(hues, 1));
+  geometry.instanceCount = count;
+  return geometry;
+}
+
+function createExitWakeGeometry(count: number) {
+  const geometry = new THREE.InstancedBufferGeometry();
+  geometry.setAttribute(
+    "position",
+    new THREE.Float32BufferAttribute([
+      -1, 0, 0,
+      1, 0, 0,
+      1, 1, 0,
+      -1, 1, 0,
+    ], 3),
+  );
+  geometry.setAttribute(
+    "uv",
+    new THREE.Float32BufferAttribute([
+      -1, 0,
+      1, 0,
+      1, 1,
+      -1, 1,
+    ], 2),
+  );
+  geometry.setIndex([0, 1, 2, 0, 2, 3]);
+
+  const angles = new Float32Array(count);
+  const radii = new Float32Array(count);
+  const seeds = new Float32Array(count);
+  const lengths = new Float32Array(count);
+  const widths = new Float32Array(count);
+  const brightness = new Float32Array(count);
+  const drift = new Float32Array(count);
+
+  for (let index = 0; index < count; index += 1) {
+    angles[index] = Math.random() * Math.PI * 2;
+    radii[index] = 2.2 + Math.pow(Math.random(), 0.72) * 9.8;
+    seeds[index] = Math.random();
+    lengths[index] = 0.7 + Math.pow(Math.random(), 0.48) * 4.4;
+    widths[index] = 0.28 + Math.random() * 0.44;
+    brightness[index] = 0.46 + Math.random() * 0.54;
+    drift[index] = Math.random();
+  }
+
+  geometry.setAttribute("aAngle", new THREE.InstancedBufferAttribute(angles, 1));
+  geometry.setAttribute("aRadius", new THREE.InstancedBufferAttribute(radii, 1));
+  geometry.setAttribute("aSeed", new THREE.InstancedBufferAttribute(seeds, 1));
+  geometry.setAttribute("aLength", new THREE.InstancedBufferAttribute(lengths, 1));
+  geometry.setAttribute("aWidth", new THREE.InstancedBufferAttribute(widths, 1));
+  geometry.setAttribute("aBrightness", new THREE.InstancedBufferAttribute(brightness, 1));
+  geometry.setAttribute("aDrift", new THREE.InstancedBufferAttribute(drift, 1));
   geometry.instanceCount = count;
   return geometry;
 }
@@ -593,6 +716,30 @@ export function HyperspaceIntro() {
     tunnel.visible = shouldJump;
     scene.add(tunnel);
 
+    const exitWakeUniforms = {
+      uTime: { value: 0 },
+      uOpacity: { value: 0 },
+      uResolution: { value: new THREE.Vector2(1, 1) },
+    };
+    const exitWakeGeometry = createExitWakeGeometry(isMobile ? 230 : 420);
+    const exitWakeMaterial = new THREE.ShaderMaterial({
+      uniforms: exitWakeUniforms,
+      vertexShader: exitWakeVertexShader,
+      fragmentShader: exitWakeFragmentShader,
+      transparent: true,
+      blending: THREE.AdditiveBlending,
+      depthTest: false,
+      depthWrite: false,
+      toneMapped: false,
+      side: THREE.DoubleSide,
+    });
+    const exitWake = new THREE.Mesh(exitWakeGeometry, exitWakeMaterial);
+    exitWake.frustumCulled = false;
+    exitWake.matrixAutoUpdate = false;
+    exitWake.updateMatrix();
+    exitWake.visible = shouldJump;
+    scene.add(exitWake);
+
     const world = createDeepSpaceWorld(isMobile);
     world.setOpacity(shouldJump ? 0 : 1);
     scene.add(world.group);
@@ -656,6 +803,7 @@ export function HyperspaceIntro() {
       camera.aspect = width / height;
       camera.updateProjectionMatrix();
       uniforms.uResolution.value.set(width * pixelRatio, height * pixelRatio);
+      exitWakeUniforms.uResolution.value.set(width * pixelRatio, height * pixelRatio);
     };
 
     const onContextLost = (event: Event) => {
@@ -691,6 +839,7 @@ export function HyperspaceIntro() {
         const charge = smoothstep(progress / 0.285);
         const launch = smoothstep((progress - 0.305) / 0.045);
         const braking = smoothstep((progress - 0.84) / 0.055);
+        const exitArrival = smoothstep((progress - 0.89) / 0.11);
         const preLaunchSpeed = 0.12 + charge * 0.72;
         const hyperspaceSpeed = 74;
         const speed = THREE.MathUtils.lerp(preLaunchSpeed, hyperspaceSpeed, launch) * (1 - braking) + 0.35 * braking;
@@ -701,14 +850,21 @@ export function HyperspaceIntro() {
         uniforms.uWidthScale.value = (0.76 + charge * 0.4 + launch * 0.38) * (1 - braking * 0.35);
         uniforms.uEnergy.value = (0.24 + charge * 0.88 + launch * 0.34) * (1 - braking * 0.48);
         uniforms.uOpacity.value = smoothstep(progress / 0.015) * (0.24 + charge * 0.76) * (1 - smoothstep((progress - 0.88) / 0.055));
+        exitWakeUniforms.uTime.value = Math.max(0, (elapsed - DURATION * 0.78) / 1000);
+        exitWakeUniforms.uOpacity.value = smoothstep((progress - 0.82) / 0.075) * 0.9;
         world.setOpacity(smoothstep((progress - 0.865) / 0.09));
         renderer.toneMappingExposure = 0.94 + charge * 0.1 + launch * 0.06;
 
         camera.position.x = 0;
         camera.position.y = 0;
-        camera.position.z = 0;
-        camera.rotation.set(0, 0, 0);
-        camera.fov = 62 + charge * 4 + launch * 16 - braking * 20;
+        camera.position.z = -0.9 * exitArrival;
+        cameraTarget.set(
+          4.8 * exitArrival,
+          -0.2 * exitArrival,
+          THREE.MathUtils.lerp(-100, -38, exitArrival),
+        );
+        camera.lookAt(cameraTarget);
+        camera.fov = 62 + charge * 4 + launch * 16 - braking * 18;
         camera.updateProjectionMatrix();
 
         if (progress >= 1) {
@@ -723,6 +879,11 @@ export function HyperspaceIntro() {
           }
         }
       } else {
+        const landingElapsed = landingStartTime === null ? 1600 : Math.max(0, time - landingStartTime);
+        const wakeFade = 1 - smoothstep(landingElapsed / 1400);
+        exitWakeUniforms.uTime.value = Math.max(0, (elapsed - DURATION * 0.78) / 1000);
+        exitWakeUniforms.uOpacity.value = wakeFade * 0.9;
+        if (wakeFade <= 0.001) exitWake.visible = false;
         const interfaceArrival = landingStartTime === null
           ? 1
           : smoothstep((time - landingStartTime - 100) / 1450);
@@ -788,6 +949,8 @@ export function HyperspaceIntro() {
       if (!hasLightGeometry) {
         geometry.dispose();
         material.dispose();
+        exitWakeGeometry.dispose();
+        exitWakeMaterial.dispose();
         for (const item of world.geometries) item.dispose();
         for (const item of world.materials) item.dispose();
         for (const item of world.textures) item.dispose();
@@ -808,8 +971,11 @@ export function HyperspaceIntro() {
       window.removeEventListener("resize", resize);
       canvas.removeEventListener("webglcontextlost", onContextLost);
       scene.remove(tunnel);
+      scene.remove(exitWake);
       geometry.dispose();
       material.dispose();
+      exitWakeGeometry.dispose();
+      exitWakeMaterial.dispose();
       world.cancelAssetLoad();
       for (const item of world.geometries) item.dispose();
       for (const item of world.materials) item.dispose();
