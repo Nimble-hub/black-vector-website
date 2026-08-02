@@ -590,21 +590,26 @@ const exitDustVertexShader = `
       * headlightCone
       * step(0.18, forwardDepth);
     float facetFlash = pow(
-      max(sin(age * (2.8 + aSeed * 2.6) + aSeed * 43.0), 0.0),
-      13.0
-    ) * step(0.64, aSeed);
-    float effectiveGlint = max(max(aGlint, facetFlash), headlightResponse * 0.72);
+      max(sin(age * (2.65 + aSeed * 2.25) + aSeed * 43.0), 0.0),
+      18.0
+    ) * step(0.78, aSeed);
+    float seededFlash = aGlint * pow(
+      max(sin(age * (1.55 + aSeed * 1.3) + aSeed * 67.0), 0.0),
+      22.0
+    );
+    float diamondFire = max(facetFlash, seededFlash);
+    float effectiveGlint = max(diamondFire, headlightResponse * 0.42);
     gl_PointSize = clamp(
-      aSize * (18.0 / max(-viewPosition.z, 1.0)) * (1.0 + effectiveGlint * 1.18),
+      aSize * (18.0 / max(-viewPosition.z, 1.0)) * (1.0 + effectiveGlint * 0.72),
       0.62,
-      4.6
+      4.35
     );
 
     vLife = isAlive * fade * uOpacity;
     vBrightness = aBrightness * (1.0 + headlightResponse * 2.35);
     vGlint = effectiveGlint;
     vFacetRotation = aSeed * 6.2831853 + age * (0.32 + aTurbulence * 0.23);
-    vFacetFlash = facetFlash;
+    vFacetFlash = diamondFire;
   }
 `;
 
@@ -638,22 +643,22 @@ const exitDustFragmentShader = `
       * glintFalloff * max(vGlint, vFacetFlash);
     float pinFire = 1.0 - smoothstep(0.0, 0.075, diamondDistance);
 
-    vec3 iceShadow = vec3(0.18, 0.45, 0.7);
-    vec3 iceFacet = vec3(0.62, 0.88, 1.0);
+    vec3 iceShadow = vec3(0.42, 0.68, 0.84);
+    vec3 iceFacet = vec3(0.78, 0.93, 1.0);
     vec3 reflectedWhite = vec3(0.985, 0.998, 1.0);
-    vec3 color = mix(iceShadow, iceFacet, 0.42 + facetLight * 0.46);
-    color = mix(color, reflectedWhite, innerDiamond * 0.36 + facetSeam * 0.18);
+    vec3 color = mix(iceShadow, iceFacet, 0.58 + facetLight * 0.35);
+    color = mix(color, reflectedWhite, innerDiamond * 0.48 + facetSeam * 0.2);
 
     float alpha = max(
-      crystalBody * (0.7 + innerDiamond * 0.3),
+      crystalBody * (0.58 + innerDiamond * 0.34),
       diffraction * 0.9
     ) * vLife * vBrightness;
     vec3 emittedLight = reflectedWhite * (
-      pinFire * (1.4 + vFacetFlash * 3.4)
-        + diffraction * 2.25
-        + crystalEdge * vGlint * 0.72
+      pinFire * (1.05 + vFacetFlash * 4.8)
+        + diffraction * 2.8
+        + crystalEdge * vGlint * 0.55
     );
-    gl_FragColor = vec4(color * (0.86 + facetLight * 0.72) + emittedLight, alpha);
+    gl_FragColor = vec4(color * (0.92 + facetLight * 0.58) + emittedLight, alpha);
   }
 `;
 
