@@ -184,6 +184,73 @@ const exitWakeFragmentShader = `
   }
 `;
 
+const exitCrystalVertexShader = `
+  precision highp float;
+
+  attribute vec3 aVelocity;
+  attribute float aDelay;
+  attribute float aLifetime;
+  attribute float aSize;
+  attribute float aBrightness;
+  attribute float aTurbulence;
+  attribute float aSeed;
+
+  uniform float uTime;
+  uniform float uOpacity;
+
+  varying float vLife;
+  varying float vBrightness;
+  varying float vCoolness;
+
+  void main() {
+    float age = max(uTime - aDelay, 0.0);
+    float life = clamp(age / aLifetime, 0.0, 1.0);
+    float active = step(aDelay, uTime) * (1.0 - step(aLifetime, age));
+    float fade = smoothstep(0.0, 0.07, life) * (1.0 - smoothstep(0.58, 1.0, life));
+
+    vec3 direction = normalize(aVelocity);
+    vec3 crossFlow = normalize(vec3(-direction.y, direction.x, 0.18 + aSeed * 0.12));
+    float curl = sin(age * (4.2 + aTurbulence * 1.7) + aSeed * 41.0);
+    float eddy = cos(age * (2.8 + aSeed) + aSeed * 23.0);
+    vec3 turbulentOffset = crossFlow * curl * aTurbulence * age * (1.0 - life * 0.38);
+    turbulentOffset += vec3(0.0, eddy * aTurbulence * 0.32, curl * eddy * 0.18);
+
+    vec3 particlePosition = position + aVelocity * age + turbulentOffset;
+    vec4 viewPosition = modelViewMatrix * vec4(particlePosition, 1.0);
+    gl_Position = projectionMatrix * viewPosition;
+    gl_PointSize = clamp(aSize * (28.0 / max(-viewPosition.z, 1.0)), 1.4, 17.0);
+
+    vLife = active * fade * uOpacity;
+    vBrightness = aBrightness;
+    vCoolness = aSeed;
+  }
+`;
+
+const exitCrystalFragmentShader = `
+  precision highp float;
+
+  varying float vLife;
+  varying float vBrightness;
+  varying float vCoolness;
+
+  void main() {
+    vec2 point = gl_PointCoord - 0.5;
+    float diamondDistance = abs(point.x) + abs(point.y);
+    float body = 1.0 - smoothstep(0.32, 0.5, diamondDistance);
+    float innerFacet = 1.0 - smoothstep(0.08, 0.3, diamondDistance);
+    float verticalGlint = 1.0 - smoothstep(0.018, 0.085, abs(point.x));
+    float horizontalGlint = 1.0 - smoothstep(0.018, 0.085, abs(point.y));
+    float glint = max(verticalGlint, horizontalGlint) * (1.0 - smoothstep(0.22, 0.5, diamondDistance));
+    float facet = max(innerFacet * 0.62, glint);
+
+    vec3 iceBlue = vec3(0.28, 0.72, 1.0);
+    vec3 frostWhite = vec3(0.94, 0.99, 1.0);
+    vec3 color = mix(iceBlue, frostWhite, 0.55 + vCoolness * 0.35 + facet * 0.3);
+    float alpha = body * vLife * vBrightness * (0.72 + facet * 0.28);
+    gl_FragColor = vec4(color * (0.74 + facet * 1.65), alpha);
+  }
+`;
+
 function createTunnelGeometry(count: number) {
   const geometry = new THREE.InstancedBufferGeometry();
   geometry.setAttribute(
@@ -284,6 +351,46 @@ function createExitWakeGeometry(count: number) {
   geometry.setAttribute("aBrightness", new THREE.InstancedBufferAttribute(brightness, 1));
   geometry.setAttribute("aDrift", new THREE.InstancedBufferAttribute(drift, 1));
   geometry.instanceCount = count;
+  return geometry;
+}
+
+function createExitCrystalGeometry(count: number) {
+  const positions = new Float32Array(count * 3);
+  const velocities = new Float32Array(count * 3);
+  const delays = new Float32Array(count);
+  const lifetimes = new Float32Array(count);
+  const sizes = new Float32Array(count);
+  const brightness = new Float32Array(count);
+  const turbulence = new Float32Array(count);
+  const seeds = new Float32Array(count);
+
+  for (let index = 0; index < count; index += 1) {
+    const angle = Math.random() * Math.PI * 2;
+    const originRadius = 0.18 + Math.pow(Math.random(), 1.8) * 2.8;
+    const scatterSpeed = 5.5 + Math.pow(Math.random(), 0.62) * 13.5;
+    positions[index * 3] = Math.cos(angle) * originRadius;
+    positions[index * 3 + 1] = Math.sin(angle) * originRadius * 0.72;
+    positions[index * 3 + 2] = -20 - Math.random() * 34;
+    velocities[index * 3] = Math.cos(angle) * scatterSpeed;
+    velocities[index * 3 + 1] = Math.sin(angle) * scatterSpeed * (0.65 + Math.random() * 0.35);
+    velocities[index * 3 + 2] = 14 + Math.random() * 23;
+    delays[index] = Math.pow(Math.random(), 1.4) * 0.52;
+    lifetimes[index] = 1.2 + Math.random() * 0.75;
+    sizes[index] = 3.2 + Math.pow(Math.random(), 0.6) * 5.4;
+    brightness[index] = 0.58 + Math.random() * 0.42;
+    turbulence[index] = 0.45 + Math.random() * 1.65;
+    seeds[index] = Math.random();
+  }
+
+  const geometry = new THREE.BufferGeometry();
+  geometry.setAttribute("position", new THREE.BufferAttribute(positions, 3));
+  geometry.setAttribute("aVelocity", new THREE.BufferAttribute(velocities, 3));
+  geometry.setAttribute("aDelay", new THREE.BufferAttribute(delays, 1));
+  geometry.setAttribute("aLifetime", new THREE.BufferAttribute(lifetimes, 1));
+  geometry.setAttribute("aSize", new THREE.BufferAttribute(sizes, 1));
+  geometry.setAttribute("aBrightness", new THREE.BufferAttribute(brightness, 1));
+  geometry.setAttribute("aTurbulence", new THREE.BufferAttribute(turbulence, 1));
+  geometry.setAttribute("aSeed", new THREE.BufferAttribute(seeds, 1));
   return geometry;
 }
 
@@ -740,6 +847,28 @@ export function HyperspaceIntro() {
     exitWake.visible = shouldJump;
     scene.add(exitWake);
 
+    const exitCrystalUniforms = {
+      uTime: { value: 0 },
+      uOpacity: { value: 0 },
+    };
+    const exitCrystalGeometry = createExitCrystalGeometry(isMobile ? 190 : 340);
+    const exitCrystalMaterial = new THREE.ShaderMaterial({
+      uniforms: exitCrystalUniforms,
+      vertexShader: exitCrystalVertexShader,
+      fragmentShader: exitCrystalFragmentShader,
+      transparent: true,
+      blending: THREE.AdditiveBlending,
+      depthTest: false,
+      depthWrite: false,
+      toneMapped: false,
+    });
+    const exitCrystals = new THREE.Points(exitCrystalGeometry, exitCrystalMaterial);
+    exitCrystals.frustumCulled = false;
+    exitCrystals.matrixAutoUpdate = false;
+    exitCrystals.updateMatrix();
+    exitCrystals.visible = shouldJump;
+    scene.add(exitCrystals);
+
     const world = createDeepSpaceWorld(isMobile);
     world.setOpacity(shouldJump ? 0 : 1);
     scene.add(world.group);
@@ -853,7 +982,9 @@ export function HyperspaceIntro() {
         uniforms.uEnergy.value = (0.24 + charge * 0.88 + launch * 0.34) * (1 - braking * 0.48);
         uniforms.uOpacity.value = smoothstep(progress / 0.015) * (0.24 + charge * 0.76) * (1 - smoothstep((progress - 0.88) / 0.055));
         exitWakeUniforms.uTime.value = Math.max(0, (elapsed - DURATION * 0.78) / 1000);
-        exitWakeUniforms.uOpacity.value = smoothstep((progress - 0.82) / 0.075) * 0.9;
+        exitWakeUniforms.uOpacity.value = smoothstep((progress - 0.82) / 0.075) * 0.42;
+        exitCrystalUniforms.uTime.value = Math.max(0, (elapsed - DURATION * 0.895) / 1000);
+        exitCrystalUniforms.uOpacity.value = smoothstep((progress - 0.885) / 0.045);
         world.setOpacity(smoothstep((progress - 0.865) / 0.09));
         renderer.toneMappingExposure = 0.94 + charge * 0.1 + launch * 0.06;
 
@@ -884,8 +1015,13 @@ export function HyperspaceIntro() {
         const landingElapsed = landingStartTime === null ? 1600 : Math.max(0, time - landingStartTime);
         const wakeFade = 1 - smoothstep(landingElapsed / 1400);
         exitWakeUniforms.uTime.value = Math.max(0, (elapsed - DURATION * 0.78) / 1000);
-        exitWakeUniforms.uOpacity.value = wakeFade * 0.9;
-        if (wakeFade <= 0.001) exitWake.visible = false;
+        exitWakeUniforms.uOpacity.value = wakeFade * 0.42;
+        exitCrystalUniforms.uTime.value = Math.max(0, (elapsed - DURATION * 0.895) / 1000);
+        exitCrystalUniforms.uOpacity.value = wakeFade;
+        if (wakeFade <= 0.001) {
+          exitWake.visible = false;
+          exitCrystals.visible = false;
+        }
         const interfaceArrival = landingStartTime === null
           ? 1
           : smoothstep((time - landingStartTime - 100) / 1450);
@@ -953,6 +1089,8 @@ export function HyperspaceIntro() {
         material.dispose();
         exitWakeGeometry.dispose();
         exitWakeMaterial.dispose();
+        exitCrystalGeometry.dispose();
+        exitCrystalMaterial.dispose();
         for (const item of world.geometries) item.dispose();
         for (const item of world.materials) item.dispose();
         for (const item of world.textures) item.dispose();
@@ -974,10 +1112,13 @@ export function HyperspaceIntro() {
       canvas.removeEventListener("webglcontextlost", onContextLost);
       scene.remove(tunnel);
       scene.remove(exitWake);
+      scene.remove(exitCrystals);
       geometry.dispose();
       material.dispose();
       exitWakeGeometry.dispose();
       exitWakeMaterial.dispose();
+      exitCrystalGeometry.dispose();
+      exitCrystalMaterial.dispose();
       world.cancelAssetLoad();
       for (const item of world.geometries) item.dispose();
       for (const item of world.materials) item.dispose();
