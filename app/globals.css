@@ -78,21 +78,6 @@ a:focus-visible {
   z-index: 100;
 }
 
-.space-experience.is-jumping::before,
-.space-experience.is-jumping::after {
-  content: "";
-  position: absolute;
-  right: 0;
-  left: 0;
-  z-index: 2;
-  height: clamp(22px, 4.5vh, 58px);
-  background: #000;
-  pointer-events: none;
-}
-
-.space-experience.is-jumping::before { top: 0; }
-.space-experience.is-jumping::after { bottom: 0; }
-
 .space-experience canvas {
   display: block;
   width: 100%;

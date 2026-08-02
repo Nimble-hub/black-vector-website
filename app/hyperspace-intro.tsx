@@ -15,6 +15,13 @@ const EXIT_RIM_BOOST = 86;
 const SEEN_KEY = "black-vector-jump-seen-3d-v20";
 const BASE_PATH = process.env.NEXT_PUBLIC_BASE_PATH ?? "";
 
+declare global {
+  interface Window {
+    __BV_CAPTURE_READY__?: boolean;
+    __BV_CAPTURE_RENDER__?: (timeMs: number) => void;
+  }
+}
+
 function clamp01(value: number) {
   return Math.max(0, Math.min(1, value));
 }
@@ -1510,6 +1517,7 @@ export function HyperspaceIntro() {
   }, []);
 
   useEffect(() => {
+    const captureMode = new URLSearchParams(window.location.search).get("capture") === "hyperspace";
     const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
     const hasSeenJump = Boolean(window.sessionStorage.getItem(SEEN_KEY));
     const storedMuted = window.localStorage.getItem("black-vector-audio-muted") === "true";
@@ -1517,8 +1525,8 @@ export function HyperspaceIntro() {
     audioRef.current = audio;
     audio.prepare();
     const readinessTimer = window.setTimeout(() => {
-      setNeedsEngagement(!hasSeenJump && !reducedMotion);
-      setExperienceReady(hasSeenJump || reducedMotion);
+      setNeedsEngagement(captureMode ? false : !hasSeenJump && !reducedMotion);
+      setExperienceReady(captureMode || hasSeenJump || reducedMotion);
     }, 0);
 
     const button = document.querySelector<HTMLButtonElement>("[data-audio-toggle]");
@@ -1571,8 +1579,9 @@ export function HyperspaceIntro() {
 
   useEffect(() => {
     if (fallback || !experienceReady) return;
+    const captureMode = new URLSearchParams(window.location.search).get("capture") === "hyperspace";
     const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-    const shouldJump = runId > 0 || (!window.sessionStorage.getItem(SEEN_KEY) && !reducedMotion);
+    const shouldJump = captureMode || runId > 0 || (!window.sessionStorage.getItem(SEEN_KEY) && !reducedMotion);
     skipJumpRef.current = !shouldJump;
     document.documentElement.classList.remove("experience-arriving");
     document.documentElement.classList.toggle("experience-landed", !shouldJump);
@@ -1600,7 +1609,7 @@ export function HyperspaceIntro() {
 
     const isMobile = window.matchMedia("(max-width: 720px)").matches;
     const scene = new THREE.Scene();
-    scene.background = new THREE.Color(0x000104);
+    scene.background = new THREE.Color(captureMode ? 0x000000 : 0x000104);
     const camera = new THREE.PerspectiveCamera(74, 1, 0.1, 160);
     camera.position.set(0, 0, 0);
 
@@ -1761,7 +1770,7 @@ export function HyperspaceIntro() {
     scene.add(exitDust);
 
     const world = createDeepSpaceWorld(isMobile);
-    world.setOpacity(shouldJump ? 0 : 1);
+    world.setOpacity(captureMode || shouldJump ? 0 : 1);
     scene.add(world.group);
 
     const worldAnchors = [
@@ -1889,7 +1898,7 @@ export function HyperspaceIntro() {
         exitCrystalUniforms.uOpacity.value = 0;
         exitDustUniforms.uTime.value = Math.max(0, (elapsed - DURATION * 0.825) / 1000);
         exitDustUniforms.uOpacity.value = smoothstep((progress - 0.828) / 0.045);
-        world.setOpacity(smoothstep((progress - 0.9) / 0.085));
+        world.setOpacity(captureMode ? 0 : smoothstep((progress - 0.9) / 0.085));
         const exitIllumination = smoothstep((progress - 0.842) / 0.042)
           * (1 - smoothstep((progress - 0.982) / 0.034));
         world.rimLight.intensity = SCENE_RIM_BASE + exitIllumination * EXIT_RIM_BOOST;
@@ -1922,11 +1931,11 @@ export function HyperspaceIntro() {
           tunnel.visible = false;
           tunnelDust.visible = false;
           warpBubble.visible = false;
-          world.setOpacity(1);
+          world.setOpacity(captureMode ? 0 : 1);
           renderer.toneMappingExposure = SCENE_EXPOSURE;
           if (!finishQueued) {
             finishQueued = true;
-            finish();
+            if (!captureMode) finish();
           }
         }
       } else {
@@ -2038,11 +2047,21 @@ export function HyperspaceIntro() {
 
     window.addEventListener("resize", resize);
     canvas.addEventListener("webglcontextlost", onContextLost);
-    renderer.setAnimationLoop(animate);
+    if (captureMode) {
+      window.__BV_CAPTURE_READY__ = true;
+      window.__BV_CAPTURE_RENDER__ = (timeMs: number) => animate(1000 + timeMs);
+      window.__BV_CAPTURE_RENDER__(0);
+    } else {
+      renderer.setAnimationLoop(animate);
+    }
 
     return () => {
       if (settleTimer !== null) window.clearTimeout(settleTimer);
       renderer.setAnimationLoop(null);
+      if (captureMode) {
+        delete window.__BV_CAPTURE_READY__;
+        delete window.__BV_CAPTURE_RENDER__;
+      }
       window.removeEventListener("resize", resize);
       canvas.removeEventListener("webglcontextlost", onContextLost);
       scene.remove(tunnel);
