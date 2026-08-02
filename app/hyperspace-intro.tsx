@@ -13,7 +13,7 @@ import { HyperspaceIntro2D } from "./hyperspace-intro-2d";
 const DURATION = 15000;
 const DEPTH = 132;
 const NEAR = 0.68;
-const SEEN_KEY = "black-vector-jump-seen-3d-v14";
+const SEEN_KEY = "black-vector-jump-seen-3d-v15";
 
 function clamp01(value: number) {
   return Math.max(0, Math.min(1, value));
@@ -533,11 +533,11 @@ export function HyperspaceIntro() {
         const exitBoost = smoothstep((progress - 0.8) / 0.11);
         const braking = smoothstep((progress - 0.92) / 0.08);
         const preLaunchSpeed = 0.18 + charge * 8.2;
-        const hyperspaceSpeed = 42 + exitBoost * 14 + launchKick * 30;
+        const hyperspaceSpeed = 74 + exitBoost * 26 + launchKick * 38;
         const speed = THREE.MathUtils.lerp(preLaunchSpeed, hyperspaceSpeed, launch) * (1 - braking) + 0.35 * braking;
         travel += speed * delta;
         uniforms.uTravel.value = travel;
-        uniforms.uStretch.value = (0.018 + chargeWall * 0.9 + launch * 1.35 + launchKick * 0.2 + exitBoost * 0.2) * (1 - braking) + braking * 0.04;
+        uniforms.uStretch.value = (0.018 + chargeWall * 0.9 + launch * 1.72 + launchKick * 0.26 + exitBoost * 0.28) * (1 - braking) + braking * 0.04;
         uniforms.uWidthScale.value = (0.72 + chargeWall * 0.8 + launch * 0.8 + launchKick * 0.15) * (1 - braking * 0.35);
         uniforms.uEnergy.value = (0.28 + chargeWall * 1.2 + launch * 1.2 + launchKick * 0.08) * (1 - braking * 0.48);
         uniforms.uOpacity.value = smoothstep(progress / 0.035) * (1 - smoothstep((progress - 0.84) / 0.16));
@@ -549,9 +549,9 @@ export function HyperspaceIntro() {
 
         camera.position.x = 0;
         camera.position.y = 0;
-        camera.position.z = launchKick * 0.035;
+        camera.position.z = launchKick * 0.055;
         camera.rotation.set(0, 0, 0);
-        camera.fov = 64 + launch * 14 + launchKick * 10 - braking * 4;
+        camera.fov = 64 + launch * 18 + launchKick * 11 - braking * 4;
         camera.updateProjectionMatrix();
 
         if (progress >= 1) {
