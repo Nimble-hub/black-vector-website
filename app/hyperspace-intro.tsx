@@ -177,26 +177,22 @@ const launchOpticsShader = {
         ? vec2(aspectVector.x / uAspect, aspectVector.y) / radial
         : vec2(0.0);
 
-      // Model the launch lens as a coherent cylindrical metric around the
-      // tunnel mouth. The signed gradient bends light in opposite directions
-      // on either side of the shell, while the screen edge remains undisturbed.
-      float screenRadius = max(abs(fromCenter.x) * 2.0, abs(fromCenter.y) * 2.0);
-      float edgeFade = 1.0 - smoothstep(0.8, 0.99, screenRadius);
-      float tunnelField = smoothstep(0.035, 0.11, radial)
-        * (1.0 - smoothstep(0.46, 0.62, radial))
-        * edgeFade;
+      // A circular optical field follows the tunnel mouth itself. Keeping the
+      // field compact means no rectangular screen mask and no edge clamping
+      // can become visible during the launch.
+      float tunnelField = smoothstep(0.025, 0.09, radial)
+        * (1.0 - smoothstep(0.37, 0.49, radial));
       float compressionDisplacement = uLensCompression
-        * (0.012 + radial * 0.022)
+        * (0.008 + radial * 0.038)
         * tunnelField;
 
-      float shellRadius = mix(0.055, 0.52, pow(clamp(uLaunchPhase, 0.0, 1.0), 0.7));
-      float shellDistance = (radial - shellRadius) / 0.115;
-      float shellDensity = exp(-shellDistance * shellDistance) * edgeFade;
-      float metricGradient = -shellDistance * shellDensity;
-      float metricDisplacement = metricGradient * uShockwave * 0.026;
+      float shellRadius = mix(0.055, 0.45, pow(clamp(uLaunchPhase, 0.0, 1.0), 0.72));
+      float shellDistance = (radial - shellRadius) / 0.082;
+      float shellDensity = exp(-shellDistance * shellDistance) * tunnelField;
+      float metricGradient = -2.0 * shellDistance * shellDensity;
+      float metricDisplacement = metricGradient * uShockwave * 0.022;
       vec2 opticalUv = vUv + radialDirection
         * (compressionDisplacement + metricDisplacement);
-      opticalUv = mix(vUv, opticalUv, edgeFade);
 
       vec3 blur = vec3(0.0);
       float totalWeight = 0.0;
@@ -215,18 +211,16 @@ const launchOpticsShader = {
       }
 
       blur /= totalWeight;
-      float spectralAmount = uChromatic
-        * tunnelField
-        * (0.18 + shellDensity * 0.82);
+      float spectralAmount = uChromatic * shellDensity;
       vec2 spectralOffset = radialDirection * spectralAmount;
       float red = texture2D(tDiffuse, clamp(opticalUv - spectralOffset, 0.001, 0.999)).r;
       float blue = texture2D(tDiffuse, clamp(opticalUv + spectralOffset, 0.001, 0.999)).b;
       blur.r = mix(blur.r, red, 0.74);
       blur.b = mix(blur.b, blue, 0.74);
 
-      float tunnelLift = tunnelField * uExposureKick * 0.075;
-      float shellLift = shellDensity * uExposureKick * 0.14;
-      vec3 color = blur * (1.0 + uExposureKick * 0.1 + tunnelLift + shellLift);
+      float tunnelLift = tunnelField * uExposureKick * 0.055;
+      float shellLift = shellDensity * uExposureKick * 0.16;
+      vec3 color = blur * (1.0 + uExposureKick * 0.085 + tunnelLift + shellLift);
       gl_FragColor = vec4(color, 1.0);
     }
   `,
@@ -2006,15 +2000,15 @@ export function HyperspaceIntro() {
         const launchProgress = clamp01((progress - 0.285) / 0.014);
         const launch = 1 - Math.pow(1 - launchProgress, 4);
         const visualLaunch = smoothstep((progress - 0.285) / 0.035);
-        const compressionAttack = smoothstep((progress - 0.205) / 0.065);
-        const compressionRelease = 1 - smoothstep((progress - 0.285) / 0.012);
+        const compressionAttack = smoothstep((progress - 0.12) / 0.15);
+        const compressionRelease = 1 - smoothstep((progress - 0.285) / 0.01);
         launchCompression = compressionAttack * compressionRelease;
-        const opticsAttack = smoothstep((progress - 0.276) / 0.013);
-        const opticsRelease = 1 - smoothstep((progress - 0.354) / 0.052);
+        const opticsAttack = smoothstep((progress - 0.282) / 0.006);
+        const opticsRelease = 1 - smoothstep((progress - 0.34) / 0.04);
         launchOptics = opticsAttack * opticsRelease;
-        const launchImpulse = smoothstep((progress - 0.281) / 0.008)
-          * (1 - smoothstep((progress - 0.305) / 0.022));
-        const launchOpticsPhase = clamp01((progress - 0.278) / 0.074);
+        const launchImpulse = smoothstep((progress - 0.283) / 0.005)
+          * (1 - smoothstep((progress - 0.31) / 0.018));
+        const launchOpticsPhase = clamp01((progress - 0.285) / 0.055);
         const braking = smoothstep((progress - 0.84) / 0.055);
         const exitArrival = smoothstep((progress - 0.89) / 0.11);
         const lineGrowth = smoothstep((progress - 0.04) / 0.31);
@@ -2054,8 +2048,7 @@ export function HyperspaceIntro() {
 
         launchOpticsPass.uniforms.uStrength.value = launchOptics * (isMobile ? 0.048 : 0.07)
           + launchImpulse * (isMobile ? 0.052 : 0.072);
-        launchOpticsPass.uniforms.uChromatic.value = launchOptics * (isMobile ? 0.0008 : 0.0012)
-          + launchImpulse * (isMobile ? 0.00035 : 0.00055);
+        launchOpticsPass.uniforms.uChromatic.value = launchOptics * (isMobile ? 0.00025 : 0.0004);
         launchOpticsPass.uniforms.uExposureKick.value = Math.max(launchOptics, launchImpulse);
         launchOpticsPass.uniforms.uLensCompression.value = launchCompression * (isMobile ? 0.78 : 1.08);
         launchOpticsPass.uniforms.uShockwave.value = launchOptics * 0.92;
