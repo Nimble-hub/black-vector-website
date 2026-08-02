@@ -657,6 +657,109 @@ const exitDustFragmentShader = `
   }
 `;
 
+const environmentStarVertexShader = `
+  precision highp float;
+
+  attribute float aSize;
+  attribute float aIntensity;
+  attribute float aPhase;
+  attribute float aGlint;
+
+  uniform float uTime;
+  uniform float uOpacity;
+
+  varying vec3 vStarColor;
+  varying float vStarAlpha;
+  varying float vGlint;
+
+  void main() {
+    vec4 viewPosition = modelViewMatrix * vec4(position, 1.0);
+    gl_Position = projectionMatrix * viewPosition;
+    float twinkle = 0.94 + sin(uTime * (0.42 + aPhase * 0.28) + aPhase * 31.0) * 0.06;
+    float glintPulse = 0.88 + sin(uTime * 0.68 + aPhase * 47.0) * 0.12;
+    gl_PointSize = clamp(
+      aSize * (92.0 / max(-viewPosition.z, 1.0)) * mix(1.0, glintPulse, aGlint),
+      0.65,
+      7.5
+    );
+    vStarColor = color;
+    vStarAlpha = aIntensity * twinkle * uOpacity;
+    vGlint = aGlint;
+  }
+`;
+
+const environmentStarFragmentShader = `
+  precision highp float;
+
+  varying vec3 vStarColor;
+  varying float vStarAlpha;
+  varying float vGlint;
+
+  void main() {
+    vec2 point = gl_PointCoord - 0.5;
+    float radius = length(point);
+    float core = 1.0 - smoothstep(0.025, 0.14, radius);
+    float halo = 1.0 - smoothstep(0.08, 0.5, radius);
+    float horizontalRay = 1.0 - smoothstep(0.008, 0.026, abs(point.y));
+    float verticalRay = 1.0 - smoothstep(0.008, 0.026, abs(point.x));
+    float rayFalloff = 1.0 - smoothstep(0.08, 0.49, radius);
+    float diffraction = max(horizontalRay, verticalRay * 0.55) * rayFalloff * vGlint;
+    float alpha = max(core, halo * 0.24 + diffraction * 0.72) * vStarAlpha;
+    vec3 whiteCore = vec3(0.985, 0.997, 1.0);
+    vec3 color = mix(vStarColor, whiteCore, core * 0.62 + diffraction * 0.32);
+    gl_FragColor = vec4(color * (0.72 + core * 1.65 + diffraction * 1.28), alpha);
+  }
+`;
+
+const stellarVeilVertexShader = `
+  precision highp float;
+
+  attribute float aSize;
+  attribute float aIntensity;
+  attribute float aPhase;
+
+  uniform float uTime;
+  uniform float uOpacity;
+
+  varying vec3 vVeilColor;
+  varying float vVeilAlpha;
+  varying float vPhase;
+
+  void main() {
+    vec4 viewPosition = modelViewMatrix * vec4(position, 1.0);
+    gl_Position = projectionMatrix * viewPosition;
+    float breathe = 0.97 + sin(uTime * 0.055 + aPhase * 6.2831853) * 0.03;
+    gl_PointSize = clamp(aSize * breathe * (92.0 / max(-viewPosition.z, 1.0)), 4.0, 38.0);
+    vVeilColor = color;
+    vVeilAlpha = aIntensity * uOpacity;
+    vPhase = aPhase;
+  }
+`;
+
+const stellarVeilFragmentShader = `
+  precision highp float;
+
+  varying vec3 vVeilColor;
+  varying float vVeilAlpha;
+  varying float vPhase;
+
+  void main() {
+    vec2 point = gl_PointCoord - 0.5;
+    float angle = atan(point.y, point.x);
+    float warp = sin(angle * 3.0 + vPhase * 9.0) * 0.032
+      + sin(angle * 7.0 - vPhase * 13.0) * 0.014;
+    float radius = length(point) + warp;
+    float cloud = 1.0 - smoothstep(0.08, 0.5, radius);
+    float filament = 0.72 + 0.28 * sin(
+      point.x * 14.0 + point.y * 9.0 + vPhase * 17.0
+    );
+    float alpha = cloud * cloud * filament * vVeilAlpha;
+    vec3 silver = vec3(0.72, 0.84, 0.94);
+    vec3 color = mix(vVeilColor, silver, cloud * 0.16);
+    gl_FragColor = vec4(color * (0.58 + filament * 0.34), alpha);
+  }
+`;
+
 function createTunnelGeometry(count: number) {
   const geometry = new THREE.InstancedBufferGeometry();
   geometry.setAttribute(
@@ -995,53 +1098,130 @@ function createDeepSpaceWorld(isMobile: boolean) {
     return material;
   };
 
-  const starCanvas = document.createElement("canvas");
-  starCanvas.width = 32;
-  starCanvas.height = 32;
-  const starContext = starCanvas.getContext("2d");
-  if (starContext) {
-    const starGradient = starContext.createRadialGradient(16, 16, 0, 16, 16, 15);
-    starGradient.addColorStop(0, "rgba(255,255,255,1)");
-    starGradient.addColorStop(0.22, "rgba(236,249,255,0.96)");
-    starGradient.addColorStop(0.58, "rgba(150,210,238,0.34)");
-    starGradient.addColorStop(1, "rgba(100,180,220,0)");
-    starContext.fillStyle = starGradient;
-    starContext.fillRect(0, 0, 32, 32);
-  }
-  const starSprite = new THREE.CanvasTexture(starCanvas);
-  starSprite.colorSpace = THREE.SRGBColorSpace;
-  starSprite.generateMipmaps = true;
-  textures.push(starSprite);
-
-  const starCount = isMobile ? 850 : 1450;
+  const starCount = isMobile ? 1300 : 2450;
   const starPositions = new Float32Array(starCount * 3);
   const starColors = new Float32Array(starCount * 3);
+  const starSizes = new Float32Array(starCount);
+  const starIntensities = new Float32Array(starCount);
+  const starPhases = new Float32Array(starCount);
+  const starGlints = new Float32Array(starCount);
   const starColor = new THREE.Color();
   for (let index = 0; index < starCount; index += 1) {
-    const radius = 22 + Math.pow(Math.random(), 0.42) * 108;
-    const angle = Math.random() * Math.PI * 2;
-    const elevation = (Math.random() - 0.5) * Math.PI * 0.78;
-    starPositions[index * 3] = Math.cos(angle) * Math.cos(elevation) * radius;
-    starPositions[index * 3 + 1] = Math.sin(elevation) * radius * 0.64;
-    starPositions[index * 3 + 2] = -18 - Math.sin(angle) * Math.cos(elevation) * radius;
-    starColor.set(Math.random() < 0.14 ? 0x71cde8 : 0xdde7eb);
-    starColors[index * 3] = starColor.r;
-    starColors[index * 3 + 1] = starColor.g;
-    starColors[index * 3 + 2] = starColor.b;
+    const depth = 42 + Math.pow(Math.random(), 0.58) * 106;
+    const sitsInStellarBand = Math.random() < 0.46;
+    const screenX = (Math.random() - 0.5) * 2.18;
+    const bandCenter = 0.16 - screenX * 0.23 + Math.sin(screenX * 3.2) * 0.045;
+    const screenY = sitsInStellarBand
+      ? bandCenter + (Math.random() - 0.5) * (0.13 + Math.pow(Math.random(), 2.1) * 0.32)
+      : (Math.random() - 0.5) * 1.34;
+    const positionOffset = index * 3;
+    starPositions[positionOffset] = screenX * depth;
+    starPositions[positionOffset + 1] = screenY * depth;
+    starPositions[positionOffset + 2] = -depth;
+
+    const temperature = Math.random();
+    if (temperature < 0.56) starColor.set(0xdce9ef);
+    else if (temperature < 0.73) starColor.set(0x86d9f0);
+    else if (temperature < 0.86) starColor.set(0x9aa9ff);
+    else if (temperature < 0.96) starColor.set(0xffd6a1);
+    else starColor.set(0xff9b72);
+    starColors[positionOffset] = starColor.r;
+    starColors[positionOffset + 1] = starColor.g;
+    starColors[positionOffset + 2] = starColor.b;
+
+    const heroStar = Math.random() < 0.032;
+    const midStar = !heroStar && Math.random() < 0.13;
+    starSizes[index] = heroStar
+      ? 3.4 + Math.random() * 2.8
+      : midStar
+        ? 1.45 + Math.random() * 1.35
+        : 0.58 + Math.pow(Math.random(), 1.8) * 0.86;
+    starIntensities[index] = heroStar
+      ? 0.82 + Math.random() * 0.18
+      : 0.38 + Math.pow(Math.random(), 0.72) * 0.48;
+    starPhases[index] = Math.random();
+    starGlints[index] = heroStar ? 0.58 + Math.random() * 0.42 : 0;
   }
   const starGeometry = trackGeometry(new THREE.BufferGeometry());
   starGeometry.setAttribute("position", new THREE.BufferAttribute(starPositions, 3));
   starGeometry.setAttribute("color", new THREE.BufferAttribute(starColors, 3));
-  const starMaterial = trackMaterial(new THREE.PointsMaterial({
-    size: isMobile ? 0.18 : 0.14,
-    sizeAttenuation: true,
+  starGeometry.setAttribute("aSize", new THREE.BufferAttribute(starSizes, 1));
+  starGeometry.setAttribute("aIntensity", new THREE.BufferAttribute(starIntensities, 1));
+  starGeometry.setAttribute("aPhase", new THREE.BufferAttribute(starPhases, 1));
+  starGeometry.setAttribute("aGlint", new THREE.BufferAttribute(starGlints, 1));
+  const starUniforms = {
+    uTime: { value: 0 },
+    uOpacity: { value: 0 },
+  };
+  const starMaterial = trackMaterial(new THREE.ShaderMaterial({
+    uniforms: starUniforms,
+    vertexShader: environmentStarVertexShader,
+    fragmentShader: environmentStarFragmentShader,
     vertexColors: true,
-    map: starSprite,
-    alphaTest: 0.035,
+    transparent: true,
     depthWrite: false,
     blending: THREE.AdditiveBlending,
+    toneMapped: false,
   }));
-  group.add(new THREE.Points(starGeometry, starMaterial));
+  const deepStars = new THREE.Points(starGeometry, starMaterial);
+  deepStars.frustumCulled = false;
+  deepStars.renderOrder = -12;
+  group.add(deepStars);
+
+  const veilCount = isMobile ? 260 : 460;
+  const veilPositions = new Float32Array(veilCount * 3);
+  const veilColors = new Float32Array(veilCount * 3);
+  const veilSizes = new Float32Array(veilCount);
+  const veilIntensities = new Float32Array(veilCount);
+  const veilPhases = new Float32Array(veilCount);
+  const veilColor = new THREE.Color();
+  for (let index = 0; index < veilCount; index += 1) {
+    const depth = 68 + Math.random() * 70;
+    const bandX = (Math.random() - 0.5) * 2.28;
+    const clusterWave = Math.sin(bandX * 2.7 + 0.8) * 0.055;
+    const bandY = 0.16 - bandX * 0.23 + clusterWave
+      + (Math.random() - 0.5) * (0.12 + Math.pow(Math.random(), 1.7) * 0.24);
+    const positionOffset = index * 3;
+    veilPositions[positionOffset] = bandX * depth;
+    veilPositions[positionOffset + 1] = bandY * depth;
+    veilPositions[positionOffset + 2] = -depth;
+
+    const hueChoice = Math.random();
+    if (hueChoice < 0.52) veilColor.set(0x237f9d);
+    else if (hueChoice < 0.78) veilColor.set(0x334b9a);
+    else if (hueChoice < 0.93) veilColor.set(0x694a8e);
+    else veilColor.set(0x9a603f);
+    veilColors[positionOffset] = veilColor.r;
+    veilColors[positionOffset + 1] = veilColor.g;
+    veilColors[positionOffset + 2] = veilColor.b;
+    veilSizes[index] = 18 + Math.pow(Math.random(), 0.64) * 32;
+    veilIntensities[index] = 0.024 + Math.pow(Math.random(), 1.5) * 0.052;
+    veilPhases[index] = Math.random();
+  }
+  const veilGeometry = trackGeometry(new THREE.BufferGeometry());
+  veilGeometry.setAttribute("position", new THREE.BufferAttribute(veilPositions, 3));
+  veilGeometry.setAttribute("color", new THREE.BufferAttribute(veilColors, 3));
+  veilGeometry.setAttribute("aSize", new THREE.BufferAttribute(veilSizes, 1));
+  veilGeometry.setAttribute("aIntensity", new THREE.BufferAttribute(veilIntensities, 1));
+  veilGeometry.setAttribute("aPhase", new THREE.BufferAttribute(veilPhases, 1));
+  const veilUniforms = {
+    uTime: { value: 0 },
+    uOpacity: { value: 0 },
+  };
+  const veilMaterial = trackMaterial(new THREE.ShaderMaterial({
+    uniforms: veilUniforms,
+    vertexShader: stellarVeilVertexShader,
+    fragmentShader: stellarVeilFragmentShader,
+    vertexColors: true,
+    transparent: true,
+    depthWrite: false,
+    blending: THREE.AdditiveBlending,
+    toneMapped: false,
+  }));
+  const stellarVeil = new THREE.Points(veilGeometry, veilMaterial);
+  stellarVeil.frustumCulled = false;
+  stellarVeil.renderOrder = -13;
+  group.add(stellarVeil);
 
   const planetTexture = new THREE.TextureLoader().load(`${BASE_PATH}/textures/bv-alien-planet.webp`);
   planetTexture.colorSpace = THREE.SRGBColorSpace;
@@ -1225,14 +1405,22 @@ function createDeepSpaceWorld(isMobile: boolean) {
     atmosphereMaterial.opacity = eased * 0.17;
     engineMaterial.opacity = eased * 0.92;
     ringMaterial.opacity = eased * 0.46;
-    starMaterial.opacity = eased * 0.72;
+    starUniforms.uOpacity.value = eased * 0.82;
+    veilUniforms.uOpacity.value = eased;
+  };
+
+  const update = (elapsedSeconds: number) => {
+    starUniforms.uTime.value = elapsedSeconds;
+    veilUniforms.uTime.value = elapsedSeconds;
+    deepStars.rotation.z = Math.sin(elapsedSeconds * 0.004) * 0.003;
+    stellarVeil.rotation.z = -0.035 + Math.sin(elapsedSeconds * 0.0025) * 0.004;
   };
 
   const cancelAssetLoad = () => {
     assetLoadCancelled = true;
   };
 
-  return { group, fleet, flagship, planet, orbitalRing, rimLight, interfaceAnchor, geometries, materials, textures, setOpacity, cancelAssetLoad };
+  return { group, fleet, flagship, planet, orbitalRing, rimLight, interfaceAnchor, geometries, materials, textures, setOpacity, update, cancelAssetLoad };
 }
 
 export function HyperspaceIntro() {
@@ -1742,6 +1930,7 @@ export function HyperspaceIntro() {
       const currentInterfaceArrival = jumpComplete && landingStartTime !== null
         ? smoothstep((time - landingStartTime - 100) / 1450)
         : jumpComplete ? 1 : 0;
+      world.update(elapsed * 0.001);
       updateWorldAnchors(currentInterfaceArrival);
       renderer.render(scene, camera);
     };
