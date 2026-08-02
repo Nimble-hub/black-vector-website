@@ -482,7 +482,8 @@ const gravitationalLensShader = {
         + (-innerDistance / max(ringWidth, 0.001)) * innerSkin * 0.42
         + (-outerDistance / max(ringWidth, 0.001)) * outerSkin * 0.28;
       float deflection = uStrength * outerField * innerGuard * falloff * 0.049
-        + shellFold * uStrength * (0.0069 + uCruise * 0.0037);
+        + shellFold * uStrength * (0.0069 + uCruise * 0.0037)
+        + uFlash * outerField * innerGuard * falloff * 0.018;
       vec2 uvMin = vec2(0.001);
       vec2 uvMax = vec2(0.999);
       float orbitalShear = (
@@ -513,7 +514,7 @@ const gravitationalLensShader = {
       streak += texture2D(tDiffuse, clamp(warpedUv + stretchOffset * 0.65, uvMin, uvMax)).rgb * 0.19;
       streak += texture2D(tDiffuse, clamp(warpedUv + stretchOffset, uvMin, uvMax)).rgb * 0.13;
       streak += texture2D(tDiffuse, clamp(warpedUv - stretchOffset * 0.22, uvMin, uvMax)).rgb * 0.1;
-      float stretchBlend = clamp(uStretch * 14.0, 0.0, 0.8) * stretchMask;
+      float stretchBlend = clamp(uStretch * 16.0, 0.0, 0.88) * stretchMask;
       vec3 lensed = mix(warped, streak, stretchBlend);
 
       float chroma = (shellStack * uStrength * 0.00125 + uStretch * 0.0021) * outerField;
@@ -2188,7 +2189,7 @@ export function HyperspaceIntro() {
         const cruiseBreath = 0.17 + Math.sin(elapsed * 0.00072) * 0.022;
         const lensStrength = (
           warpTension * 0.94
-          + lensRelease * 0.91
+          + lensRelease * 1.04
           + cruiseLens * cruiseBreath
         ) * (1 - braking);
         lensPass.enabled = lensStrength > 0.002;
@@ -2197,8 +2198,9 @@ export function HyperspaceIntro() {
           + charge * 0.125
           - cruiseLens * 0.038
           + launchImpulse * 0.03;
-        lensPass.uniforms.uStretch.value = launchImpulse * 0.053
-          + warpRelease * lensTravelFade * 0.0235
+        lensPass.uniforms.uStretch.value = warpTension * 0.004
+          + launchImpulse * 0.078
+          + warpRelease * lensTravelFade * 0.032
           + cruiseLens * 0.0035;
         lensPass.uniforms.uFlash.value = launchImpulse;
         lensPass.uniforms.uTime.value = elapsed * 0.001;
@@ -2249,14 +2251,14 @@ export function HyperspaceIntro() {
           * (1 - smoothstep((progress - 0.965) / 0.035));
         const cruiseShake = visualLaunch * (1 - braking) * 0.005;
         const impactDecay = launchShake * (1 - smoothstep(launchLocal));
-        const shakeStrength = impactKick * 0.15
-          + impactDecay * 0.11
-          + launchShake * 0.035
+        const shakeStrength = impactKick * 0.22
+          + impactDecay * 0.14
+          + launchShake * 0.045
           + brakingShake * 0.032
           + cruiseShake;
-        const cameraDive = smoothstep((progress - (LAUNCH_PROGRESS + 0.004)) / 0.022)
-          * (1 - smoothstep((progress - (LAUNCH_PROGRESS + 0.115)) / 0.085));
-        const launchRecoil = impactKick * 0.95;
+        const cameraDive = smoothstep((progress - (LAUNCH_PROGRESS + 0.014)) / 0.018)
+          * (1 - smoothstep((progress - (LAUNCH_PROGRESS + 0.12)) / 0.08));
+        const launchRecoil = impactKick * 1.5;
         const shakeX = Math.sin(elapsed * 0.043)
           + Math.sin(elapsed * 0.071 + 1.7) * 0.38;
         const shakeY = Math.cos(elapsed * 0.037 + 0.6)
@@ -2268,12 +2270,12 @@ export function HyperspaceIntro() {
         camera.position.y = shakeY * shakeStrength * 0.7
           - pressureDrift * 0.42;
         camera.position.z = -0.9 * exitArrival
-          + launchRecoil * 0.62
-          - cameraDive * 1.12
+          + launchRecoil * 0.86
+          - cameraDive * 1.75
           + shakeZ * shakeStrength * 0.28;
         cameraTarget.set(
-          shakeX * shakeStrength * 0.76 + impactKick * 0.055,
-          shakeY * shakeStrength * 0.5 - impactKick * 0.034,
+          shakeX * shakeStrength * 0.76 + impactKick * 0.08,
+          shakeY * shakeStrength * 0.5 - impactKick * 0.075,
           THREE.MathUtils.lerp(-100, -38, exitArrival),
         );
         camera.lookAt(cameraTarget);
@@ -2282,8 +2284,8 @@ export function HyperspaceIntro() {
           + charge * 2.5
           - warpTension * 9.5
           + launch * 21.5
-          + impactKick * 8.5
-          + cameraDive * 2.2
+          + impactKick * 12.5
+          + cameraDive * 4.5
           - braking * 23.5;
         camera.updateProjectionMatrix();
 
