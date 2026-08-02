@@ -12,7 +12,7 @@ import { HyperspaceIntro2D } from "./hyperspace-intro-2d";
 const DURATION = 15000;
 const DEPTH = 132;
 const NEAR = 0.68;
-const SEEN_KEY = "black-vector-jump-seen-3d-v6";
+const SEEN_KEY = "black-vector-jump-seen-3d-v7";
 
 function clamp01(value: number) {
   return Math.max(0, Math.min(1, value));
@@ -45,6 +45,8 @@ const vertexShader = `
   varying float vBrightness;
   varying float vHue;
   varying float vDepthFade;
+  varying float vRenderedLength;
+  varying float vHalfSegment;
 
   void main() {
     float travel = mod(aSeedZ + uTravel, uDepth);
@@ -60,9 +62,12 @@ const vertexShader = `
     vec2 screenHead = ndcHead * uResolution * 0.5;
     vec2 direction = normalize(screenHead - screenTail + vec2(0.00001));
     vec2 perpendicular = vec2(direction.y, -direction.x);
+    float coreLength = length(screenHead - screenTail);
+    vec2 renderedTail = screenTail - direction * aWidth;
+    vec2 renderedHead = screenHead + direction * aWidth;
 
     float along = uv.y;
-    vec2 screenPosition = mix(screenTail, screenHead, along);
+    vec2 screenPosition = mix(renderedTail, renderedHead, along);
     screenPosition += perpendicular * uv.x * aWidth;
     vec2 ndcPosition = screenPosition / (uResolution * 0.5);
     float clipW = mix(clipTail.w, clipHead.w, along);
@@ -73,6 +78,8 @@ const vertexShader = `
     vBrightness = aBrightness;
     vHue = aHue;
     vDepthFade = smoothstep(0.0, 2.2, travel) * (1.0 - smoothstep(uDepth - 0.85, uDepth, travel));
+    vRenderedLength = coreLength + aWidth * 2.0;
+    vHalfSegment = coreLength * 0.5;
   }
 `;
 
@@ -83,23 +90,28 @@ const fragmentShader = `
   varying float vBrightness;
   varying float vHue;
   varying float vDepthFade;
+  varying float vRenderedLength;
+  varying float vHalfSegment;
 
   uniform float uOpacity;
   uniform float uEnergy;
 
   void main() {
-    float edge = 1.0 - smoothstep(0.18, 1.0, abs(vRibbonUv.x));
-    float tailFade = smoothstep(0.0, 0.12, vRibbonUv.y);
-    float headFade = 1.0 - smoothstep(0.985, 1.0, vRibbonUv.y);
-    float longitudinal = tailFade * headFade;
-    float hotCore = 1.0 - smoothstep(0.0, 0.32, abs(vRibbonUv.x));
+    float inferredWidth = max(vRenderedLength - vHalfSegment * 2.0, 0.002) * 0.5;
+    vec2 local = vec2((vRibbonUv.y - 0.5) * vRenderedLength, vRibbonUv.x * inferredWidth);
+    vec2 capsuleVector = vec2(max(abs(local.x) - vHalfSegment, 0.0), local.y);
+    float capsuleDistance = length(capsuleVector) - inferredWidth;
+    float antialias = max(fwidth(capsuleDistance), 0.55);
+    float capsule = 1.0 - smoothstep(-antialias, antialias, capsuleDistance);
+    float hotCore = 1.0 - smoothstep(0.0, 0.38, abs(local.y) / inferredWidth);
     float headExposure = mix(0.34, 1.0, pow(vRibbonUv.y, 0.48));
+    float longitudinal = mix(0.2, 1.0, pow(vRibbonUv.y, 0.58));
 
     vec3 coldBlue = vec3(0.34, 0.67, 1.0);
     vec3 photographicWhite = vec3(0.93, 0.985, 1.0);
     vec3 color = mix(coldBlue, photographicWhite, vHue);
     float intensity = vBrightness * headExposure * (0.78 + hotCore * 1.52) * uEnergy;
-    float alpha = edge * longitudinal * vDepthFade * uOpacity;
+    float alpha = capsule * longitudinal * vDepthFade * uOpacity;
 
     gl_FragColor = vec4(color * intensity, alpha);
   }
@@ -172,7 +184,7 @@ function createTunnelGeometry(count: number) {
     radii[index] = 0.42 + Math.pow(Math.random(), 1.18) * 15.3;
     seeds[index] = Math.random() * DEPTH;
     lengths[index] = 4.8 + Math.pow(Math.random(), 0.6) * 10.5;
-    widths[index] = 0.32 + light * (0.38 + Math.random() * 0.24);
+    widths[index] = 0.36 + light * (0.42 + Math.random() * 0.26);
     brightness[index] = light;
     hues[index] = Math.random() < 0.14 ? Math.random() * 0.28 : 0.82 + Math.random() * 0.18;
   }
@@ -444,7 +456,7 @@ export function HyperspaceIntro() {
       uEnergy: { value: shouldJump ? 0.28 : 1 },
       uResolution: { value: new THREE.Vector2(1, 1) },
     };
-    const geometry = createTunnelGeometry(isMobile ? 1200 : 2200);
+    const geometry = createTunnelGeometry(isMobile ? 1550 : 2800);
     const material = new THREE.ShaderMaterial({
       uniforms,
       vertexShader,
