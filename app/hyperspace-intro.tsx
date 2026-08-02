@@ -715,19 +715,23 @@ const gravitationalLensShader = {
       // A short radial shutter trail connects the optical collapse to forward
       // acceleration. Sampling only outward from the vanishing point makes
       // the image feel pulled past the camera rather than generally softened.
-      vec2 shutterStep = radialUv * uMotionBlur * 0.0048;
-      vec3 shutterTrail = lensed * 0.34;
-      shutterTrail += texture2D(tDiffuse, clamp(warpedUv + shutterStep, uvMin, uvMax)).rgb * 0.25;
-      shutterTrail += texture2D(tDiffuse, clamp(warpedUv + shutterStep * 2.15, uvMin, uvMax)).rgb * 0.19;
-      shutterTrail += texture2D(tDiffuse, clamp(warpedUv + shutterStep * 3.55, uvMin, uvMax)).rgb * 0.13;
-      shutterTrail += texture2D(tDiffuse, clamp(warpedUv + shutterStep * 5.1, uvMin, uvMax)).rgb * 0.09;
-      float shutterMask = max(outerField * 0.72, wideField * 0.46)
-        * smoothstep(horizon * 0.5, horizon * 4.8, radius);
-      lensed = mix(
-        lensed,
-        shutterTrail,
-        clamp(uMotionBlur * shutterMask * 0.72, 0.0, 0.68)
-      );
+      // uMotionBlur is zero through cruise, so this uniform branch avoids five
+      // full-resolution texture reads for the majority of the experience.
+      if (uMotionBlur > 0.02) {
+        vec2 shutterStep = radialUv * uMotionBlur * 0.0048;
+        vec3 shutterTrail = lensed * 0.34;
+        shutterTrail += texture2D(tDiffuse, clamp(warpedUv + shutterStep, uvMin, uvMax)).rgb * 0.25;
+        shutterTrail += texture2D(tDiffuse, clamp(warpedUv + shutterStep * 2.15, uvMin, uvMax)).rgb * 0.19;
+        shutterTrail += texture2D(tDiffuse, clamp(warpedUv + shutterStep * 3.55, uvMin, uvMax)).rgb * 0.13;
+        shutterTrail += texture2D(tDiffuse, clamp(warpedUv + shutterStep * 5.1, uvMin, uvMax)).rgb * 0.09;
+        float shutterMask = max(outerField * 0.72, wideField * 0.46)
+          * smoothstep(horizon * 0.5, horizon * 4.8, radius);
+        lensed = mix(
+          lensed,
+          shutterTrail,
+          clamp(uMotionBlur * shutterMask * 0.72, 0.0, 0.68)
+        );
+      }
 
       float fieldBlend = max(
         outerField,
@@ -2386,13 +2390,16 @@ export function HyperspaceIntro() {
         const progress = skipJumpRef.current ? 1 : clamp01(elapsed / DURATION);
         // Keep the light wall charging while acceleration begins so the short
         // traces stretch into hyperspace as one uninterrupted motion.
-        const sequencePressure = smoothstep(
-          (progress - 0.025) / (LAUNCH_PROGRESS - 0.025),
+        // A nearly linear five-second charge leaves visible growth available
+        // all the way to ignition. The old smoothstep + power stack reached
+        // most of its apparent size too early and made the final second hold.
+        const sequencePressure = clamp01(
+          (progress - 0.018) / (LAUNCH_PROGRESS - 0.018),
         );
         const charge = sequencePressure;
         const launchProgress = clamp01((progress - LAUNCH_PROGRESS) / 0.009);
         const launch = 1 - Math.pow(1 - launchProgress, 5);
-        const visualLaunch = smoothstep((progress - LAUNCH_PROGRESS) / 0.024);
+        const visualLaunch = smoothstep((progress - LAUNCH_PROGRESS) / 0.018);
         const tensionAttack = smoothstep((sequencePressure - 0.08) / 0.72);
         const tensionRelease = 1 - smoothstep((progress - LAUNCH_PROGRESS) / 0.028);
         const warpTension = tensionAttack * tensionRelease;
@@ -2420,6 +2427,14 @@ export function HyperspaceIntro() {
         ) * (1 - smoothstep(
           (progress - (LAUNCH_PROGRESS + 0.07)) / 0.035,
         ));
+        // First-person translation of the familiar third-person ship stretch:
+        // the field becomes one narrow quantum streak from the 5.54s body hit
+        // through the 5.88s sub impact, then releases into full tunnel speed.
+        const streakStretch = smoothstep(
+          (progress - (LAUNCH_PROGRESS - 0.014)) / 0.012,
+        ) * (1 - smoothstep(
+          (progress - (LAUNCH_PROGRESS + 0.012)) / 0.012,
+        ));
         const warpPhase = clamp01((progress - LAUNCH_PROGRESS) / 0.21);
         const braking = smoothstep((progress - 0.84) / 0.055);
         const exitArrival = smoothstep((progress - 0.89) / 0.11);
@@ -2437,8 +2452,8 @@ export function HyperspaceIntro() {
         const cruiseFloatZ = Math.sin(elapsed * 0.00031 + 2.1)
           + Math.cos(elapsed * 0.00017 + 0.2) * 0.36;
         const lineGrowth = sequencePressure;
-        const preLaunchSpeed = Math.pow(sequencePressure, 3.25) * 11.5;
-        const hyperspaceSpeed = 148;
+        const preLaunchSpeed = sequencePressure * 7.5;
+        const hyperspaceSpeed = 188;
         const speed = THREE.MathUtils.lerp(
           preLaunchSpeed,
           hyperspaceSpeed,
@@ -2455,12 +2470,14 @@ export function HyperspaceIntro() {
           sequencePressure * 2.2
           + sequencePressure * sequencePressure * 7
           + Math.pow(dustSuction, 3) * 30
+          + streakStretch * 64
           + speed * 1.35
         ) * (1 - braking) + braking * 0.5;
         dustTravel += dustSpeed * delta;
         uniforms.uTravel.value = travel;
         tunnelDustUniforms.uTravel.value = dustTravel;
         const launchDust = launchImpulse * 0.22
+          + streakStretch * 0.18
           + warpRelease * 0.24
           + dustSuction * warpTension * 0.18;
         const preLaunchDust = dustReveal * 0.26
@@ -2481,6 +2498,7 @@ export function HyperspaceIntro() {
           1,
           dustReveal * 0.14
             + dustSuction * (0.18 + warpTension * 0.46)
+            + streakStretch * 0.72
             + launchImpulse * 0.95
             + warpRelease * 0.78,
         );
@@ -2489,7 +2507,7 @@ export function HyperspaceIntro() {
         warpBubbleUniforms.uCompression.value = warpTension;
         warpBubbleUniforms.uRelease.value = warpRelease;
         warpBubbleUniforms.uCruise.value = visualLaunch * (1 - braking);
-        warpBubbleUniforms.uImpact.value = launchImpulse;
+        warpBubbleUniforms.uImpact.value = Math.max(launchImpulse, streakStretch);
         warpBubbleUniforms.uOpacity.value = (
           warpTension * 0.075
             + warpRelease * 0.62
@@ -2501,10 +2519,11 @@ export function HyperspaceIntro() {
         );
         const lensRelease = launchImpulse + warpRelease * lensTravelFade * 0.42;
         const cruiseLens = visualLaunch * (1 - braking);
-        const cruiseBreath = 0.2 + Math.sin(elapsed * 0.00072) * 0.026;
+        const cruiseBreath = 0.2 + Math.sin(elapsed * 0.00072) * 0.008;
         const lensStrength = (
           warpTension * 2.2
           + lensRelease * 2.05
+          + streakStretch * 0.95
           + crashZoom * 3.35
           + cruiseLens * cruiseBreath
         ) * (1 - braking);
@@ -2520,6 +2539,7 @@ export function HyperspaceIntro() {
           + launchImpulse * 0.02
           + crashZoom * 0.135;
         lensPass.uniforms.uStretch.value = warpTension * 0.052
+          + streakStretch * 0.34
           + launchImpulse * 0.27
           + crashZoom * 0.43
           + warpRelease * lensTravelFade * 0.125
@@ -2531,9 +2551,9 @@ export function HyperspaceIntro() {
         lensPass.uniforms.uMotionBlur.value = Math.min(
           1,
           crashZoom * 0.78
+            + streakStretch * 0.92
             + launchImpulse * 0.36
-            + launchRumble * 0.16
-            + cruiseLens * 0.045,
+            + launchRumble * 0.16,
         );
         lensPass.uniforms.uTime.value = elapsed * 0.001;
         lensPass.uniforms.uCruise.value = cruiseLens;
@@ -2541,12 +2561,19 @@ export function HyperspaceIntro() {
           1,
           warpTension * 0.3 + launchImpulse * 0.08 + cruiseLens * 0.03,
         );
-        const stretchCharge = Math.pow(lineGrowth, 0.7);
-        const staticStretch = THREE.MathUtils.lerp(0.035, 0.52, stretchCharge);
-        uniforms.uForwardStretch.value = staticStretch * (1 - braking) + braking * 0.01;
-        uniforms.uBackwardStretch.value = (staticStretch + visualLaunch * 0.89) * (1 - braking) + braking * 0.03;
-        uniforms.uWidthScale.value = (0.76 + charge * 0.4 + visualLaunch * 0.38) * (1 - braking * 0.35);
-        uniforms.uEnergy.value = (0.34 + charge * 0.78 + visualLaunch * 0.18) * (1 - braking * 0.48);
+        const staticStretch = THREE.MathUtils.lerp(0.028, 0.74, lineGrowth);
+        uniforms.uForwardStretch.value = (
+          staticStretch + streakStretch * 1.35
+        ) * (1 - braking) + braking * 0.01;
+        uniforms.uBackwardStretch.value = (
+          staticStretch + streakStretch * 1.9 + visualLaunch * 0.96
+        ) * (1 - braking) + braking * 0.03;
+        uniforms.uWidthScale.value = (
+          0.72 + charge * 0.46 + visualLaunch * 0.4
+        ) * (1 - streakStretch * 0.38) * (1 - braking * 0.35);
+        uniforms.uEnergy.value = (
+          0.28 + charge * 0.96 + streakStretch * 0.34 + visualLaunch * 0.18
+        ) * (1 - braking * 0.48);
         uniforms.uSymmetry.value = 1 - visualLaunch;
         uniforms.uWarpTension.value = warpTension;
         uniforms.uWarpRelease.value = warpRelease;
@@ -2554,7 +2581,7 @@ export function HyperspaceIntro() {
         uniforms.uWarpCruise.value = visualLaunch * (1 - braking);
         uniforms.uFormation.value = sequencePressure;
         uniforms.uOpacity.value = smoothstep(progress / 0.015)
-          * (0.36 + charge * 0.64)
+          * (0.3 + charge * 0.7)
           * (1 - visualLaunch * 0.14)
           * (1 - smoothstep((progress - 0.88) / 0.055));
         exitWakeUniforms.uTime.value = Math.max(0, (elapsed - DURATION * 0.825) / 1000);
@@ -2757,7 +2784,7 @@ export function HyperspaceIntro() {
         ? smoothstep((time - landingStartTime - 100) / 1450)
         : jumpComplete ? 1 : 0;
       world.update(elapsed * 0.001);
-      updateWorldAnchors(currentInterfaceArrival);
+      if (jumpComplete) updateWorldAnchors(currentInterfaceArrival);
       if (lensPass.enabled) composer.render(delta);
       else renderer.render(scene, camera);
     };
