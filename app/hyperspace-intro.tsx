@@ -10,7 +10,7 @@ type Star = {
 };
 
 const DURATION = 15000;
-const SEEN_KEY = "black-vector-jump-seen-v11";
+const SEEN_KEY = "black-vector-jump-seen-v12";
 
 function clamp01(value: number) {
   return Math.max(0, Math.min(1, value));
@@ -159,24 +159,6 @@ export function HyperspaceIntro() {
       const centerY = height * (0.48 + Math.cos(elapsed * 0.00017) * 0.0013);
       const focal = Math.min(width, height) * 0.65 * (1 + lensBreath);
 
-      if (transit > 0) {
-        const fieldGlow = context.createRadialGradient(
-          centerX,
-          centerY,
-          0,
-          centerX,
-          centerY,
-          Math.max(width, height) * 0.74,
-        );
-        fieldGlow.addColorStop(0, `rgba(178, 221, 255, ${transit * 0.085})`);
-        fieldGlow.addColorStop(0.1, `rgba(48, 116, 216, ${transit * 0.045})`);
-        fieldGlow.addColorStop(0.34, `rgba(7, 35, 83, ${transit * 0.022})`);
-        fieldGlow.addColorStop(0.7, `rgba(2, 13, 38, ${transit * 0.01})`);
-        fieldGlow.addColorStop(1, "rgba(0, 0, 0, 0)");
-        context.fillStyle = fieldGlow;
-        context.fillRect(0, 0, width, height);
-      }
-
       const tailWhitePaths = [new Path2D(), new Path2D(), new Path2D()];
       const tailBluePaths = [new Path2D(), new Path2D(), new Path2D()];
       const headWhitePaths = [new Path2D(), new Path2D(), new Path2D()];
@@ -258,33 +240,6 @@ export function HyperspaceIntro() {
 
       context.filter = "none";
       context.globalAlpha = 1;
-
-      const charge = 1 - smoothstep((progress - 0.95) / 0.05);
-      const glow = context.createRadialGradient(
-        centerX,
-        centerY,
-        0,
-        centerX,
-        centerY,
-        Math.min(width, height) * 0.7,
-      );
-      glow.addColorStop(0, `rgba(248, 253, 255, ${charge * 0.44})`);
-      glow.addColorStop(0.04, `rgba(151, 210, 255, ${charge * 0.21})`);
-      glow.addColorStop(0.12, `rgba(48, 118, 224, ${charge * 0.065})`);
-      glow.addColorStop(0.42, `rgba(14, 57, 135, ${charge * 0.012})`);
-      glow.addColorStop(1, "rgba(0, 0, 0, 0)");
-      context.fillStyle = glow;
-      context.fillRect(0, 0, width, height);
-
-      const flareStrength = transit * (0.07 + exitBoost * 0.08);
-      const flare = context.createLinearGradient(centerX - width * 0.42, 0, centerX + width * 0.42, 0);
-      flare.addColorStop(0, "rgba(86, 161, 255, 0)");
-      flare.addColorStop(0.33, `rgba(105, 178, 255, ${flareStrength * 0.25})`);
-      flare.addColorStop(0.5, `rgba(231, 248, 255, ${flareStrength})`);
-      flare.addColorStop(0.67, `rgba(105, 178, 255, ${flareStrength * 0.25})`);
-      flare.addColorStop(1, "rgba(86, 161, 255, 0)");
-      context.fillStyle = flare;
-      context.fillRect(centerX - width * 0.42, centerY - 1.25, width * 0.84, 2.5);
 
       context.globalCompositeOperation = "source-over";
       const vignette = context.createRadialGradient(
