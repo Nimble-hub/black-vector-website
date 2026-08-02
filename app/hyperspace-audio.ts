@@ -1,5 +1,6 @@
 const BASE_PATH = process.env.NEXT_PUBLIC_BASE_PATH ?? "";
-const SOUNDTRACK_URL = `${BASE_PATH}/audio/hyperspace-jump.mp3`;
+const SOUNDTRACK_URL = `${BASE_PATH}/audio/hyperspace-jump.mp3?v=theater-2`;
+const PLAYBACK_GAIN = 0.96;
 
 type AudioWindow = Window & typeof globalThis & {
   webkitAudioContext?: typeof AudioContext;
@@ -53,7 +54,7 @@ export class HyperspaceAudio {
     const start = context.currentTime + 0.04;
     this.master.gain.cancelScheduledValues(context.currentTime);
     this.master.gain.setValueAtTime(0.0001, context.currentTime);
-    this.master.gain.exponentialRampToValueAtTime(0.82, start + 0.12);
+    this.master.gain.exponentialRampToValueAtTime(PLAYBACK_GAIN, start + 0.12);
     source.start(start);
   }
 
@@ -94,7 +95,7 @@ export class HyperspaceAudio {
     if (!AudioContextClass) return null;
     const context = new AudioContextClass({ latencyHint: "playback" });
     const master = context.createGain();
-    master.gain.value = this.muted ? 0 : 0.82;
+    master.gain.value = this.muted ? 0 : PLAYBACK_GAIN;
     master.connect(context.destination);
     this.context = context;
     this.master = master;
