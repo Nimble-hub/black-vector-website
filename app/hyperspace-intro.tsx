@@ -10,7 +10,7 @@ type Star = {
 };
 
 const DURATION = 15000;
-const SEEN_KEY = "black-vector-jump-seen-v6";
+const SEEN_KEY = "black-vector-jump-seen-v7";
 
 function clamp01(value: number) {
   return Math.max(0, Math.min(1, value));
@@ -71,8 +71,31 @@ export function HyperspaceIntro() {
     let height = window.innerHeight;
     let pixelRatio = Math.min(window.devicePixelRatio || 1, 1.6);
     let stars: Star[] = [];
+    let grainPatterns: CanvasPattern[] = [];
     let startTime = 0;
     let lastTime = 0;
+
+    const makeGrain = () => {
+      grainPatterns = Array.from({ length: 4 }, () => {
+        const grain = document.createElement("canvas");
+        grain.width = 180;
+        grain.height = 180;
+        const grainContext = grain.getContext("2d");
+        if (!grainContext) return null;
+        const pixels = grainContext.createImageData(grain.width, grain.height);
+
+        for (let index = 0; index < pixels.data.length; index += 4) {
+          const value = 92 + Math.random() * 92;
+          pixels.data[index] = value;
+          pixels.data[index + 1] = value;
+          pixels.data[index + 2] = value + Math.random() * 4;
+          pixels.data[index + 3] = 255;
+        }
+
+        grainContext.putImageData(pixels, 0, 0);
+        return context.createPattern(grain, "repeat");
+      }).filter((pattern): pattern is CanvasPattern => pattern !== null);
+    };
 
     const makeStars = () => {
       const count = width < 720 ? 340 : 620;
@@ -94,6 +117,7 @@ export function HyperspaceIntro() {
       canvas.style.height = `${height}px`;
       context.setTransform(pixelRatio, 0, 0, pixelRatio, 0, 0);
       makeStars();
+      makeGrain();
     };
 
     const draw = (time: number) => {
@@ -116,9 +140,10 @@ export function HyperspaceIntro() {
 
       context.fillStyle = "#020305";
       context.fillRect(0, 0, width, height);
-      const centerX = width * 0.5;
-      const centerY = height * 0.48;
-      const focal = Math.min(width, height) * 0.65;
+      const lensBreath = Math.sin(elapsed * 0.00027) * 0.0022;
+      const centerX = width * (0.5 + Math.sin(elapsed * 0.00019) * 0.0015);
+      const centerY = height * (0.48 + Math.cos(elapsed * 0.00017) * 0.0013);
+      const focal = Math.min(width, height) * 0.65 * (1 + lensBreath);
 
       if (transit > 0) {
         const fieldGlow = context.createRadialGradient(
@@ -137,8 +162,10 @@ export function HyperspaceIntro() {
         context.fillRect(0, 0, width, height);
       }
 
-      const whitePaths = [new Path2D(), new Path2D(), new Path2D()];
-      const bluePaths = [new Path2D(), new Path2D(), new Path2D()];
+      const tailWhitePaths = [new Path2D(), new Path2D(), new Path2D()];
+      const tailBluePaths = [new Path2D(), new Path2D(), new Path2D()];
+      const headWhitePaths = [new Path2D(), new Path2D(), new Path2D()];
+      const headBluePaths = [new Path2D(), new Path2D(), new Path2D()];
       const glowPaths = [new Path2D(), new Path2D(), new Path2D()];
 
       for (const star of stars) {
@@ -156,10 +183,16 @@ export function HyperspaceIntro() {
         const tailX = centerX + (star.x / tailZ) * focal;
         const tailY = centerY + (star.y / tailZ) * focal;
         const depth = star.z < 0.24 ? 2 : star.z < 0.56 ? 1 : 0;
-        const path = star.brightness < 0.7 ? bluePaths[depth] : whitePaths[depth];
+        const blue = star.brightness < 0.7;
+        const tailPath = blue ? tailBluePaths[depth] : tailWhitePaths[depth];
+        const headPath = blue ? headBluePaths[depth] : headWhitePaths[depth];
+        const splitX = tailX + (x - tailX) * 0.62;
+        const splitY = tailY + (y - tailY) * 0.62;
 
-        path.moveTo(tailX, tailY);
-        path.lineTo(x, y);
+        tailPath.moveTo(tailX, tailY);
+        tailPath.lineTo(splitX, splitY);
+        headPath.moveTo(splitX, splitY);
+        headPath.lineTo(x, y);
         if (star.brightness > 0.64) {
           glowPaths[depth].moveTo(tailX, tailY);
           glowPaths[depth].lineTo(x, y);
@@ -171,23 +204,34 @@ export function HyperspaceIntro() {
       const crispWidths = [0.75, 1.45, 2.55];
       const glowWidths = [3.2, 6.4, 11.5];
       const depthAlpha = [0.5, 0.72, 0.96];
+      const exposure = 0.986 + Math.sin(elapsed * 0.0011) * 0.006 + Math.sin(elapsed * 0.0027) * 0.003;
 
       for (let depth = 0; depth < 3; depth += 1) {
         context.globalAlpha = trailStrength * (0.08 + depth * 0.055);
         context.strokeStyle = "#4d97ff";
         context.lineWidth = glowWidths[depth];
+        context.filter = depth === 0 ? "blur(1.4px)" : "blur(0.8px)";
         context.stroke(glowPaths[depth]);
       }
 
       for (let depth = 0; depth < 3; depth += 1) {
-        context.globalAlpha = depthAlpha[depth] * (0.72 + transit * 0.28);
-        context.lineWidth = crispWidths[depth] * (0.82 + trailStrength * 0.3);
-        context.strokeStyle = "#82c9ff";
-        context.stroke(bluePaths[depth]);
-        context.strokeStyle = "#effaff";
-        context.stroke(whitePaths[depth]);
+        context.filter = depth === 0 ? "blur(0.6px)" : "none";
+        context.globalAlpha = depthAlpha[depth] * 0.58 * exposure;
+        context.lineWidth = crispWidths[depth] * (0.62 + trailStrength * 0.2);
+        context.strokeStyle = "#559ce5";
+        context.stroke(tailBluePaths[depth]);
+        context.strokeStyle = "#a9d9f4";
+        context.stroke(tailWhitePaths[depth]);
+
+        context.globalAlpha = depthAlpha[depth] * (0.82 + transit * 0.18) * exposure;
+        context.lineWidth = crispWidths[depth] * (0.9 + trailStrength * 0.34);
+        context.strokeStyle = "#9bd5ff";
+        context.stroke(headBluePaths[depth]);
+        context.strokeStyle = "#f8fdff";
+        context.stroke(headWhitePaths[depth]);
       }
 
+      context.filter = "none";
       context.globalAlpha = 1;
 
       const charge = 1 - smoothstep((progress - 0.95) / 0.05);
@@ -198,6 +242,16 @@ export function HyperspaceIntro() {
       glow.addColorStop(1, "rgba(0, 0, 0, 0)");
       context.fillStyle = glow;
       context.fillRect(0, 0, width, height);
+
+      const flareStrength = transit * (0.07 + exitBoost * 0.08);
+      const flare = context.createLinearGradient(centerX - width * 0.42, 0, centerX + width * 0.42, 0);
+      flare.addColorStop(0, "rgba(86, 161, 255, 0)");
+      flare.addColorStop(0.33, `rgba(105, 178, 255, ${flareStrength * 0.25})`);
+      flare.addColorStop(0.5, `rgba(231, 248, 255, ${flareStrength})`);
+      flare.addColorStop(0.67, `rgba(105, 178, 255, ${flareStrength * 0.25})`);
+      flare.addColorStop(1, "rgba(86, 161, 255, 0)");
+      context.fillStyle = flare;
+      context.fillRect(centerX - width * 0.42, centerY - 1.25, width * 0.84, 2.5);
 
       const vignette = context.createRadialGradient(
         centerX,
@@ -220,6 +274,15 @@ export function HyperspaceIntro() {
         const flash = flashIn * flashOut * 0.96;
         context.fillStyle = `rgba(239, 249, 255, ${flash})`;
         context.fillRect(0, 0, width, height);
+      }
+
+      if (grainPatterns.length > 0) {
+        const grainIndex = Math.floor(elapsed / 42) % grainPatterns.length;
+        context.globalCompositeOperation = "soft-light";
+        context.globalAlpha = 0.045;
+        context.fillStyle = grainPatterns[grainIndex];
+        context.fillRect(0, 0, width, height);
+        context.globalAlpha = 1;
       }
 
       context.globalCompositeOperation = "source-over";
