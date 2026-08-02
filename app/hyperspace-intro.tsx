@@ -3,6 +3,9 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import * as THREE from "three";
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
+import { EffectComposer } from "three/examples/jsm/postprocessing/EffectComposer.js";
+import { RenderPass } from "three/examples/jsm/postprocessing/RenderPass.js";
+import { ShaderPass } from "three/examples/jsm/postprocessing/ShaderPass.js";
 import { HyperspaceIntro2D } from "./hyperspace-intro-2d";
 import { HyperspaceAudio } from "./hyperspace-audio";
 
@@ -136,7 +139,8 @@ const fragmentShader = `
     float side = abs(vRibbonUv.x) / max(taper, 0.001);
     float body = 1.0 - smoothstep(0.58, 0.96, side);
     float core = 1.0 - smoothstep(0.0, 0.22, side);
-    float shoulder = (1.0 - smoothstep(0.3, 0.98, side)) * 0.12;
+    float shoulder = (1.0 - smoothstep(0.28, 0.98, side)) * 0.16;
+    float halo = (1.0 - smoothstep(0.52, 1.0, side)) * 0.085;
     float tailFade = smoothstep(0.0, 0.055, vRibbonUv.y);
     float headFade = 1.0 - smoothstep(0.975, 1.0, vRibbonUv.y);
     float directionalExposure = mix(0.3, 1.0, pow(vRibbonUv.y, 0.44));
@@ -150,9 +154,10 @@ const fragmentShader = `
     vec3 photographicWhite = vec3(0.93, 0.985, 1.0);
     vec3 coreWhite = vec3(0.985, 0.998, 1.0);
     vec3 edgeColor = mix(coldBlue, photographicWhite, vHue);
-    vec3 color = mix(edgeColor, coreWhite, core * 0.88);
+    vec3 color = mix(edgeColor, coreWhite, core * 0.88)
+      + coldBlue * halo * 0.18;
     float intensity = vBrightness * headExposure * (0.82 + core * 1.4) * uEnergy;
-    float profile = min(body + shoulder, 1.0);
+    float profile = min(body + shoulder + halo, 1.0);
     float alpha = profile * longitudinal * vDepthFade * uOpacity;
 
     gl_FragColor = vec4(color * intensity, alpha);
@@ -356,6 +361,87 @@ const warpBubbleFragmentShader = `
     );
   }
 `;
+
+const gravitationalLensShader = {
+  uniforms: {
+    tDiffuse: { value: null },
+    uResolution: { value: new THREE.Vector2(1, 1) },
+    uCenter: { value: new THREE.Vector2(0.5, 0.5) },
+    uStrength: { value: 0 },
+    uRadius: { value: 0.06 },
+    uStretch: { value: 0 },
+    uDarkness: { value: 0 },
+  },
+  vertexShader: `
+    varying vec2 vUv;
+
+    void main() {
+      vUv = uv;
+      gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+    }
+  `,
+  fragmentShader: `
+    precision highp float;
+
+    uniform sampler2D tDiffuse;
+    uniform vec2 uResolution;
+    uniform vec2 uCenter;
+    uniform float uStrength;
+    uniform float uRadius;
+    uniform float uStretch;
+    uniform float uDarkness;
+
+    varying vec2 vUv;
+
+    float luminance(vec3 color) {
+      return dot(color, vec3(0.2126, 0.7152, 0.0722));
+    }
+
+    void main() {
+      float aspect = uResolution.x / max(uResolution.y, 1.0);
+      vec2 centered = vUv - uCenter;
+      centered.x *= aspect;
+      float radius = length(centered);
+      vec2 radial = centered / max(radius, 0.0001);
+      vec2 radialUv = vec2(radial.x / aspect, radial.y);
+      float horizon = max(uRadius, 0.025);
+      float signedDistance = radius - horizon;
+      float ringWidth = max(horizon * 0.26, 0.018);
+      float photonRing = exp(-pow(signedDistance / ringWidth, 2.0) * 2.6);
+      float outerField = 1.0 - smoothstep(horizon * 1.05, horizon * 4.4, radius);
+      float innerGuard = smoothstep(horizon * 0.34, horizon * 0.86, radius);
+      float falloff = (horizon * horizon) /
+        max(radius * radius + horizon * horizon * 0.3, 0.0001);
+      float deflection = uStrength * outerField * innerGuard * falloff * 0.052;
+      vec2 warpedUv = clamp(vUv - radialUv * deflection, 0.001, 0.999);
+
+      float stretchMask = outerField * smoothstep(horizon * 0.55, horizon * 2.8, radius);
+      vec2 stretchOffset = radialUv * uStretch * (0.35 + photonRing * 0.65);
+      vec3 base = texture2D(tDiffuse, vUv).rgb;
+      vec3 warped = texture2D(tDiffuse, warpedUv).rgb;
+      vec3 streak = warped * 0.34;
+      streak += texture2D(tDiffuse, clamp(warpedUv - stretchOffset * 0.3, 0.001, 0.999)).rgb * 0.24;
+      streak += texture2D(tDiffuse, clamp(warpedUv - stretchOffset * 0.65, 0.001, 0.999)).rgb * 0.19;
+      streak += texture2D(tDiffuse, clamp(warpedUv - stretchOffset, 0.001, 0.999)).rgb * 0.13;
+      streak += texture2D(tDiffuse, clamp(warpedUv + stretchOffset * 0.22, 0.001, 0.999)).rgb * 0.1;
+      float stretchBlend = clamp(uStretch * 13.0, 0.0, 0.78) * stretchMask;
+      vec3 lensed = mix(warped, streak, stretchBlend);
+
+      float chroma = (photonRing * uStrength * 0.0017 + uStretch * 0.0024) * outerField;
+      lensed.r = texture2D(tDiffuse, clamp(warpedUv - radialUv * chroma, 0.001, 0.999)).r;
+      lensed.b = texture2D(tDiffuse, clamp(warpedUv + radialUv * chroma, 0.001, 0.999)).b;
+      float compressedLight = max(luminance(lensed) - luminance(base), 0.0);
+      vec3 ringLight = vec3(0.72, 0.9, 1.0)
+        * photonRing * (0.018 + compressedLight * 0.38) * uStrength;
+      float core = (1.0 - smoothstep(horizon * 0.28, horizon * 0.86, radius))
+        * uDarkness;
+      vec3 color = mix(base, lensed, outerField);
+      color += ringLight;
+      color *= 1.0 - core * 0.9;
+      gl_FragColor = vec4(color, 1.0);
+    }
+  `,
+};
 
 const exitWakeVertexShader = `
   precision highp float;
@@ -1678,6 +1764,13 @@ export function HyperspaceIntro() {
     renderer.toneMapping = THREE.ACESFilmicToneMapping;
     renderer.toneMappingExposure = SCENE_EXPOSURE;
 
+    const composer = new EffectComposer(renderer);
+    const renderPass = new RenderPass(scene, camera);
+    const lensPass = new ShaderPass(gravitationalLensShader);
+    lensPass.enabled = false;
+    composer.addPass(renderPass);
+    composer.addPass(lensPass);
+
     const uniforms = {
       uTravel: { value: 0 },
       uDepth: { value: DEPTH },
@@ -1762,7 +1855,7 @@ export function HyperspaceIntro() {
     warpBubble.frustumCulled = false;
     warpBubble.matrixAutoUpdate = false;
     warpBubble.updateMatrix();
-    warpBubble.visible = shouldJump;
+    warpBubble.visible = false;
     scene.add(warpBubble);
 
     const exitWakeUniforms = {
@@ -1903,9 +1996,12 @@ export function HyperspaceIntro() {
         : Math.min(window.devicePixelRatio || 1, largeFrame ? 1.25 : isMobile ? 1.35 : 1.6);
       renderer.setPixelRatio(pixelRatio);
       renderer.setSize(width, height, false);
+      composer.setPixelRatio(pixelRatio);
+      composer.setSize(width, height);
       camera.aspect = width / height;
       camera.updateProjectionMatrix();
       uniforms.uResolution.value.set(width * pixelRatio, height * pixelRatio);
+      lensPass.uniforms.uResolution.value.set(width * pixelRatio, height * pixelRatio);
       exitWakeUniforms.uResolution.value.set(width * pixelRatio, height * pixelRatio);
     };
 
@@ -1970,7 +2066,21 @@ export function HyperspaceIntro() {
         tunnelDustUniforms.uWarpCruise.value = visualLaunch * (1 - braking);
         warpBubbleUniforms.uTime.value = elapsed * 0.001;
         warpBubbleUniforms.uTravel.value = travel;
-        warpBubbleUniforms.uOpacity.value = (charge * 0.006 + visualLaunch * 0.13) * (1 - braking);
+        warpBubbleUniforms.uOpacity.value = 0;
+        const lensTravelFade = 1 - smoothstep(
+          (progress - (LAUNCH_PROGRESS + 0.08)) / 0.14,
+        );
+        const lensRelease = launchImpulse + warpRelease * lensTravelFade * 0.42;
+        const lensStrength = (warpTension * 0.94 + lensRelease * 0.86) * (1 - braking);
+        lensPass.enabled = lensStrength > 0.002;
+        lensPass.uniforms.uStrength.value = lensStrength;
+        lensPass.uniforms.uRadius.value = 0.045 + charge * 0.125 + launchImpulse * 0.03;
+        lensPass.uniforms.uStretch.value = launchImpulse * 0.048
+          + warpRelease * lensTravelFade * 0.021;
+        lensPass.uniforms.uDarkness.value = Math.min(
+          1,
+          warpTension * 0.84 + launchImpulse * 0.38,
+        );
         const stretchCharge = Math.pow(lineGrowth, 0.7);
         const staticStretch = THREE.MathUtils.lerp(0.035, 0.52, stretchCharge);
         uniforms.uForwardStretch.value = staticStretch * (1 - braking) + braking * 0.01;
@@ -2029,6 +2139,7 @@ export function HyperspaceIntro() {
           tunnel.visible = false;
           tunnelDust.visible = false;
           warpBubble.visible = false;
+          lensPass.enabled = false;
           world.setOpacity(captureMode ? 0 : 1);
           renderer.toneMappingExposure = SCENE_EXPOSURE;
           if (!finishQueued) {
@@ -2087,7 +2198,8 @@ export function HyperspaceIntro() {
         : jumpComplete ? 1 : 0;
       world.update(elapsed * 0.001);
       updateWorldAnchors(currentInterfaceArrival);
-      renderer.render(scene, camera);
+      if (lensPass.enabled) composer.render(delta);
+      else renderer.render(scene, camera);
     };
 
     resize();
@@ -2137,6 +2249,9 @@ export function HyperspaceIntro() {
         for (const item of world.materials) item.dispose();
         for (const item of world.textures) item.dispose();
         world.cancelAssetLoad();
+        lensPass.dispose();
+        renderPass.dispose();
+        composer.dispose();
         renderer.dispose();
         window.setTimeout(() => setFallback(true), 0);
         return;
@@ -2184,6 +2299,9 @@ export function HyperspaceIntro() {
       for (const item of world.geometries) item.dispose();
       for (const item of world.materials) item.dispose();
       for (const item of world.textures) item.dispose();
+      lensPass.dispose();
+      renderPass.dispose();
+      composer.dispose();
       renderer.dispose();
     };
   }, [experienceReady, fallback, finish, runId]);
