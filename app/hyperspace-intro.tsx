@@ -438,7 +438,7 @@ const exitCrystalVertexShader = `
     vec4 viewPosition = vec4(particlePosition, 1.0);
     gl_Position = projectionMatrix * viewPosition;
     float facetShimmer = 0.92 + sin(age * (4.0 + aSeed * 3.0) + aSeed * 31.0) * 0.08;
-    gl_PointSize = clamp(aSize * facetShimmer * (24.0 / max(-viewPosition.z, 1.0)), 1.8, 34.0);
+    gl_PointSize = clamp(aSize * facetShimmer * (20.0 / max(-viewPosition.z, 1.0)), 1.0, 20.0);
 
     vLife = isAlive * fade * uOpacity;
     vBrightness = aBrightness;
@@ -539,8 +539,8 @@ const exitDustVertexShader = `
       0.5 + 0.5 * sin(uTime * (8.5 + aSeed * 5.5) + aSeed * 83.0),
       12.0
     );
-    float sparkleSize = 1.0 + aSparkle * sparkleWave * 2.8;
-    gl_PointSize = clamp(aSize * sparkleSize * (28.0 / max(-viewPosition.z, 1.0)), 1.4, 36.0);
+    float sparkleSize = 1.0 + aSparkle * sparkleWave * 1.9;
+    gl_PointSize = clamp(aSize * sparkleSize * (20.0 / max(-viewPosition.z, 1.0)), 0.8, 18.0);
 
     vLife = isAlive * fade * uOpacity;
     vBrightness = aBrightness;
@@ -574,8 +574,8 @@ const exitDustFragmentShader = `
     vec3 iceBlue = vec3(0.28, 0.7, 1.0);
     vec3 frostWhite = vec3(0.95, 0.995, 1.0);
     vec3 color = mix(iceBlue, frostWhite, core * 0.62 + glint * 0.82);
-    float alpha = shape * vLife * vBrightness * (0.94 + core * 0.62 + glint * 0.9);
-    gl_FragColor = vec4(color * (1.08 + core * 1.12 + glint * 2.25), alpha);
+    float alpha = shape * vLife * vBrightness * (0.72 + core * 0.42 + glint * 0.68);
+    gl_FragColor = vec4(color * (0.82 + core * 0.84 + glint * 1.72), alpha);
   }
 `;
 
@@ -785,9 +785,9 @@ function createExitCrystalGeometry(count: number) {
     lifetimes[index] = 3.8 + Math.random() * 1.7;
     const isMicroFrost = Math.random() < 0.78;
     sizes[index] = isMicroFrost
-      ? 1.0 + Math.pow(Math.random(), 0.8) * 2.6
-      : 5.2 + Math.pow(Math.random(), 0.72) * 8.6;
-    brightness[index] = isMicroFrost ? 0.64 + Math.random() * 0.36 : 0.78 + Math.random() * 0.42;
+      ? 0.58 + Math.pow(Math.random(), 0.8) * 1.72
+      : 2.4 + Math.pow(Math.random(), 0.72) * 4.6;
+    brightness[index] = isMicroFrost ? 0.48 + Math.random() * 0.3 : 0.58 + Math.random() * 0.34;
     turbulence[index] = 0.52 + Math.random() * 1.05;
     seeds[index] = Math.random();
     swirls[index] = cluster.swirl;
@@ -865,9 +865,9 @@ function createExitDustGeometry(count: number) {
     lifetimes[index] = 4.8 + Math.random() * 2.1;
     const sparkle = Math.random() < 0.42;
     sizes[index] = sparkle
-      ? 5.2 + Math.pow(Math.random(), 1.35) * 8.4
-      : 1.0 + Math.pow(Math.random(), 1.65) * 3.1;
-    brightness[index] = 0.78 + Math.random() * 0.42;
+      ? 1.8 + Math.pow(Math.random(), 1.35) * 3.8
+      : 0.42 + Math.pow(Math.random(), 1.65) * 1.38;
+    brightness[index] = 0.5 + Math.random() * 0.34;
     turbulence[index] = 0.72 + Math.random() * 1.65;
     seeds[index] = Math.random();
     sparkles[index] = sparkle ? 0.72 + Math.random() * 0.28 : 0;
@@ -1375,7 +1375,7 @@ export function HyperspaceIntro() {
       uOpacity: { value: 0 },
       uResolution: { value: new THREE.Vector2(1, 1) },
     };
-    const exitWakeGeometry = createExitWakeGeometry(isMobile ? 300 : 560);
+    const exitWakeGeometry = createExitWakeGeometry(isMobile ? 160 : 280);
     const exitWakeMaterial = new THREE.ShaderMaterial({
       uniforms: exitWakeUniforms,
       vertexShader: exitWakeVertexShader,
@@ -1564,11 +1564,11 @@ export function HyperspaceIntro() {
         uniforms.uSymmetry.value = 1 - visualLaunch;
         uniforms.uOpacity.value = smoothstep(progress / 0.015) * (0.24 + charge * 0.76) * (1 - smoothstep((progress - 0.88) / 0.055));
         exitWakeUniforms.uTime.value = Math.max(0, (elapsed - DURATION * 0.858) / 1000);
-        exitWakeUniforms.uOpacity.value = smoothstep((progress - 0.86) / 0.028) * 0.92;
+        exitWakeUniforms.uOpacity.value = smoothstep((progress - 0.86) / 0.028) * 0.34;
         exitCrystalUniforms.uTime.value = Math.max(0, (elapsed - DURATION * 0.872) / 1000);
-        exitCrystalUniforms.uOpacity.value = smoothstep((progress - 0.865) / 0.035) * 1.38;
+        exitCrystalUniforms.uOpacity.value = smoothstep((progress - 0.865) / 0.035) * 0.58;
         exitDustUniforms.uTime.value = Math.max(0, (elapsed - DURATION * 0.87) / 1000);
-        exitDustUniforms.uOpacity.value = smoothstep((progress - 0.862) / 0.03) * 1.52;
+        exitDustUniforms.uOpacity.value = smoothstep((progress - 0.862) / 0.03) * 0.48;
         world.setOpacity(smoothstep((progress - 0.865) / 0.09));
         renderer.toneMappingExposure = 0.94 + charge * 0.1 + launch * 0.06;
 
@@ -1608,11 +1608,11 @@ export function HyperspaceIntro() {
         const wakeFade = 1 - smoothstep(landingElapsed / 3200);
         const dustFade = 1 - smoothstep(landingElapsed / 5200);
         exitWakeUniforms.uTime.value = Math.max(0, (elapsed - DURATION * 0.858) / 1000);
-        exitWakeUniforms.uOpacity.value = wakeFade * 0.88;
+        exitWakeUniforms.uOpacity.value = wakeFade * 0.3;
         exitCrystalUniforms.uTime.value = Math.max(0, (elapsed - DURATION * 0.872) / 1000);
-        exitCrystalUniforms.uOpacity.value = wakeFade * 1.3;
+        exitCrystalUniforms.uOpacity.value = wakeFade * 0.52;
         exitDustUniforms.uTime.value = Math.max(0, (elapsed - DURATION * 0.87) / 1000);
-        exitDustUniforms.uOpacity.value = dustFade * 1.42;
+        exitDustUniforms.uOpacity.value = dustFade * 0.44;
         if (wakeFade <= 0.001) {
           exitWake.visible = false;
           exitCrystals.visible = false;
