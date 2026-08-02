@@ -836,8 +836,10 @@ export function HyperspaceIntro() {
 
       if (!jumpComplete) {
         const progress = skipJumpRef.current ? 1 : clamp01(elapsed / DURATION);
-        const charge = smoothstep(progress / 0.285);
-        const launch = smoothstep((progress - 0.305) / 0.045);
+        // Keep the light wall charging while acceleration begins so the short
+        // traces stretch into hyperspace as one uninterrupted motion.
+        const charge = smoothstep(progress / 0.35);
+        const launch = smoothstep((progress - 0.285) / 0.065);
         const braking = smoothstep((progress - 0.84) / 0.055);
         const exitArrival = smoothstep((progress - 0.89) / 0.11);
         const preLaunchSpeed = 0.12 + charge * 0.72;
