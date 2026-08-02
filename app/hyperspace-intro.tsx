@@ -7,12 +7,13 @@ import { OutputPass } from "three/examples/jsm/postprocessing/OutputPass.js";
 import { RenderPass } from "three/examples/jsm/postprocessing/RenderPass.js";
 import { ShaderPass } from "three/examples/jsm/postprocessing/ShaderPass.js";
 import { UnrealBloomPass } from "three/examples/jsm/postprocessing/UnrealBloomPass.js";
+import { FXAAShader } from "three/examples/jsm/shaders/FXAAShader.js";
 import { HyperspaceIntro2D } from "./hyperspace-intro-2d";
 
 const DURATION = 15000;
 const DEPTH = 132;
 const NEAR = 0.68;
-const SEEN_KEY = "black-vector-jump-seen-3d-v11";
+const SEEN_KEY = "black-vector-jump-seen-3d-v12";
 
 function clamp01(value: number) {
   return Math.max(0, Math.min(1, value));
@@ -62,7 +63,7 @@ const vertexShader = `
     vec2 direction = normalize(screenHead - screenTail + vec2(0.00001));
     vec2 perpendicular = vec2(direction.y, -direction.x);
     float perspectiveWidth = clamp(22.0 / max(clipHead.w, 0.5), 0.8, 5.5);
-    float halfWidth = aWidth * uWidthScale * perspectiveWidth;
+    float halfWidth = max(aWidth * uWidthScale * perspectiveWidth, 1.25);
 
     float along = uv.y;
     vec2 screenPosition = mix(screenTail, screenHead, along);
@@ -75,7 +76,7 @@ const vertexShader = `
     vRibbonUv = uv;
     vBrightness = aBrightness;
     vHue = aHue;
-    vDepthFade = smoothstep(0.0, 2.2, travel) * (1.0 - smoothstep(uDepth - 0.85, uDepth, travel));
+    vDepthFade = smoothstep(0.0, 9.0, travel);
   }
 `;
 
@@ -103,7 +104,7 @@ const fragmentShader = `
     vec3 coldBlue = vec3(0.34, 0.67, 1.0);
     vec3 photographicWhite = vec3(0.93, 0.985, 1.0);
     vec3 color = mix(coldBlue, photographicWhite, vHue);
-    float intensity = vBrightness * headExposure * (0.78 + hotCore * 1.52) * uEnergy;
+    float intensity = vBrightness * headExposure * (0.8 + hotCore * 1.05) * uEnergy;
     float alpha = beam * longitudinal * vDepthFade * uOpacity;
 
     gl_FragColor = vec4(color * intensity, alpha);
@@ -486,6 +487,8 @@ export function HyperspaceIntro() {
     composer.addPass(bloomPass);
     const filmPass = new ShaderPass(filmicCameraShader);
     composer.addPass(filmPass);
+    const fxaaPass = new ShaderPass(FXAAShader);
+    composer.addPass(fxaaPass);
     const outputPass = new OutputPass();
     composer.addPass(outputPass);
 
@@ -502,6 +505,7 @@ export function HyperspaceIntro() {
       camera.updateProjectionMatrix();
       uniforms.uResolution.value.set(width * pixelRatio, height * pixelRatio);
       filmPass.uniforms.uResolution.value.set(width, height);
+      fxaaPass.uniforms.resolution.value.set(1 / (width * pixelRatio), 1 / (height * pixelRatio));
     };
 
     const onContextLost = (event: Event) => {
@@ -550,10 +554,10 @@ export function HyperspaceIntro() {
         uniforms.uEnergy.value = (0.28 + chargeWall * 1.38 + launch * 0.88 + launchKick * 0.46) * (1 - braking * 0.48);
         uniforms.uOpacity.value = smoothstep(progress / 0.035) * (1 - smoothstep((progress - 0.84) / 0.16));
         world.setOpacity(smoothstep((progress - 0.87) / 0.13));
-        const cruiseBloom = isMobile ? 0.28 : 0.34;
-        bloomPass.strength = cruiseBloom * (0.18 + launch * 0.82) + stretchedCharge * (isMobile ? 0.12 : 0.16) + launchKick * (isMobile ? 0.18 : 0.24);
-        bloomPass.threshold = 0.91 - stretchedCharge * 0.04 - launch * 0.06 - launchKick * 0.05;
-        bloomPass.radius = 0.025 + stretchedCharge * 0.025 + launch * 0.055;
+        const cruiseBloom = isMobile ? 0.18 : 0.22;
+        bloomPass.strength = cruiseBloom * (0.12 + launch * 0.88) + stretchedCharge * (isMobile ? 0.08 : 0.1) + launchKick * (isMobile ? 0.1 : 0.14);
+        bloomPass.threshold = 0.94 - stretchedCharge * 0.025 - launch * 0.035 - launchKick * 0.03;
+        bloomPass.radius = 0.015 + stretchedCharge * 0.015 + launch * 0.025;
         renderer.toneMappingExposure = 0.98 + chargeWall * 0.15 + launchKick * 0.16 + launch * 0.02;
 
         const cruiseRumble = launch * (1 - braking);
@@ -646,6 +650,7 @@ export function HyperspaceIntro() {
         for (const item of world.materials) item.dispose();
         bloomPass.dispose();
         filmPass.dispose();
+        fxaaPass.dispose();
         outputPass.dispose();
         composer.dispose();
         renderer.dispose();
@@ -670,6 +675,7 @@ export function HyperspaceIntro() {
       for (const item of world.materials) item.dispose();
       bloomPass.dispose();
       filmPass.dispose();
+      fxaaPass.dispose();
       outputPass.dispose();
       composer.dispose();
       renderer.dispose();
