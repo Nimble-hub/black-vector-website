@@ -330,8 +330,9 @@ const exitWakeVertexShader = `
     float turn = aAngle
       + directionSign * age * (0.045 + aDrift * 0.07)
       + sin(age * (0.74 + aDrift * 0.5) + aSeed * 15.0) * 0.09 * turbulenceOnset;
-    vec2 radialDirection = vec2(cos(turn), sin(turn));
-    vec2 tangentDirection = vec2(-radialDirection.y, radialDirection.x);
+    vec2 radialDirection = normalize(vec2(cos(turn), sin(turn) * 0.72));
+    vec2 ellipseDirection = vec2(cos(turn), sin(turn) * 0.72);
+    vec2 tangentDirection = normalize(vec2(-sin(turn), cos(turn) * 0.72));
     float radius = aRadius * (1.0 + age * (0.012 + aDrift * 0.022));
     float gustPulse = 0.35 + 0.65 * (
       0.5 + 0.5 * sin(age * (1.08 + aDrift * 0.72) + aSeed * 23.0)
@@ -343,11 +344,13 @@ const exitWakeVertexShader = `
     float forwardTravel = -(4.6 + aLength * 1.35) * retainedTravel;
     float depthTurbulence = sin(age * (1.5 + aDrift) + aSeed * 21.0)
       * 0.1 * turbulenceOnset;
-    return vec3(radialDirection * radius + gust, -6.8 - aSeed * 7.6 + forwardTravel + depthTurbulence);
+    return vec3(ellipseDirection * radius + gust, -6.2 - aSeed * 4.2 + forwardTravel + depthTurbulence);
   }
 
   void main() {
-    float delay = aSeed * 0.42;
+    float delay = 0.02
+      + (0.5 + 0.5 * sin(aAngle * 2.0 + 0.8)) * 0.1
+      + aSeed * 0.08;
     float age = max(uTime - delay, 0.0);
     float lifetime = 3.7 + aDrift * 1.55;
     float life = clamp(age / lifetime, 0.0, 1.0);
@@ -533,7 +536,9 @@ const exitDustVertexShader = `
     float turnCos = cos(clusterTurn);
     float turnSin = sin(clusterTurn);
     vec2 clusterOrbit = mat2(turnCos, -turnSin, turnSin, turnCos) * aClusterOrigin.xy;
-    clusterOrbit *= 1.0 + age * (0.012 + aTurbulence * 0.008);
+    clusterOrbit *= 1.0
+      + age * (0.12 + aTurbulence * 0.035)
+      + age * age * 0.018;
     vec2 radialDirection = normalize(clusterOrbit + vec2(0.0001));
     vec2 tangentDirection = vec2(-radialDirection.y, radialDirection.x);
 
@@ -723,23 +728,21 @@ function createExitWakeGeometry(count: number) {
   const widths = new Float32Array(count);
   const brightness = new Float32Array(count);
   const drift = new Float32Array(count);
-  const wispClusterCount = count > 100 ? 16 : 10;
-  const wispClusters = Array.from({ length: wispClusterCount }, (_, clusterIndex) => ({
-    angle: (clusterIndex / wispClusterCount) * Math.PI * 2 + (Math.random() - 0.5) * 0.52,
-    radius: 2.8 + Math.pow(Math.random(), 0.62) * 7.4,
-    spread: 0.08 + Math.random() * 0.28,
-    drift: Math.random(),
-  }));
 
   for (let index = 0; index < count; index += 1) {
-    const cluster = wispClusters[index % wispClusterCount];
-    angles[index] = cluster.angle + (Math.random() - 0.5) * cluster.spread;
-    radii[index] = cluster.radius + (Math.random() - 0.5) * (0.45 + cluster.spread * 2.2);
+    const angle = (index / count) * Math.PI * 2 + (Math.random() - 0.5) * 0.07;
+    const broadLobe = Math.sin(angle * 3 + 0.42) * 0.68;
+    const fineLobe = Math.sin(angle * 7 - 1.15) * 0.24;
+    angles[index] = angle;
+    radii[index] = 6.45 + broadLobe + fineLobe + (Math.random() - 0.5) * 0.64;
     seeds[index] = Math.random();
-    lengths[index] = 1.4 + Math.pow(Math.random(), 0.62) * 4.2;
+    lengths[index] = 1.8 + Math.pow(Math.random(), 0.62) * 4.4;
     widths[index] = 0.22 + Math.random() * 0.48;
-    brightness[index] = 0.34 + Math.random() * 0.52;
-    drift[index] = Math.min(1, Math.max(0, cluster.drift + (Math.random() - 0.5) * 0.18));
+    brightness[index] = 0.3 + Math.random() * 0.5;
+    drift[index] = Math.min(1, Math.max(
+      0,
+      0.5 + Math.sin(angle * 2.0 + 0.9) * 0.28 + (Math.random() - 0.5) * 0.12,
+    ));
   }
 
   geometry.setAttribute("aAngle", new THREE.InstancedBufferAttribute(angles, 1));
@@ -849,57 +852,48 @@ function createExitDustGeometry(count: number) {
   const swirls = new Float32Array(count);
   const clusterPhases = new Float32Array(count);
 
-  const clusterCount = count > 5000 ? 30 : 18;
-  const clusters = Array.from({ length: clusterCount }, (_, clusterIndex) => {
-    const angle = (clusterIndex / clusterCount) * Math.PI * 2 + (Math.random() - 0.5) * 0.42;
-    const radius = 2.6 + Math.pow(Math.random(), 0.58) * 7.4;
-    const radialSpeed = 0.12 + Math.random() * 0.42;
-    const tangentialSpeed = (Math.random() < 0.5 ? -1 : 1) * (0.12 + Math.random() * 0.5);
-    return {
-      origin: new THREE.Vector3(
-        Math.cos(angle) * radius,
-        Math.sin(angle) * radius * 0.72,
-        -6.5 - Math.random() * 7.8,
-      ),
-      velocity: new THREE.Vector3(
-        Math.cos(angle) * radialSpeed - Math.sin(angle) * tangentialSpeed,
-        Math.sin(angle) * radialSpeed * 0.72 + Math.cos(angle) * tangentialSpeed * 0.72,
-        0.48 + Math.random() * 1.3,
-      ),
-      delay: Math.random() * 0.36,
-      spread: 0.28 + Math.pow(Math.random(), 1.25) * 1.72,
-      aspect: 0.34 + Math.random() * 1.18,
-      drag: 0.48 + Math.random() * 1.02,
-      turbulence: 0.25 + Math.random() * 1.3,
-      swirl: (Math.random() < 0.5 ? -1 : 1) * (0.16 + Math.random() * 0.54),
-      phase: Math.random() * Math.PI * 2,
-    };
-  });
-
   for (let index = 0; index < count; index += 1) {
-    const cluster = clusters[index % clusterCount];
-    const localAngle = Math.random() * Math.PI * 2;
-    const localRadius = Math.pow(Math.random(), 2.1) * cluster.spread;
+    const angle = (index / count) * Math.PI * 2 + (Math.random() - 0.5) * 0.095;
+    const broadLobe = Math.sin(angle * 3 + 0.42) * 0.7;
+    const fineLobe = Math.sin(angle * 7 - 1.15) * 0.22;
+    const ringRadius = 6.35 + broadLobe + fineLobe + (Math.random() - 0.5) * 0.52;
+    const originX = Math.cos(angle) * ringRadius;
+    const originY = Math.sin(angle) * ringRadius * 0.72 - 0.16;
+    const originZ = -6.2
+      - (0.5 + 0.5 * Math.sin(angle * 2 - 0.7)) * 2.0
+      - Math.random() * 1.7;
+    const tangentX = -Math.sin(angle);
+    const tangentY = Math.cos(angle) * 0.72;
+    const radialX = Math.cos(angle);
+    const radialY = Math.sin(angle) * 0.72;
+    const along = (Math.random() - 0.5) * (0.48 + Math.pow(Math.random(), 1.8) * 1.1);
+    const across = (Math.random() - 0.5) * (0.22 + Math.random() * 0.5);
+    const radialSpeed = 0.16 + (0.5 + 0.5 * Math.sin(angle * 3 + 1.1)) * 0.22;
+    const tangentialSpeed = Math.sin(angle * 2 + 0.35) * 0.24;
+    const localTurbulence = 0.48 + (0.5 + 0.5 * Math.sin(angle * 3 + 1.1)) * 0.72;
+    const localDrag = 0.54 + (0.5 + 0.5 * Math.sin(angle * 2.5 - 0.4)) * 0.58;
     const offset = index * 3;
-    positions[offset] = cluster.origin.x + Math.cos(localAngle) * localRadius;
-    positions[offset + 1] = cluster.origin.y + Math.sin(localAngle) * localRadius * cluster.aspect;
-    positions[offset + 2] = cluster.origin.z + (Math.random() - 0.5) * cluster.spread * 0.52;
-    velocities[offset] = cluster.velocity.x + Math.cos(localAngle) * Math.random() * 0.2;
-    velocities[offset + 1] = cluster.velocity.y + Math.sin(localAngle) * Math.random() * 0.18;
-    velocities[offset + 2] = cluster.velocity.z + (Math.random() - 0.5) * 0.24;
-    clusterOrigins[offset] = cluster.origin.x;
-    clusterOrigins[offset + 1] = cluster.origin.y;
-    clusterOrigins[offset + 2] = cluster.origin.z;
-    delays[index] = cluster.delay + Math.random() * 0.18;
-    lifetimes[index] = 4.5 + Math.random() * 2.35;
+    positions[offset] = originX + tangentX * along + radialX * across;
+    positions[offset + 1] = originY + tangentY * along + radialY * across;
+    positions[offset + 2] = originZ + (Math.random() - 0.5) * 0.62;
+    velocities[offset] = radialX * radialSpeed + tangentX * tangentialSpeed + (Math.random() - 0.5) * 0.08;
+    velocities[offset + 1] = radialY * radialSpeed + tangentY * tangentialSpeed + (Math.random() - 0.5) * 0.07;
+    velocities[offset + 2] = 0.82 + (0.5 + 0.5 * Math.sin(angle * 2.0 + 0.8)) * 0.74 + (Math.random() - 0.5) * 0.18;
+    clusterOrigins[offset] = originX;
+    clusterOrigins[offset + 1] = originY;
+    clusterOrigins[offset + 2] = originZ;
+    delays[index] = 0.025
+      + (0.5 + 0.5 * Math.sin(angle * 2.0 + 0.8)) * 0.1
+      + Math.random() * 0.13;
+    lifetimes[index] = 4.7 + Math.random() * 2.15;
     sizes[index] = 0.5 + Math.pow(Math.random(), 1.55) * 1.9;
-    brightness[index] = 0.38 + Math.random() * 0.4;
-    turbulence[index] = cluster.turbulence * (0.72 + Math.random() * 0.56);
+    brightness[index] = 0.34 + Math.random() * 0.42;
+    turbulence[index] = localTurbulence * (0.86 + Math.random() * 0.28);
     seeds[index] = Math.random();
-    drag[index] = cluster.drag * (0.86 + Math.random() * 0.28);
+    drag[index] = localDrag * (0.9 + Math.random() * 0.2);
     glints[index] = Math.random() < 0.055 ? 0.48 + Math.random() * 0.52 : 0;
-    swirls[index] = cluster.swirl;
-    clusterPhases[index] = cluster.phase;
+    swirls[index] = Math.sin(angle * 2 + 0.6) * 0.34 + Math.sin(angle * 5 - 0.8) * 0.11;
+    clusterPhases[index] = angle * 1.65 + Math.sin(angle * 3) * 0.38;
   }
 
   const geometry = new THREE.BufferGeometry();
@@ -1403,7 +1397,7 @@ export function HyperspaceIntro() {
       uOpacity: { value: 0 },
       uResolution: { value: new THREE.Vector2(1, 1) },
     };
-    const exitWakeGeometry = createExitWakeGeometry(isMobile ? 90 : 180);
+    const exitWakeGeometry = createExitWakeGeometry(isMobile ? 72 : 144);
     const exitWakeMaterial = new THREE.ShaderMaterial({
       uniforms: exitWakeUniforms,
       vertexShader: exitWakeVertexShader,
@@ -1634,8 +1628,8 @@ export function HyperspaceIntro() {
         }
       } else {
         const landingElapsed = landingStartTime === null ? 1600 : Math.max(0, time - landingStartTime);
-        const wakeFade = 1 - smoothstep(landingElapsed / 3900);
-        const dustFade = 1 - smoothstep(landingElapsed / 5200);
+        const wakeFade = 1 - smoothstep(landingElapsed / 3500);
+        const dustFade = 1 - smoothstep(landingElapsed / 4200);
         exitWakeUniforms.uTime.value = Math.max(0, (elapsed - DURATION * 0.855) / 1000);
         exitWakeUniforms.uOpacity.value = wakeFade * 0.38;
         exitCrystalUniforms.uTime.value = Math.max(0, (elapsed - DURATION * 0.872) / 1000);
