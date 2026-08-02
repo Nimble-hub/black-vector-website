@@ -2495,7 +2495,21 @@ export function HyperspaceIntro() {
           + cruiseShake;
         const cameraDive = smoothstep((progress - (LAUNCH_PROGRESS + 0.014)) / 0.018)
           * (1 - smoothstep((progress - (LAUNCH_PROGRESS + 0.12)) / 0.08));
-        const launchRecoil = impactKick * 1.5;
+        // A two-stage seat impulse: the camera snaps backward on the impact
+        // frame, then gives back a much smaller amount as forward travel takes
+        // over. Keeping it brief prevents the launch from feeling springy.
+        const recoilAttack = smoothstep(
+          (progress - (LAUNCH_PROGRESS - 0.001)) / 0.003,
+        );
+        const recoilRelease = 1 - smoothstep(
+          (progress - (LAUNCH_PROGRESS + 0.014)) / 0.012,
+        );
+        const launchRecoil = recoilAttack * recoilRelease * 1.85;
+        const recoilSettle = smoothstep(
+          (progress - (LAUNCH_PROGRESS + 0.012)) / 0.01,
+        ) * (1 - smoothstep(
+          (progress - (LAUNCH_PROGRESS + 0.042)) / 0.022,
+        ));
         const shakeX = Math.sin(elapsed * 0.043)
           + Math.sin(elapsed * 0.071 + 1.7) * 0.38;
         const shakeY = Math.cos(elapsed * 0.037 + 0.6)
@@ -2507,7 +2521,8 @@ export function HyperspaceIntro() {
         camera.position.y = shakeY * shakeStrength * 0.7
           - pressureDrift * 0.42;
         camera.position.z = -0.9 * exitArrival
-          + launchRecoil * 0.86
+          + launchRecoil
+          - recoilSettle * 0.24
           - cameraDive * 1.75
           + shakeZ * shakeStrength * 0.28;
         cameraTarget.set(
