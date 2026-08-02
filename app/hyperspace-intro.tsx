@@ -64,6 +64,7 @@ const vertexShader = `
   varying float vBrightness;
   varying float vHue;
   varying float vDepthFade;
+  varying float vFormationMask;
 
   void main() {
     float travel = mod(aSeedZ + uTravel, uDepth);
@@ -98,10 +99,32 @@ const vertexShader = `
     );
     float headZ = min(anchorZ + aLength * uForwardStretch, -uNear);
     float tailZ = anchorZ - aLength * uBackwardStretch;
-    vec2 radial = vec2(cos(aAngle), sin(aAngle)) * aRadius * radialScale;
+    float headDepth = clamp(
+      normalizedDepth + (aLength * uForwardStretch) / uDepth,
+      0.0,
+      1.0
+    );
+    float tailDepth = clamp(
+      normalizedDepth - (aLength * uBackwardStretch) / uDepth,
+      0.0,
+      1.0
+    );
+    float headWake = mix(
+      0.08,
+      1.0,
+      pow(smoothstep(0.0, 0.96, headDepth), 0.52)
+    );
+    float tailWake = mix(
+      0.08,
+      1.0,
+      pow(smoothstep(0.0, 0.96, tailDepth), 0.52)
+    );
+    vec2 radialDirection = vec2(cos(aAngle), sin(aAngle));
+    vec2 tailRadial = radialDirection * aRadius * radialScale * tailWake;
+    vec2 headRadial = radialDirection * aRadius * radialScale * headWake;
 
-    vec4 clipTail = projectionMatrix * modelViewMatrix * vec4(radial, tailZ, 1.0);
-    vec4 clipHead = projectionMatrix * modelViewMatrix * vec4(radial, headZ, 1.0);
+    vec4 clipTail = projectionMatrix * modelViewMatrix * vec4(tailRadial, tailZ, 1.0);
+    vec4 clipHead = projectionMatrix * modelViewMatrix * vec4(headRadial, headZ, 1.0);
     vec2 ndcTail = clipTail.xy / clipTail.w;
     vec2 ndcHead = clipHead.xy / clipHead.w;
     vec2 screenTail = ndcTail * uResolution * 0.5;
@@ -112,11 +135,39 @@ const vertexShader = `
     float halfWidth = max(aWidth * uWidthScale * perspectiveWidth, 1.65);
 
     float along = uv.y;
-    vec2 screenPosition = mix(screenTail, screenHead, along);
+    float pointDepth = mix(tailDepth, headDepth, along);
+    float pointWake = mix(
+      0.08,
+      1.0,
+      pow(smoothstep(0.0, 0.96, pointDepth), 0.52)
+    );
+    float wakeCurl = (1.0 - pointDepth)
+      * (0.018 + uWarpRelease * 0.022 + uWarpCruise * 0.01)
+      * sin(aAngle * 3.1 + uTravel * 0.012);
+    float pointAngle = aAngle + wakeCurl;
+    vec2 pointRadial = vec2(cos(pointAngle), sin(pointAngle))
+      * aRadius
+      * radialScale
+      * pointWake;
+    float pointZ = mix(tailZ, headZ, along);
+    vec4 clipPoint = projectionMatrix * modelViewMatrix * vec4(pointRadial, pointZ, 1.0);
+    vec2 screenPosition = (clipPoint.xy / clipPoint.w) * uResolution * 0.5;
     screenPosition += perpendicular * uv.x * halfWidth;
     vec2 ndcPosition = screenPosition / (uResolution * 0.5);
-    float clipW = mix(clipTail.w, clipHead.w, along);
-    float ndcZ = mix(clipTail.z / clipTail.w, clipHead.z / clipHead.w, along);
+    float apertureRadius = mix(
+      0.28,
+      1.72,
+      pow(clamp(uFormation, 0.0, 1.0), 0.68)
+    );
+    float apertureSoftness = mix(0.1, 0.22, uFormation);
+    float screenRadius = length(ndcPosition);
+    vFormationMask = 1.0 - smoothstep(
+      apertureRadius - apertureSoftness,
+      apertureRadius,
+      screenRadius
+    );
+    float clipW = clipPoint.w;
+    float ndcZ = clipPoint.z / clipPoint.w;
 
     gl_Position = vec4(ndcPosition * clipW, ndcZ * clipW, clipW);
     vRibbonUv = uv;
@@ -133,6 +184,7 @@ const fragmentShader = `
   varying float vBrightness;
   varying float vHue;
   varying float vDepthFade;
+  varying float vFormationMask;
 
   uniform float uOpacity;
   uniform float uEnergy;
@@ -165,7 +217,11 @@ const fragmentShader = `
       + coldBlue * halo * 0.18;
     float intensity = vBrightness * headExposure * (0.82 + core * 1.4) * uEnergy;
     float profile = min(body + shoulder + halo, 1.0);
-    float alpha = profile * longitudinal * vDepthFade * uOpacity;
+    float alpha = profile
+      * longitudinal
+      * vDepthFade
+      * vFormationMask
+      * uOpacity;
 
     gl_FragColor = vec4(color * intensity, alpha);
   }
@@ -179,6 +235,7 @@ const tunnelDustVertexShader = `
   attribute float aSeedZ;
   attribute float aSize;
   attribute float aBrightness;
+  attribute float aGlint;
 
   uniform float uTravel;
   uniform float uDepth;
@@ -192,7 +249,8 @@ const tunnelDustVertexShader = `
 
   varying float vBrightness;
   varying float vLife;
-  varying vec3 vDustDynamics;
+  varying float vGlint;
+  varying vec4 vDustDynamics;
 
   void main() {
     float travel = mod(aSeedZ + uTravel * 1.12, uDepth);
@@ -214,7 +272,12 @@ const tunnelDustVertexShader = `
       1.0,
       pow(clamp(uFormation, 0.0, 1.0), 0.72)
     );
-    radialScale *= aperture;
+    float wakeSurface = mix(
+      0.08,
+      1.0,
+      pow(smoothstep(0.0, 0.96, normalizedDepth), 0.56)
+    );
+    radialScale *= aperture * wakeSurface;
     float wakeGather = uLaunchDust * (0.22 + shell * 0.34);
     radialScale *= 1.0 - wakeGather;
     float z = -uDepth
@@ -225,17 +288,32 @@ const tunnelDustVertexShader = `
     vec4 viewPosition = modelViewMatrix * vec4(radial, z, 1.0);
     gl_Position = projectionMatrix * viewPosition;
     float launchScale = 1.0 + uLaunchDust * (0.18 + shell * 0.65);
+    float pointLimit = mix(3.6, 6.2, aGlint);
     gl_PointSize = clamp(
       aSize * launchScale * (18.0 / max(-viewPosition.z, 1.0)),
-      0.55,
-      5.2
+      0.45,
+      pointLimit
     );
 
     vBrightness = aBrightness;
     vLife = smoothstep(0.0, 12.0, travel)
       * (1.0 - smoothstep(uDepth - 5.0, uDepth, travel));
+    vec2 dustNdc = gl_Position.xy / max(gl_Position.w, 0.0001);
+    float apertureRadius = mix(
+      0.28,
+      1.72,
+      pow(clamp(uFormation, 0.0, 1.0), 0.68)
+    );
+    float apertureSoftness = mix(0.1, 0.22, uFormation);
+    float dustFormationMask = 1.0 - smoothstep(
+      apertureRadius - apertureSoftness,
+      apertureRadius,
+      length(dustNdc)
+    );
+    vLife *= dustFormationMask;
     vLife *= uOpacity;
-    vDustDynamics = vec3(uLaunchDust, shell, aAngle);
+    vGlint = aGlint;
+    vDustDynamics = vec4(uLaunchDust, shell, aAngle, normalizedDepth);
   }
 `;
 
@@ -244,7 +322,8 @@ const tunnelDustFragmentShader = `
 
   varying float vBrightness;
   varying float vLife;
-  varying vec3 vDustDynamics;
+  varying float vGlint;
+  varying vec4 vDustDynamics;
 
   void main() {
     vec2 point = gl_PointCoord - 0.5;
@@ -263,14 +342,18 @@ const tunnelDustFragmentShader = `
     float facet = 1.0 - smoothstep(0.02, 0.25, diamondDistance);
     float core = 1.0 - smoothstep(0.0, 0.105, distanceFromCenter);
     float launchSpark = vDustDynamics.x * (0.34 + vDustDynamics.y * 0.66);
-    float glintEnergy = 0.16 + launchSpark * 0.84;
+    float wakeTransit = smoothstep(0.12, 0.82, vDustDynamics.w);
+    float glintEnergy = 0.12
+      + launchSpark * 0.72
+      + wakeTransit * 0.12
+      + vGlint * 0.42;
     vec2 radialAxis = vec2(cos(vDustDynamics.z), sin(vDustDynamics.z));
     vec2 tangentAxis = vec2(-radialAxis.y, radialAxis.x);
     float along = abs(dot(point, radialAxis));
     float across = abs(dot(point, tangentAxis));
     float microStreak = (1.0 - smoothstep(0.1, 0.5, along))
       * (1.0 - smoothstep(0.025, 0.11, across))
-      * launchSpark;
+      * clamp(launchSpark * 0.58 + wakeTransit * 0.86, 0.0, 1.0);
     float horizontalRay = 1.0 - smoothstep(0.018, 0.075, abs(point.y));
     float verticalRay = 1.0 - smoothstep(0.018, 0.075, abs(point.x));
     float rayFade = 1.0 - smoothstep(0.06, 0.5, distanceFromCenter);
@@ -278,7 +361,12 @@ const tunnelDustFragmentShader = `
       * rayFade
       * glintEnergy;
     vec3 ice = mix(vec3(0.34, 0.7, 1.0), vec3(0.97, 0.995, 1.0), core);
-    float alpha = max(max(diamond, diffraction * 0.36), microStreak * 0.68)
+    float diffractionAlpha = diffraction * (0.24 + vGlint * 0.48);
+    float diamondPresence = 1.0 - wakeTransit * 0.56;
+    float alpha = max(
+      max(diamond * diamondPresence, diffractionAlpha),
+      microStreak * 0.72
+    )
       * vLife
       * vBrightness
       * (1.0 + launchSpark * 0.42);
@@ -288,7 +376,7 @@ const tunnelDustFragmentShader = `
         + facet * 0.62
         + core * 0.55
         + launchSpark * 0.38
-        + diffraction * 1.2
+        + diffraction * (1.05 + vGlint * 0.7)
         + microStreak * 0.92
       ),
       alpha
@@ -1103,25 +1191,38 @@ const stellarVeilFragmentShader = `
 
 function createTunnelGeometry(count: number) {
   const geometry = new THREE.InstancedBufferGeometry();
+  const ribbonSegments = 7;
+  const ribbonPositions: number[] = [];
+  const ribbonUvs: number[] = [];
+  const ribbonIndices: number[] = [];
+
+  for (let segment = 0; segment <= ribbonSegments; segment += 1) {
+    const along = segment / ribbonSegments;
+    ribbonPositions.push(-1, along, 0, 1, along, 0);
+    ribbonUvs.push(-1, along, 1, along);
+  }
+
+  for (let segment = 0; segment < ribbonSegments; segment += 1) {
+    const row = segment * 2;
+    ribbonIndices.push(
+      row,
+      row + 1,
+      row + 3,
+      row,
+      row + 3,
+      row + 2,
+    );
+  }
+
   geometry.setAttribute(
     "position",
-    new THREE.Float32BufferAttribute([
-      -1, 0, 0,
-      1, 0, 0,
-      1, 1, 0,
-      -1, 1, 0,
-    ], 3),
+    new THREE.Float32BufferAttribute(ribbonPositions, 3),
   );
   geometry.setAttribute(
     "uv",
-    new THREE.Float32BufferAttribute([
-      -1, 0,
-      1, 0,
-      1, 1,
-      -1, 1,
-    ], 2),
+    new THREE.Float32BufferAttribute(ribbonUvs, 2),
   );
-  geometry.setIndex([0, 1, 2, 0, 2, 3]);
+  geometry.setIndex(ribbonIndices);
 
   const angles = new Float32Array(count);
   const radii = new Float32Array(count);
@@ -1161,18 +1262,25 @@ function createTunnelDustGeometry(count: number) {
   const seeds = new Float32Array(count);
   const sizes = new Float32Array(count);
   const brightness = new Float32Array(count);
+  const glints = new Float32Array(count);
 
   for (let index = 0; index < count; index += 1) {
     const isCoreDust = Math.random() < 0.58;
+    const isHeroGlint = Math.random() < 0.05;
     angles[index] = Math.random() * Math.PI * 2;
     radii[index] = isCoreDust
       ? 0.18 + Math.pow(Math.random(), 1.62) * 3.7
       : 2.7 + Math.pow(Math.random(), 0.78) * 9.5;
     seeds[index] = Math.random() * DEPTH;
-    sizes[index] = (isCoreDust ? 0.7 : 0.6)
-      + Math.pow(Math.random(), 2.1) * (isCoreDust ? 1.25 : 1.1);
-    brightness[index] = (isCoreDust ? 0.74 : 0.46)
-      + Math.random() * (isCoreDust ? 0.26 : 0.44);
+    sizes[index] = isHeroGlint
+      ? 1.55 + Math.pow(Math.random(), 1.6) * 1.15
+      : (isCoreDust ? 0.58 : 0.5)
+        + Math.pow(Math.random(), 2.2) * (isCoreDust ? 0.88 : 0.76);
+    brightness[index] = isHeroGlint
+      ? 0.9 + Math.random() * 0.1
+      : (isCoreDust ? 0.68 : 0.42)
+        + Math.random() * (isCoreDust ? 0.28 : 0.42);
+    glints[index] = isHeroGlint ? 1 : 0;
   }
 
   geometry.setAttribute("position", new THREE.BufferAttribute(positions, 3));
@@ -1181,6 +1289,7 @@ function createTunnelDustGeometry(count: number) {
   geometry.setAttribute("aSeedZ", new THREE.BufferAttribute(seeds, 1));
   geometry.setAttribute("aSize", new THREE.BufferAttribute(sizes, 1));
   geometry.setAttribute("aBrightness", new THREE.BufferAttribute(brightness, 1));
+  geometry.setAttribute("aGlint", new THREE.BufferAttribute(glints, 1));
   return geometry;
 }
 
@@ -2007,7 +2116,7 @@ export function HyperspaceIntro() {
       uLaunchDust: { value: 0 },
       uFormation: { value: 0 },
     };
-    const tunnelDustGeometry = createTunnelDustGeometry(isMobile ? 720 : 1800);
+    const tunnelDustGeometry = createTunnelDustGeometry(isMobile ? 820 : 2100);
     const tunnelDustMaterial = new THREE.ShaderMaterial({
       uniforms: tunnelDustUniforms,
       vertexShader: tunnelDustVertexShader,
