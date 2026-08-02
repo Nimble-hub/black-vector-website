@@ -414,6 +414,90 @@ const exitCrystalFragmentShader = `
   }
 `;
 
+const exitDustVertexShader = `
+  precision highp float;
+
+  attribute vec3 aVelocity;
+  attribute float aDelay;
+  attribute float aLifetime;
+  attribute float aSize;
+  attribute float aBrightness;
+  attribute float aTurbulence;
+  attribute float aSeed;
+  attribute float aSparkle;
+
+  uniform float uTime;
+  uniform float uOpacity;
+
+  varying float vLife;
+  varying float vBrightness;
+  varying float vSparkle;
+  varying float vTwinkle;
+
+  void main() {
+    float age = max(uTime - aDelay, 0.0);
+    float life = clamp(age / aLifetime, 0.0, 1.0);
+    float active = step(aDelay, uTime) * (1.0 - step(aLifetime, age));
+    float fade = smoothstep(0.0, 0.045, life) * (1.0 - smoothstep(0.7, 1.0, life));
+
+    float spinDirection = mix(-1.0, 1.0, step(0.5, aSeed));
+    float spin = spinDirection * age * (0.32 + aTurbulence * 0.28)
+      + sin(age * 1.75 + aSeed * 19.0) * 0.16;
+    float spinCos = cos(spin);
+    float spinSin = sin(spin);
+    vec2 rolledPosition = mat2(spinCos, -spinSin, spinSin, spinCos) * position.xy;
+    rolledPosition *= 1.0 + age * (0.07 + aSeed * 0.1);
+
+    float gustStrength = aTurbulence * smoothstep(0.0, 0.24, age) * (0.28 + age * 0.3);
+    vec3 gust = vec3(
+      sin(age * 2.7 + aSeed * 31.0),
+      cos(age * 2.15 + aSeed * 23.0),
+      sin(age * 1.8 + aSeed * 17.0) * 0.42
+    ) * gustStrength;
+    vec3 particlePosition = vec3(rolledPosition, position.z) + aVelocity * age + gust;
+    vec4 viewPosition = modelViewMatrix * vec4(particlePosition, 1.0);
+    gl_Position = projectionMatrix * viewPosition;
+
+    float sparkleWave = pow(
+      0.5 + 0.5 * sin(uTime * (7.0 + aSeed * 4.5) + aSeed * 83.0),
+      10.0
+    );
+    float sparkleSize = 1.0 + aSparkle * sparkleWave * 1.8;
+    gl_PointSize = clamp(aSize * sparkleSize * (13.0 / max(-viewPosition.z, 1.0)), 0.65, 12.0);
+
+    vLife = active * fade * uOpacity;
+    vBrightness = aBrightness;
+    vSparkle = aSparkle;
+    vTwinkle = sparkleWave;
+  }
+`;
+
+const exitDustFragmentShader = `
+  precision highp float;
+
+  varying float vLife;
+  varying float vBrightness;
+  varying float vSparkle;
+  varying float vTwinkle;
+
+  void main() {
+    vec2 point = gl_PointCoord - 0.5;
+    float distanceFromCenter = length(point);
+    float grain = 1.0 - smoothstep(0.2, 0.5, distanceFromCenter);
+    float core = 1.0 - smoothstep(0.0, 0.14, distanceFromCenter);
+    float verticalGlint = 1.0 - smoothstep(0.012, 0.055, abs(point.x));
+    float horizontalGlint = 1.0 - smoothstep(0.012, 0.055, abs(point.y));
+    float glintFalloff = 1.0 - smoothstep(0.12, 0.49, distanceFromCenter);
+    float glint = max(verticalGlint, horizontalGlint) * glintFalloff * vSparkle * vTwinkle;
+    float shape = max(grain, glint);
+    vec3 iceBlue = vec3(0.28, 0.7, 1.0);
+    vec3 frostWhite = vec3(0.95, 0.995, 1.0);
+    vec3 color = mix(iceBlue, frostWhite, core * 0.62 + glint * 0.82);
+    float alpha = shape * vLife * vBrightness * (0.58 + core * 0.42 + glint * 0.55);
+    gl_FragColor = vec4(color * (0.66 + core * 0.72 + glint * 1.35), alpha);
+  }
+`;
+
 function createTunnelGeometry(count: number) {
   const geometry = new THREE.InstancedBufferGeometry();
   geometry.setAttribute(
@@ -621,6 +705,53 @@ function createExitCrystalGeometry(count: number) {
   geometry.setAttribute("aClusterVelocity", new THREE.BufferAttribute(clusterVelocities, 3));
   geometry.setAttribute("aSwirl", new THREE.BufferAttribute(swirls, 1));
   geometry.setAttribute("aClusterPhase", new THREE.BufferAttribute(clusterPhases, 1));
+  return geometry;
+}
+
+function createExitDustGeometry(count: number) {
+  const positions = new Float32Array(count * 3);
+  const velocities = new Float32Array(count * 3);
+  const delays = new Float32Array(count);
+  const lifetimes = new Float32Array(count);
+  const sizes = new Float32Array(count);
+  const brightness = new Float32Array(count);
+  const turbulence = new Float32Array(count);
+  const seeds = new Float32Array(count);
+  const sparkles = new Float32Array(count);
+
+  for (let index = 0; index < count; index += 1) {
+    const angle = Math.random() * Math.PI * 2;
+    const radius = 0.65 + Math.pow(Math.random(), 0.72) * 11.5;
+    const speed = 0.85 + Math.pow(Math.random(), 0.7) * 3.7;
+    const offset = index * 3;
+    positions[offset] = Math.cos(angle) * radius;
+    positions[offset + 1] = Math.sin(angle) * radius * 0.7;
+    positions[offset + 2] = -5 - Math.pow(Math.random(), 0.78) * 23;
+    velocities[offset] = Math.cos(angle) * speed + (Math.random() - 0.5) * 0.75;
+    velocities[offset + 1] = Math.sin(angle) * speed * 0.68 + (Math.random() - 0.5) * 0.58;
+    velocities[offset + 2] = 0.45 + Math.random() * 2.65;
+    delays[index] = Math.pow(Math.random(), 1.5) * 0.78;
+    lifetimes[index] = 3.15 + Math.random() * 1.65;
+    const sparkle = Math.random() < 0.16;
+    sizes[index] = sparkle
+      ? 2.1 + Math.pow(Math.random(), 1.6) * 3.8
+      : 0.72 + Math.pow(Math.random(), 1.9) * 1.85;
+    brightness[index] = 0.34 + Math.random() * 0.66;
+    turbulence[index] = 0.35 + Math.random() * 1.35;
+    seeds[index] = Math.random();
+    sparkles[index] = sparkle ? 0.62 + Math.random() * 0.38 : 0;
+  }
+
+  const geometry = new THREE.BufferGeometry();
+  geometry.setAttribute("position", new THREE.BufferAttribute(positions, 3));
+  geometry.setAttribute("aVelocity", new THREE.BufferAttribute(velocities, 3));
+  geometry.setAttribute("aDelay", new THREE.BufferAttribute(delays, 1));
+  geometry.setAttribute("aLifetime", new THREE.BufferAttribute(lifetimes, 1));
+  geometry.setAttribute("aSize", new THREE.BufferAttribute(sizes, 1));
+  geometry.setAttribute("aBrightness", new THREE.BufferAttribute(brightness, 1));
+  geometry.setAttribute("aTurbulence", new THREE.BufferAttribute(turbulence, 1));
+  geometry.setAttribute("aSeed", new THREE.BufferAttribute(seeds, 1));
+  geometry.setAttribute("aSparkle", new THREE.BufferAttribute(sparkles, 1));
   return geometry;
 }
 
@@ -1157,6 +1288,28 @@ export function HyperspaceIntro() {
     exitCrystals.visible = shouldJump;
     scene.add(exitCrystals);
 
+    const exitDustUniforms = {
+      uTime: { value: 0 },
+      uOpacity: { value: 0 },
+    };
+    const exitDustGeometry = createExitDustGeometry(isMobile ? 1800 : 3800);
+    const exitDustMaterial = new THREE.ShaderMaterial({
+      uniforms: exitDustUniforms,
+      vertexShader: exitDustVertexShader,
+      fragmentShader: exitDustFragmentShader,
+      transparent: true,
+      blending: THREE.AdditiveBlending,
+      depthTest: false,
+      depthWrite: false,
+      toneMapped: false,
+    });
+    const exitDust = new THREE.Points(exitDustGeometry, exitDustMaterial);
+    exitDust.frustumCulled = false;
+    exitDust.matrixAutoUpdate = false;
+    exitDust.updateMatrix();
+    exitDust.visible = shouldJump;
+    scene.add(exitDust);
+
     const world = createDeepSpaceWorld(isMobile);
     world.setOpacity(shouldJump ? 0 : 1);
     scene.add(world.group);
@@ -1284,6 +1437,8 @@ export function HyperspaceIntro() {
         exitWakeUniforms.uOpacity.value = smoothstep((progress - 0.82) / 0.075) * 0.08;
         exitCrystalUniforms.uTime.value = Math.max(0, (elapsed - DURATION * 0.91) / 1000);
         exitCrystalUniforms.uOpacity.value = smoothstep((progress - 0.9) / 0.035);
+        exitDustUniforms.uTime.value = Math.max(0, (elapsed - DURATION * 0.855) / 1000);
+        exitDustUniforms.uOpacity.value = smoothstep((progress - 0.855) / 0.06);
         world.setOpacity(smoothstep((progress - 0.865) / 0.09));
         renderer.toneMappingExposure = 0.94 + charge * 0.1 + launch * 0.06;
 
@@ -1321,14 +1476,18 @@ export function HyperspaceIntro() {
       } else {
         const landingElapsed = landingStartTime === null ? 1600 : Math.max(0, time - landingStartTime);
         const wakeFade = 1 - smoothstep(landingElapsed / 2100);
+        const dustFade = 1 - smoothstep(landingElapsed / 2800);
         exitWakeUniforms.uTime.value = Math.max(0, (elapsed - DURATION * 0.78) / 1000);
         exitWakeUniforms.uOpacity.value = wakeFade * 0.08;
         exitCrystalUniforms.uTime.value = Math.max(0, (elapsed - DURATION * 0.91) / 1000);
         exitCrystalUniforms.uOpacity.value = wakeFade;
+        exitDustUniforms.uTime.value = Math.max(0, (elapsed - DURATION * 0.855) / 1000);
+        exitDustUniforms.uOpacity.value = dustFade;
         if (wakeFade <= 0.001) {
           exitWake.visible = false;
           exitCrystals.visible = false;
         }
+        if (dustFade <= 0.001) exitDust.visible = false;
         const interfaceArrival = landingStartTime === null
           ? 1
           : smoothstep((time - landingStartTime - 100) / 1450);
@@ -1406,6 +1565,8 @@ export function HyperspaceIntro() {
         exitWakeMaterial.dispose();
         exitCrystalGeometry.dispose();
         exitCrystalMaterial.dispose();
+        exitDustGeometry.dispose();
+        exitDustMaterial.dispose();
         for (const item of world.geometries) item.dispose();
         for (const item of world.materials) item.dispose();
         for (const item of world.textures) item.dispose();
@@ -1430,6 +1591,7 @@ export function HyperspaceIntro() {
       scene.remove(tunnelCaustics);
       scene.remove(exitWake);
       scene.remove(exitCrystals);
+      scene.remove(exitDust);
       geometry.dispose();
       material.dispose();
       tunnelDustGeometry.dispose();
@@ -1440,6 +1602,8 @@ export function HyperspaceIntro() {
       exitWakeMaterial.dispose();
       exitCrystalGeometry.dispose();
       exitCrystalMaterial.dispose();
+      exitDustGeometry.dispose();
+      exitDustMaterial.dispose();
       world.cancelAssetLoad();
       for (const item of world.geometries) item.dispose();
       for (const item of world.materials) item.dispose();
