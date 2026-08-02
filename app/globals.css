@@ -176,17 +176,15 @@ a:focus-visible {
 
 .hero-content {
   position: absolute;
-  top: 50%;
-  left: clamp(24px, 8.3vw, 128px);
+  top: var(--ui-y, 50%);
+  left: var(--ui-x, 50%);
   width: min(720px, calc(100vw - 48px));
   z-index: 3;
-  opacity: 0;
-  transform: translate3d(-52px, -43%, 150px) rotateY(4deg);
-  transform-origin: left center;
+  opacity: var(--ui-opacity, 0);
+  transform: translate3d(-50%, -50%, 0) scale(var(--ui-scale, 0.16)) rotateY(var(--ui-yaw, -38deg));
+  transform-origin: center center;
   transform-style: preserve-3d;
-  transition:
-    opacity 760ms 100ms ease,
-    transform 1250ms cubic-bezier(.16,.72,.26,1);
+  will-change: top, left, opacity, transform;
 }
 
 .hero-content::before {
@@ -408,11 +406,6 @@ h1 span {
   transform: translate3d(calc(-100% - 24px), -50%, 0) rotateY(0deg);
 }
 
-.experience-landed .hero-content {
-  opacity: 1;
-  transform: translate3d(0, -43%, 0) rotateY(0deg);
-}
-
 .scroll-cue i {
   display: block;
   width: 44px;
@@ -479,7 +472,6 @@ h1 span {
 
 @media (max-width: 700px) {
   .signal-state { display: none; }
-  .hero-content { top: 48%; }
   .hero-actions { align-items: flex-start; flex-direction: column; gap: 10px; }
   .hero-meta { display: none; }
   .scroll-cue { bottom: 24px; }

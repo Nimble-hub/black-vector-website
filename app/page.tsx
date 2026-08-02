@@ -36,7 +36,7 @@ export default function Home() {
           <small>FORMATION HOLDING</small>
         </div>
 
-        <div className="hero-content" id="top">
+        <div className="hero-content" id="top" data-world-ui="hero">
           <p className="eyebrow">THE 27-DAY SKIRMISH // AFTER-ACTION ARCHIVE</p>
           <h1 id="hero-title">
             THE MACHINES LEFT.

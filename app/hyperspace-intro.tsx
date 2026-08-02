@@ -165,6 +165,9 @@ function createTunnelGeometry(count: number) {
 function createDeepSpaceWorld(isMobile: boolean) {
   const group = new THREE.Group();
   const fleet = new THREE.Group();
+  const interfaceAnchor = new THREE.Object3D();
+  interfaceAnchor.position.set(0, 0, -118);
+  group.add(interfaceAnchor);
   const geometries: THREE.BufferGeometry[] = [];
   const materials: THREE.Material[] = [];
   const textures: THREE.Texture[] = [];
@@ -417,12 +420,13 @@ function createDeepSpaceWorld(isMobile: boolean) {
     assetLoadCancelled = true;
   };
 
-  return { group, fleet, flagship, planet, orbitalRing, geometries, materials, textures, setOpacity, cancelAssetLoad };
+  return { group, fleet, flagship, planet, orbitalRing, interfaceAnchor, geometries, materials, textures, setOpacity, cancelAssetLoad };
 }
 
 export function HyperspaceIntro() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const skipJumpRef = useRef(false);
+  const interfaceTimerRef = useRef<number | null>(null);
   const [runId, setRunId] = useState(0);
   const [jumping, setJumping] = useState(true);
   const [fallback, setFallback] = useState(false);
@@ -430,12 +434,19 @@ export function HyperspaceIntro() {
   const finish = useCallback(() => {
     skipJumpRef.current = true;
     window.sessionStorage.setItem(SEEN_KEY, "true");
-    document.documentElement.classList.add("experience-landed");
+    document.documentElement.classList.add("experience-arriving");
+    if (interfaceTimerRef.current) window.clearTimeout(interfaceTimerRef.current);
+    interfaceTimerRef.current = window.setTimeout(() => {
+      document.documentElement.classList.remove("experience-arriving");
+      document.documentElement.classList.add("experience-landed");
+    }, 260);
     setJumping(false);
   }, []);
 
   const replay = useCallback(() => {
     skipJumpRef.current = false;
+    if (interfaceTimerRef.current) window.clearTimeout(interfaceTimerRef.current);
+    document.documentElement.classList.remove("experience-arriving");
     document.documentElement.classList.remove("experience-landed");
     setJumping(true);
     setRunId((value) => value + 1);
@@ -460,6 +471,7 @@ export function HyperspaceIntro() {
     const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
     const shouldJump = runId > 0 || (!window.sessionStorage.getItem(SEEN_KEY) && !reducedMotion);
     skipJumpRef.current = !shouldJump;
+    document.documentElement.classList.remove("experience-arriving");
     document.documentElement.classList.toggle("experience-landed", !shouldJump);
     const settleTimer = !shouldJump
       ? window.setTimeout(() => setJumping(false), 0)
@@ -538,8 +550,10 @@ export function HyperspaceIntro() {
         offset: new THREE.Vector3(0, 2.1, 0),
       },
     ];
+    const heroInterface = document.querySelector<HTMLElement>('[data-world-ui="hero"]');
     const projectedAnchor = new THREE.Vector3();
-    const updateWorldAnchors = () => {
+    const interfaceWorldPosition = new THREE.Vector3();
+    const updateWorldAnchors = (interfaceArrival: number) => {
       for (const anchor of worldAnchors) {
         if (!anchor.element) continue;
         anchor.object.getWorldPosition(projectedAnchor);
@@ -548,6 +562,19 @@ export function HyperspaceIntro() {
         anchor.element.toggleAttribute("data-offscreen", offscreen);
         anchor.element.style.setProperty("--anchor-x", `${(projectedAnchor.x * 0.5 + 0.5) * 100}%`);
         anchor.element.style.setProperty("--anchor-y", `${(-projectedAnchor.y * 0.5 + 0.5) * 100}%`);
+      }
+
+      if (heroInterface) {
+        world.interfaceAnchor.getWorldPosition(interfaceWorldPosition);
+        const cameraDistance = camera.position.distanceTo(interfaceWorldPosition);
+        projectedAnchor.copy(interfaceWorldPosition).project(camera);
+        const interfaceScale = THREE.MathUtils.clamp(25 / Math.max(cameraDistance, 1), 0.16, 0.96);
+        const interfaceYaw = THREE.MathUtils.lerp(-38, 2.5, interfaceArrival);
+        heroInterface.style.setProperty("--ui-x", `${(projectedAnchor.x * 0.5 + 0.5) * 100}%`);
+        heroInterface.style.setProperty("--ui-y", `${(-projectedAnchor.y * 0.5 + 0.5) * 100}%`);
+        heroInterface.style.setProperty("--ui-scale", interfaceScale.toFixed(4));
+        heroInterface.style.setProperty("--ui-yaw", `${interfaceYaw.toFixed(2)}deg`);
+        heroInterface.style.setProperty("--ui-opacity", smoothstep((interfaceArrival - 0.08) / 0.42).toFixed(4));
       }
     };
 
@@ -574,13 +601,17 @@ export function HyperspaceIntro() {
     let travel = 0;
     let jumpComplete = !shouldJump;
     let finishQueued = !shouldJump;
+    let landingStartTime: number | null = null;
     const cameraTarget = new THREE.Vector3(0, 0, -100);
     const desiredTarget = new THREE.Vector3();
     const desiredCamera = new THREE.Vector3();
+    const interfaceFar = new THREE.Vector3(0, 0, -118);
+    const interfaceNear = new THREE.Vector3(isMobile ? -7.5 : -13, isMobile ? 0.5 : -0.4, -26);
     const animate = (time: number) => {
       if (!startTime) {
         startTime = time;
         previousTime = time;
+        if (!shouldJump) landingStartTime = time - 2000;
       }
 
       const elapsed = time - startTime;
@@ -612,6 +643,7 @@ export function HyperspaceIntro() {
 
         if (progress >= 1) {
           jumpComplete = true;
+          landingStartTime = time;
           tunnel.visible = false;
           world.setOpacity(1);
           renderer.toneMappingExposure = 0.98;
@@ -621,6 +653,10 @@ export function HyperspaceIntro() {
           }
         }
       } else {
+        const interfaceArrival = landingStartTime === null
+          ? 1
+          : smoothstep((time - landingStartTime - 100) / 1450);
+        world.interfaceAnchor.position.lerpVectors(interfaceFar, interfaceNear, interfaceArrival);
         const documentHeight = Math.max(document.documentElement.scrollHeight - window.innerHeight, 1);
         const scrollProgress = clamp01(window.scrollY / documentHeight);
         desiredCamera.set(
@@ -646,7 +682,10 @@ export function HyperspaceIntro() {
         world.orbitalRing.rotation.z = 0.12 + elapsed * 0.000018;
       }
 
-      updateWorldAnchors();
+      const currentInterfaceArrival = jumpComplete && landingStartTime !== null
+        ? smoothstep((time - landingStartTime - 100) / 1450)
+        : jumpComplete ? 1 : 0;
+      updateWorldAnchors(currentInterfaceArrival);
       renderer.render(scene, camera);
     };
 
@@ -707,6 +746,11 @@ export function HyperspaceIntro() {
       renderer.dispose();
     };
   }, [fallback, finish, runId]);
+
+  useEffect(() => () => {
+    if (interfaceTimerRef.current) window.clearTimeout(interfaceTimerRef.current);
+    document.documentElement.classList.remove("experience-arriving");
+  }, []);
 
   if (fallback) return <HyperspaceIntro2D />;
 
