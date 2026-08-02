@@ -12,7 +12,7 @@ import { HyperspaceIntro2D } from "./hyperspace-intro-2d";
 const DURATION = 15000;
 const DEPTH = 132;
 const NEAR = 0.68;
-const SEEN_KEY = "black-vector-jump-seen-3d-v10";
+const SEEN_KEY = "black-vector-jump-seen-3d-v11";
 
 function clamp01(value: number) {
   return Math.max(0, Math.min(1, value));
@@ -61,7 +61,8 @@ const vertexShader = `
     vec2 screenHead = ndcHead * uResolution * 0.5;
     vec2 direction = normalize(screenHead - screenTail + vec2(0.00001));
     vec2 perpendicular = vec2(direction.y, -direction.x);
-    float halfWidth = aWidth * uWidthScale;
+    float perspectiveWidth = clamp(22.0 / max(clipHead.w, 0.5), 0.8, 5.5);
+    float halfWidth = aWidth * uWidthScale * perspectiveWidth;
 
     float along = uv.y;
     vec2 screenPosition = mix(screenTail, screenHead, along);
@@ -138,7 +139,7 @@ const filmicCameraShader = {
       float outsideBore = smoothstep(0.075, 0.19, radial);
       float insideFrame = 1.0 - smoothstep(0.7, 1.08, radial);
       float tunnelWall = outsideBore * insideFrame;
-      color += vec3(0.018, 0.055, 0.105) * tunnelWall * uTunnelAtmosphere;
+      color += vec3(0.0008, 0.003, 0.008) * tunnelWall * uTunnelAtmosphere;
       float vignette = smoothstep(0.34, 0.82, dot(lens, lens));
       color *= mix(1.0, 0.82, vignette);
       color = mix(color, vec3(0.94, 0.985, 1.0), uFlash);
@@ -180,10 +181,10 @@ function createTunnelGeometry(count: number) {
   for (let index = 0; index < count; index += 1) {
     const light = 0.46 + Math.random() * 0.4;
     angles[index] = Math.random() * Math.PI * 2;
-    radii[index] = 2.35 + Math.pow(Math.random(), 0.72) * 13.45;
+    radii[index] = 13.5 + Math.pow(Math.random(), 0.82) * 9;
     seeds[index] = Math.random() * DEPTH;
     lengths[index] = 4.8 + Math.pow(Math.random(), 0.6) * 10.5;
-    widths[index] = 0.48 + light * (0.58 + Math.random() * 0.36);
+    widths[index] = 0.52 + light * (0.48 + Math.random() * 0.3);
     brightness[index] = light;
     hues[index] = Math.random() < 0.14 ? Math.random() * 0.28 : 0.82 + Math.random() * 0.18;
   }
@@ -456,7 +457,7 @@ export function HyperspaceIntro() {
       uEnergy: { value: shouldJump ? 0.28 : 1 },
       uResolution: { value: new THREE.Vector2(1, 1) },
     };
-    const geometry = createTunnelGeometry(isMobile ? 1800 : 3200);
+    const geometry = createTunnelGeometry(isMobile ? 1350 : 2300);
     const material = new THREE.ShaderMaterial({
       uniforms,
       vertexShader,
@@ -549,11 +550,11 @@ export function HyperspaceIntro() {
         uniforms.uEnergy.value = (0.28 + chargeWall * 1.38 + launch * 0.88 + launchKick * 0.46) * (1 - braking * 0.48);
         uniforms.uOpacity.value = smoothstep(progress / 0.035) * (1 - smoothstep((progress - 0.84) / 0.16));
         world.setOpacity(smoothstep((progress - 0.87) / 0.13));
-        const cruiseBloom = isMobile ? 0.48 : 0.58;
-        bloomPass.strength = cruiseBloom * (0.38 + launch * 0.62) + stretchedCharge * (isMobile ? 0.22 : 0.28) + launchKick * (isMobile ? 0.3 : 0.4);
-        bloomPass.threshold = 0.8 - stretchedCharge * 0.09 - launch * 0.08 - launchKick * 0.08;
-        bloomPass.radius = 0.07 + stretchedCharge * 0.04 + launch * 0.11;
-        renderer.toneMappingExposure = 0.98 + chargeWall * 0.28 + launchKick * 0.28 + launch * 0.05;
+        const cruiseBloom = isMobile ? 0.28 : 0.34;
+        bloomPass.strength = cruiseBloom * (0.18 + launch * 0.82) + stretchedCharge * (isMobile ? 0.12 : 0.16) + launchKick * (isMobile ? 0.18 : 0.24);
+        bloomPass.threshold = 0.91 - stretchedCharge * 0.04 - launch * 0.06 - launchKick * 0.05;
+        bloomPass.radius = 0.025 + stretchedCharge * 0.025 + launch * 0.055;
+        renderer.toneMappingExposure = 0.98 + chargeWall * 0.15 + launchKick * 0.16 + launch * 0.02;
 
         const cruiseRumble = launch * (1 - braking);
         camera.position.x = Math.sin(elapsed * 0.0037) * (0.003 + launchKick * 0.04 + cruiseRumble * 0.007);
