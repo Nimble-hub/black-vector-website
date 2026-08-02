@@ -56,7 +56,7 @@ const vertexShader = `
     float travel = mod(aSeedZ + uTravel, uDepth);
     float tunnelAnchorZ = min(-uDepth + travel, -uNear);
     float wallDistribution = fract(aSeedZ * 0.071 + aAngle * 0.113);
-    float wallRadius = mix(1.8, 15.5, pow(wallDistribution, 0.68));
+    float wallScreenRadius = mix(0.052, 1.82, pow(wallDistribution, 0.56));
     float wallNoise = (fract(aSeedZ * 0.173 + aAngle * 0.37) - 0.5)
       * mix(2.8, 0.5, uWallAdvance);
     float wallZ = mix(-40.0, -1.45, uWallAdvance) + wallNoise;
@@ -64,7 +64,12 @@ const vertexShader = `
     float headZ = min(anchorZ + aLength * uForwardStretch, -uNear);
     float tailZ = anchorZ - aLength * uBackwardStretch;
     vec2 radialDirection = vec2(cos(aAngle), sin(aAngle));
-    vec2 radial = radialDirection * mix(wallRadius * uWallScale, aRadius, uFormation);
+    vec2 wallViewScale = vec2(
+      -wallZ / projectionMatrix[0][0],
+      -wallZ / projectionMatrix[1][1]
+    );
+    vec2 wallRadial = radialDirection * wallScreenRadius * wallViewScale * uWallScale;
+    vec2 radial = mix(wallRadial, radialDirection * aRadius, uFormation);
 
     vec4 clipTail = projectionMatrix * modelViewMatrix * vec4(radial, tailZ, 1.0);
     vec4 clipHead = projectionMatrix * modelViewMatrix * vec4(radial, headZ, 1.0);
@@ -158,12 +163,17 @@ const tunnelDustVertexShader = `
     float travel = mod(aSeedZ + uTravel * 1.12, uDepth);
     float tunnelZ = -uDepth + travel;
     float wallDistribution = fract(aSeedZ * 0.083 + aAngle * 0.127);
-    float wallRadius = mix(1.6, 16.5, pow(wallDistribution, 0.66));
+    float wallScreenRadius = mix(0.045, 1.88, pow(wallDistribution, 0.55));
     float wallZ = mix(-39.5, -1.35, uWallAdvance)
       + (fract(aSeedZ * 0.191 + aAngle * 0.41) - 0.5) * mix(3.4, 0.7, uWallAdvance);
     float z = mix(wallZ, tunnelZ, uFormation);
     vec2 radialDirection = vec2(cos(aAngle), sin(aAngle));
-    vec2 radial = radialDirection * mix(wallRadius * uWallScale, aRadius, uFormation);
+    vec2 wallViewScale = vec2(
+      -wallZ / projectionMatrix[0][0],
+      -wallZ / projectionMatrix[1][1]
+    );
+    vec2 wallRadial = radialDirection * wallScreenRadius * wallViewScale * uWallScale;
+    vec2 radial = mix(wallRadial, radialDirection * aRadius, uFormation);
     vec4 viewPosition = modelViewMatrix * vec4(radial, z, 1.0);
     gl_Position = projectionMatrix * viewPosition;
     gl_PointSize = clamp(aSize * (18.0 / max(-viewPosition.z, 1.0)), 0.7, 4.2);
@@ -539,6 +549,8 @@ const exitDustVertexShader = `
   varying float vLife;
   varying float vBrightness;
   varying float vGlint;
+  varying float vFacetRotation;
+  varying float vFacetFlash;
 
   void main() {
     float age = max(uTime - aDelay, 0.0);
@@ -606,16 +618,22 @@ const exitDustVertexShader = `
     float headlightResponse = headlightProximity
       * headlightCone
       * step(0.18, forwardDepth);
-    float effectiveGlint = max(aGlint, headlightResponse * 0.86);
+    float facetFlash = pow(
+      max(sin(age * (2.8 + aSeed * 2.6) + aSeed * 43.0), 0.0),
+      13.0
+    ) * step(0.64, aSeed);
+    float effectiveGlint = max(max(aGlint, facetFlash), headlightResponse * 0.72);
     gl_PointSize = clamp(
-      aSize * (18.0 / max(-viewPosition.z, 1.0)) * (1.0 + effectiveGlint * 3.2),
-      0.8,
-      10.2
+      aSize * (19.0 / max(-viewPosition.z, 1.0)) * (1.0 + effectiveGlint * 2.7),
+      1.0,
+      12.0
     );
 
     vLife = isAlive * fade * uOpacity;
     vBrightness = aBrightness * (1.0 + headlightResponse * 2.35);
     vGlint = effectiveGlint;
+    vFacetRotation = aSeed * 6.2831853 + age * (0.32 + aTurbulence * 0.23);
+    vFacetFlash = facetFlash;
   }
 `;
 
@@ -625,44 +643,46 @@ const exitDustFragmentShader = `
   varying float vLife;
   varying float vBrightness;
   varying float vGlint;
+  varying float vFacetRotation;
+  varying float vFacetFlash;
 
   void main() {
     vec2 point = gl_PointCoord - 0.5;
-    float distanceFromCenter = length(point);
-    vec2 metalSurface = point * 2.0;
-    float normalZ = sqrt(max(1.0 - dot(metalSurface, metalSurface), 0.0));
-    vec3 microNormal = normalize(vec3(metalSurface.x * 0.82, -metalSurface.y * 0.82, normalZ));
-    vec3 reflectionDirection = normalize(vec3(-0.42, 0.58, 0.92));
-    float metallicSpecular = pow(max(dot(microNormal, reflectionDirection), 0.0), 28.0);
-    float metalRim = pow(1.0 - normalZ, 2.4);
-    float dust = 1.0 - smoothstep(0.16, 0.5, distanceFromCenter);
-    float core = 1.0 - smoothstep(0.0, 0.16, distanceFromCenter);
-    float horizontalDiffraction = 1.0 - smoothstep(0.006, 0.04, abs(point.y));
-    float verticalDiffraction = 1.0 - smoothstep(0.006, 0.04, abs(point.x));
-    float diffractionFalloff = 1.0 - smoothstep(0.08, 0.49, distanceFromCenter);
-    float diffraction = max(horizontalDiffraction, verticalDiffraction * 0.46)
-      * diffractionFalloff * vGlint;
-    float opticalHalo = (1.0 - smoothstep(0.06, 0.34, distanceFromCenter)) * vGlint;
-    float emissiveCore = pow(max(core, metallicSpecular), 1.45);
-    float emissiveHalo = (1.0 - smoothstep(0.05, 0.46, distanceFromCenter))
-      * (0.2 + vGlint * 0.34);
-    vec3 chromeShadow = vec3(0.16, 0.34, 0.52);
-    vec3 chromeBlue = vec3(0.5, 0.76, 0.96);
-    vec3 reflectedWhite = vec3(0.975, 0.995, 1.0);
-    vec3 metalBody = mix(chromeShadow, chromeBlue, 0.42 + normalZ * 0.36);
-    float reflection = clamp(metallicSpecular * 1.65 + core * 0.38 + diffraction, 0.0, 1.0);
-    vec3 color = mix(metalBody, reflectedWhite, reflection);
+    float rotationCos = cos(vFacetRotation);
+    float rotationSin = sin(vFacetRotation);
+    point = mat2(rotationCos, -rotationSin, rotationSin, rotationCos) * point;
+
+    float diamondDistance = abs(point.x) + abs(point.y);
+    float crystalBody = 1.0 - smoothstep(0.455, 0.5, diamondDistance);
+    float innerDiamond = 1.0 - smoothstep(0.05, 0.33, diamondDistance);
+    float facetAxis = abs(point.x) - abs(point.y);
+    float facetLight = clamp(0.5 + facetAxis * 2.8, 0.0, 1.0);
+    float facetSeam = 1.0 - smoothstep(0.008, 0.035, abs(facetAxis));
+    float crystalEdge = smoothstep(0.28, 0.47, diamondDistance) * crystalBody;
+
+    float horizontalGlint = 1.0 - smoothstep(0.006, 0.028, abs(point.y));
+    float verticalGlint = 1.0 - smoothstep(0.006, 0.028, abs(point.x));
+    float glintFalloff = 1.0 - smoothstep(0.06, 0.49, diamondDistance);
+    float diffraction = max(horizontalGlint, verticalGlint * 0.72)
+      * glintFalloff * max(vGlint, vFacetFlash);
+    float pinFire = 1.0 - smoothstep(0.0, 0.075, diamondDistance);
+
+    vec3 iceShadow = vec3(0.18, 0.45, 0.7);
+    vec3 iceFacet = vec3(0.62, 0.88, 1.0);
+    vec3 reflectedWhite = vec3(0.985, 0.998, 1.0);
+    vec3 color = mix(iceShadow, iceFacet, 0.42 + facetLight * 0.46);
+    color = mix(color, reflectedWhite, innerDiamond * 0.36 + facetSeam * 0.18);
+
     float alpha = max(
-      dust * (0.58 + core * 0.52 + metallicSpecular * 0.66),
-      max(diffraction, max(opticalHalo * 0.24, emissiveHalo * 0.46))
-    )
-      * vLife * vBrightness;
-    vec3 emissionColor = mix(vec3(0.46, 0.82, 1.0), reflectedWhite, emissiveCore);
-    vec3 emittedLight = emissionColor * (emissiveCore * 3.4 + emissiveHalo * 0.72 + diffraction * 1.35);
-    gl_FragColor = vec4(
-      color * (0.7 + metallicSpecular * 2.75 + metalRim * 0.3) + emittedLight,
-      alpha
+      crystalBody * (0.7 + innerDiamond * 0.3),
+      diffraction * 0.9
+    ) * vLife * vBrightness;
+    vec3 emittedLight = reflectedWhite * (
+      pinFire * (1.4 + vFacetFlash * 3.4)
+        + diffraction * 2.25
+        + crystalEdge * vGlint * 0.72
     );
+    gl_FragColor = vec4(color * (0.86 + facetLight * 0.72) + emittedLight, alpha);
   }
 `;
 
@@ -961,7 +981,7 @@ function createExitDustGeometry(count: number) {
     turbulence[index] = localTurbulence * (0.86 + Math.random() * 0.28);
     seeds[index] = Math.random();
     drag[index] = localDrag * (0.9 + Math.random() * 0.2);
-    glints[index] = Math.random() < 0.15 ? 0.72 + Math.random() * 0.28 : 0;
+    glints[index] = Math.random() < 0.22 ? 0.68 + Math.random() * 0.32 : 0;
     swirls[index] = Math.sin(angle * 2 + 0.6) * 0.48 + Math.sin(angle * 5 - 0.8) * 0.17;
     clusterPhases[index] = angle * 1.72 + Math.sin(angle * 3) * 0.52;
   }
@@ -1393,7 +1413,7 @@ export function HyperspaceIntro() {
       uWidthScale: { value: shouldJump ? 0.76 : 1 },
       uFormation: { value: shouldJump ? 0 : 1 },
       uWallAdvance: { value: 0 },
-      uWallScale: { value: shouldJump ? 0.68 : 1 },
+      uWallScale: { value: shouldJump ? 1.02 : 1 },
       uEnergy: { value: shouldJump ? 0.24 : 1 },
       uSymmetry: { value: shouldJump ? 1 : 0 },
       uResolution: { value: new THREE.Vector2(1, 1) },
@@ -1423,7 +1443,7 @@ export function HyperspaceIntro() {
       uOpacity: { value: 0 },
       uFormation: { value: shouldJump ? 0 : 1 },
       uWallAdvance: { value: 0 },
-      uWallScale: { value: shouldJump ? 0.68 : 1 },
+      uWallScale: { value: shouldJump ? 1.02 : 1 },
     };
     const tunnelDustGeometry = createTunnelDustGeometry(isMobile ? 420 : 900);
     const tunnelDustMaterial = new THREE.ShaderMaterial({
@@ -1654,11 +1674,11 @@ export function HyperspaceIntro() {
         uniforms.uTravel.value = travel;
         uniforms.uFormation.value = tunnelFormation;
         uniforms.uWallAdvance.value = wallAdvance;
-        uniforms.uWallScale.value = 0.68 + wallFill * 1.05;
+        uniforms.uWallScale.value = 1.02 + wallFill * 0.16;
         tunnelDustUniforms.uTravel.value = travel;
         tunnelDustUniforms.uFormation.value = tunnelFormation;
         tunnelDustUniforms.uWallAdvance.value = wallAdvance;
-        tunnelDustUniforms.uWallScale.value = 0.68 + wallFill * 1.05;
+        tunnelDustUniforms.uWallScale.value = 1.02 + wallFill * 0.16;
         tunnelDustUniforms.uOpacity.value = (0.02 + charge * 0.16 + visualLaunch * 0.36) * (1 - braking);
         warpBubbleUniforms.uTime.value = elapsed * 0.001;
         warpBubbleUniforms.uTravel.value = travel;
