@@ -179,7 +179,7 @@ const warpBubbleVertexShader = `
 
   varying vec2 vFieldUv;
   varying float vLayer;
-  varying float vPulse;
+  varying float vCompression;
   varying float vDistortion;
   varying float vFresnel;
 
@@ -187,39 +187,44 @@ const warpBubbleVertexShader = `
     float angle = atan(position.y, position.x);
     float depth = uv.y;
     float layerPhase = aLayer * 2.0943951;
-    float pulse = pow(
-      0.5 + 0.5 * sin(
-        depth * 14.0 - uTravel * 0.19 + sin(angle * 2.3 + layerPhase) * 1.7
-      ),
-      6.0
+    float compression = 0.5 + 0.5 * sin(
+      depth * 6.5 - uTravel * 0.075
+        + sin(angle * 2.0 + layerPhase) * 1.1
     );
+    compression = smoothstep(0.18, 0.88, compression);
     float macroWave = sin(
-      depth * 21.0 - uTravel * 0.16 + angle * 3.1 + layerPhase
-        + sin(angle * 5.0 - depth * 8.0 + uTime * 1.2) * 0.9
+      depth * 11.0 - uTravel * 0.08 + angle * 2.2 + layerPhase
+        + sin(angle * 3.5 - depth * 4.0 + uTime * 0.7) * 0.8
     );
     float pressureWave = sin(
-      depth * 56.0 - uTravel * 0.47 - uTime * 3.4
-        + sin(angle * 7.0 + depth * 11.0 - layerPhase) * 1.15
+      depth * 19.0 - uTravel * 0.13 - uTime * 1.1
+        + sin(angle * 4.0 + depth * 5.0 - layerPhase) * 0.75
     );
-    float displacement = macroWave * 0.48 + pressureWave * (0.12 + pulse * 0.34);
+    float displacement = macroWave * 0.38
+      + pressureWave * (0.08 + compression * 0.18);
     vec2 radial = normalize(position.xy);
-    float radialOffset = aLayer * 1.35;
-    float twist = sin(depth * 12.0 - uTravel * 0.08 + layerPhase) * 0.045;
+    float radialOffset = aLayer * 0.72;
+    float twist = sin(depth * 7.0 - uTravel * 0.035 + layerPhase) * 0.025;
     float twistCos = cos(twist);
     float twistSin = sin(twist);
     vec3 displacedPosition = position;
+    float axialEnvelope = pow(max(sin(depth * 3.14159265), 0.0), 0.18);
+    float bubbleScale = mix(0.9, 1.0, axialEnvelope);
+    displacedPosition.xy *= bubbleScale;
     displacedPosition.xy += radial * (radialOffset + displacement);
     displacedPosition.xy = mat2(twistCos, -twistSin, twistSin, twistCos) * displacedPosition.xy;
-    displacedPosition.z += sin(angle * 4.0 + depth * 18.0 - uTime * 2.1 + layerPhase) * pulse * 0.24;
+    displacedPosition.z += sin(
+      angle * 2.5 + depth * 8.0 - uTime * 0.85 + layerPhase
+    ) * compression * 0.16;
 
     vec4 viewPosition = modelViewMatrix * vec4(displacedPosition, 1.0);
     vec3 viewNormal = normalize(normalMatrix * normal);
     vec3 viewDirection = normalize(-viewPosition.xyz);
     vFieldUv = uv;
     vLayer = aLayer;
-    vPulse = pulse;
+    vCompression = compression;
     vDistortion = abs(displacement);
-    vFresnel = pow(1.0 - abs(dot(viewNormal, viewDirection)), 1.35);
+    vFresnel = pow(1.0 - abs(dot(viewNormal, viewDirection)), 1.05);
     gl_Position = projectionMatrix * viewPosition;
   }
 `;
@@ -233,7 +238,7 @@ const warpBubbleFragmentShader = `
 
   varying vec2 vFieldUv;
   varying float vLayer;
-  varying float vPulse;
+  varying float vCompression;
   varying float vDistortion;
   varying float vFresnel;
 
@@ -242,64 +247,59 @@ const warpBubbleFragmentShader = `
     float depth = vFieldUv.y;
     float layerPhase = vLayer * 2.0943951;
     float domainWarpA = sin(
-      angle * 2.7 + depth * 17.0 - uTime * 1.8 + layerPhase
-    ) * 0.74 + sin(
-      angle * 6.3 - depth * 9.0 + uTime * 0.9 - layerPhase
-    ) * 0.31;
+      angle * 2.1 + depth * 7.0 - uTime * 0.55 + layerPhase
+    ) * 0.55 + sin(
+      angle * 3.7 - depth * 5.0 + uTime * 0.38 - layerPhase
+    ) * 0.24;
     float domainWarpB = sin(
-      angle * 4.6 - depth * 12.0 + uTime * 1.35 + layerPhase
-    ) * 0.58 + sin(
-      angle * 8.1 + depth * 7.0 - uTime * 0.72
-    ) * 0.22;
+      angle * 2.8 - depth * 5.5 + uTime * 0.42 + layerPhase
+    ) * 0.48 + sin(
+      angle * 4.4 + depth * 4.0 - uTime * 0.27
+    ) * 0.2;
 
-    float plasmaA = 0.5 + 0.5 * sin(
-      angle * 4.2 + depth * 26.0 - uTravel * 0.22 + domainWarpA * 2.2
+    float densityA = 0.5 + 0.5 * sin(
+      angle * 2.6 + depth * 9.5 - uTravel * 0.07 + domainWarpA * 1.4
     );
-    float plasmaB = 0.5 + 0.5 * sin(
-      angle * 7.1 - depth * 19.0 + uTravel * 0.13 + domainWarpB * 1.8 + layerPhase
+    float densityB = 0.5 + 0.5 * sin(
+      angle * 4.1 - depth * 6.5 + uTravel * 0.045
+        + domainWarpB * 1.2 + layerPhase
     );
-    float turbulentPlasma = smoothstep(0.54, 0.94, plasmaA * 0.58 + plasmaB * 0.42);
-
-    float shockFront = pow(
-      0.5 + 0.5 * sin(
-        depth * 43.0 - uTravel * 0.42 + domainWarpA * 2.6 + layerPhase
-      ),
-      15.0
+    float volumeDensity = clamp(
+      densityA * 0.55 + densityB * 0.3 + vCompression * 0.15,
+      0.0,
+      1.0
     );
-    float pressureFront = pow(
-      0.5 + 0.5 * sin(
-        depth * 15.0 - uTravel * 0.18 + domainWarpB * 1.3 - layerPhase
-      ),
-      8.0
+    float softCloud = smoothstep(0.22, 0.86, volumeDensity);
+    float rim = pow(clamp(vFresnel, 0.0, 1.0), 0.7);
+    float surfaceBreath = 0.5 + 0.5 * sin(
+      depth * 5.5 - uTravel * 0.045 + domainWarpA + layerPhase
     );
-
-    float branchField = abs(sin(
-      angle * 1.85 + depth * 32.0 - uTravel * 0.31
-        + sin(angle * 5.2 - depth * 13.0 + uTime * 2.3) * 1.8
-        + layerPhase
-    ));
-    float arcHalo = 1.0 - smoothstep(0.025, 0.18, branchField);
-    float arcCore = 1.0 - smoothstep(0.006, 0.045, branchField);
-    float stormGate = clamp(shockFront + pressureFront * turbulentPlasma, 0.0, 1.0);
-    float electricArc = (arcHalo * 0.32 + arcCore * 1.28) * stormGate;
-
-    float membrane = turbulentPlasma * (0.055 + pressureFront * 0.25)
-      * (0.32 + vFresnel * 0.92);
-    float shockEnergy = shockFront * (0.2 + turbulentPlasma * 0.72)
-      * (0.46 + vFresnel * 0.7 + vPulse * 0.5);
-    float distortionGlow = vDistortion * pressureFront * 0.16;
-    float energy = membrane + shockEnergy + electricArc + distortionGlow;
+    float rimEnergy = rim * (0.22 + softCloud * 0.36 + vDistortion * 0.18);
+    float bodyEnergy = softCloud * (
+      0.035 + vCompression * 0.085 + surfaceBreath * 0.04
+    );
+    float energy = rimEnergy + bodyEnergy;
     float depthFade = smoothstep(0.015, 0.1, depth)
       * (1.0 - smoothstep(0.92, 0.995, depth));
-    float layerWeight = mix(0.58, 1.0, 1.0 - abs(vLayer));
+    float layerWeight = mix(0.62, 1.0, 1.0 - abs(vLayer));
     float alpha = energy * layerWeight * depthFade * uOpacity;
-    vec3 deepWarpBlue = vec3(0.015, 0.09, 0.42);
-    vec3 ionCyan = vec3(0.08, 0.64, 1.0);
-    vec3 lightningWhite = vec3(0.94, 0.992, 1.0);
-    vec3 plasmaColor = mix(deepWarpBlue, ionCyan, turbulentPlasma * 0.72 + shockFront * 0.28);
-    float whiteHot = clamp(arcCore * stormGate + shockFront * 0.54, 0.0, 1.0);
-    vec3 color = mix(plasmaColor, lightningWhite, whiteHot);
-    gl_FragColor = vec4(color * (0.46 + shockEnergy * 0.8 + whiteHot * 1.65), alpha);
+    vec3 deepBubbleBlue = vec3(0.012, 0.06, 0.28);
+    vec3 ionBlue = vec3(0.055, 0.36, 0.86);
+    vec3 rimCyan = vec3(0.42, 0.86, 1.0);
+    vec3 bodyColor = mix(
+      deepBubbleBlue,
+      ionBlue,
+      softCloud * 0.7 + vCompression * 0.2
+    );
+    vec3 color = mix(
+      bodyColor,
+      rimCyan,
+      clamp(rim * 0.55 + vDistortion * 0.18, 0.0, 1.0)
+    );
+    gl_FragColor = vec4(
+      color * (0.52 + rim * 0.68 + softCloud * 0.15),
+      alpha
+    );
   }
 `;
 
@@ -1521,7 +1521,7 @@ export function HyperspaceIntro() {
         tunnelDustUniforms.uOpacity.value = (0.025 + charge * 0.04 + visualLaunch * 0.42) * (1 - braking);
         warpBubbleUniforms.uTime.value = elapsed * 0.001;
         warpBubbleUniforms.uTravel.value = travel;
-        warpBubbleUniforms.uOpacity.value = (charge * 0.008 + visualLaunch * 0.15) * (1 - braking);
+        warpBubbleUniforms.uOpacity.value = (charge * 0.006 + visualLaunch * 0.13) * (1 - braking);
         const stretchCharge = Math.pow(lineGrowth, 0.7);
         const staticStretch = THREE.MathUtils.lerp(0.035, 0.43, stretchCharge);
         uniforms.uForwardStretch.value = staticStretch * (1 - braking) + braking * 0.01;
