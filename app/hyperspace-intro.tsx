@@ -13,7 +13,7 @@ import { HyperspaceIntro2D } from "./hyperspace-intro-2d";
 const DURATION = 15000;
 const DEPTH = 132;
 const NEAR = 0.68;
-const SEEN_KEY = "black-vector-jump-seen-3d-v15";
+const SEEN_KEY = "black-vector-jump-seen-3d-v17";
 
 function clamp01(value: number) {
   return Math.max(0, Math.min(1, value));
@@ -524,34 +524,25 @@ export function HyperspaceIntro() {
 
       if (!jumpComplete) {
         const progress = skipJumpRef.current ? 1 : clamp01(elapsed / DURATION);
-        const charge = smoothstep(progress / 0.25);
-        const launch = smoothstep((progress - 0.25) / 0.075);
-        const launchPhase = clamp01((progress - 0.24) / 0.12);
-        const launchKick = Math.sin(launchPhase * Math.PI);
-        const chargeWall = charge * (1 - launch);
-        const stretchedCharge = chargeWall * smoothstep((charge - 0.48) / 0.52);
-        const exitBoost = smoothstep((progress - 0.8) / 0.11);
-        const braking = smoothstep((progress - 0.92) / 0.08);
-        const preLaunchSpeed = 0.18 + charge * 8.2;
-        const hyperspaceSpeed = 74 + exitBoost * 26 + launchKick * 38;
+        const launch = smoothstep((progress - 0.2) / 0.11);
+        const braking = smoothstep((progress - 0.85) / 0.065);
+        const preLaunchSpeed = 0.14;
+        const hyperspaceSpeed = 74;
         const speed = THREE.MathUtils.lerp(preLaunchSpeed, hyperspaceSpeed, launch) * (1 - braking) + 0.35 * braking;
         travel += speed * delta;
         uniforms.uTravel.value = travel;
-        uniforms.uStretch.value = (0.018 + chargeWall * 0.9 + launch * 1.72 + launchKick * 0.26 + exitBoost * 0.28) * (1 - braking) + braking * 0.04;
-        uniforms.uWidthScale.value = (0.72 + chargeWall * 0.8 + launch * 0.8 + launchKick * 0.15) * (1 - braking * 0.35);
-        uniforms.uEnergy.value = (0.28 + chargeWall * 1.2 + launch * 1.2 + launchKick * 0.08) * (1 - braking * 0.48);
-        uniforms.uOpacity.value = smoothstep(progress / 0.035) * (1 - smoothstep((progress - 0.84) / 0.16));
-        world.setOpacity(smoothstep((progress - 0.87) / 0.13));
-        bloomPass.strength = 0.035 + launch * 0.04 + stretchedCharge * (isMobile ? 0.02 : 0.03);
-        bloomPass.threshold = 0.97;
-        bloomPass.radius = 0.018;
-        renderer.toneMappingExposure = 0.98 + chargeWall * 0.06 + launch * 0.06;
+        uniforms.uStretch.value = (0.018 + launch * 1.72) * (1 - braking) + braking * 0.04;
+        uniforms.uWidthScale.value = (0.72 + launch * 0.8) * (1 - braking * 0.35);
+        uniforms.uEnergy.value = (0.28 + launch * 1.2) * (1 - braking * 0.48);
+        uniforms.uOpacity.value = smoothstep(progress / 0.035) * (1 - smoothstep((progress - 0.85) / 0.075));
+        world.setOpacity(smoothstep((progress - 0.91) / 0.055));
+        renderer.toneMappingExposure = 0.98 + launch * 0.06;
 
         camera.position.x = 0;
         camera.position.y = 0;
-        camera.position.z = launchKick * 0.055;
+        camera.position.z = 0;
         camera.rotation.set(0, 0, 0);
-        camera.fov = 64 + launch * 18 + launchKick * 11 - braking * 4;
+        camera.fov = 64 + launch * 18 - braking * 18;
         camera.updateProjectionMatrix();
 
         if (progress >= 1) {
