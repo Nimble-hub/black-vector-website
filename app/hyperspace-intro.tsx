@@ -595,9 +595,9 @@ const exitDustVertexShader = `
     ) * step(0.64, aSeed);
     float effectiveGlint = max(max(aGlint, facetFlash), headlightResponse * 0.72);
     gl_PointSize = clamp(
-      aSize * (18.0 / max(-viewPosition.z, 1.0)) * (1.0 + effectiveGlint * 1.65),
-      0.55,
-      5.8
+      aSize * (18.0 / max(-viewPosition.z, 1.0)) * (1.0 + effectiveGlint * 1.18),
+      0.62,
+      4.6
     );
 
     vLife = isAlive * fade * uOpacity;
@@ -1050,7 +1050,7 @@ function createExitDustGeometry(count: number) {
     clusterOrigins[offset + 2] = originZ;
     delays[index] = Math.random() * 0.085;
     lifetimes[index] = 4.1 + Math.random() * 2.2;
-    sizes[index] = 0.2 + Math.pow(Math.random(), 1.72) * 0.98;
+    sizes[index] = 0.14 + Math.pow(Math.random(), 1.82) * 0.62;
     brightness[index] = 0.58 + Math.pow(Math.random(), 0.62) * 0.62;
     turbulence[index] = localTurbulence * (0.86 + Math.random() * 0.28);
     seeds[index] = Math.random();
@@ -1693,7 +1693,7 @@ export function HyperspaceIntro() {
       uTime: { value: 0 },
       uOpacity: { value: 0 },
     };
-    const exitDustGeometry = createExitDustGeometry(isMobile ? 8200 : 22800);
+    const exitDustGeometry = createExitDustGeometry(isMobile ? 12200 : 34000);
     const exitDustMaterial = new THREE.ShaderMaterial({
       uniforms: exitDustUniforms,
       vertexShader: exitDustVertexShader,
