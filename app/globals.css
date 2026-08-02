@@ -57,13 +57,6 @@ a:focus-visible {
   overflow: hidden;
   background: #000104;
   opacity: 1;
-  transition: opacity 500ms ease, filter 500ms ease;
-}
-
-.jump-intro.is-exiting {
-  opacity: 0;
-  filter: brightness(1.7);
-  pointer-events: none;
 }
 
 .jump-intro canvas {
@@ -79,7 +72,6 @@ a:focus-visible {
   background: #000104;
   opacity: 1;
   pointer-events: none;
-  transition: opacity 620ms ease, filter 620ms ease;
 }
 
 .space-experience.is-jumping {
@@ -100,11 +92,6 @@ a:focus-visible {
 
 .space-experience.is-jumping::before { top: 0; }
 .space-experience.is-jumping::after { bottom: 0; }
-
-.space-experience.is-exiting {
-  opacity: 0;
-  filter: brightness(1.8);
-}
 
 .space-experience canvas {
   display: block;
@@ -130,6 +117,8 @@ a:focus-visible {
     linear-gradient(90deg, rgba(5, 7, 10, 0.9) 0%, rgba(5, 7, 10, 0.36) 46%, transparent 76%),
     linear-gradient(0deg, rgba(5, 7, 10, 0.76) 0%, transparent 42%);
   isolation: isolate;
+  perspective: 1400px;
+  perspective-origin: 64% 48%;
 }
 
 .hero-art {
@@ -144,15 +133,6 @@ a:focus-visible {
   background-size: cover;
   transform: scale(1.04);
   animation: hero-arrival 1.7s cubic-bezier(.16,.72,.26,1) both;
-}
-
-.hero-scan {
-  position: absolute;
-  inset: 0;
-  z-index: -2;
-  opacity: 0.22;
-  background-image: repeating-linear-gradient(0deg, transparent 0, transparent 4px, rgba(231,226,214,.035) 5px);
-  pointer-events: none;
 }
 
 .hero::after {
@@ -175,6 +155,9 @@ a:focus-visible {
   align-items: center;
   justify-content: space-between;
   padding: clamp(24px, 3.4vw, 52px) clamp(24px, 5vw, 78px);
+  opacity: 0;
+  transform: translate3d(0, -22px, 72px);
+  transition: opacity 700ms 180ms ease, transform 1100ms 120ms cubic-bezier(.16,.72,.26,1);
 }
 
 .wordmark {
@@ -223,8 +206,15 @@ a:focus-visible {
   left: clamp(24px, 8.3vw, 128px);
   width: min(720px, calc(100vw - 48px));
   z-index: 3;
-  transform: translateY(-43%);
-  animation: content-arrival 1s .12s cubic-bezier(.16,.72,.26,1) both;
+  opacity: 0;
+  transform: translate3d(-52px, -43%, 150px) rotateY(4deg);
+  transform-origin: left center;
+  transform-style: preserve-3d;
+  filter: blur(5px);
+  transition:
+    opacity 760ms 100ms ease,
+    filter 900ms 80ms ease,
+    transform 1250ms cubic-bezier(.16,.72,.26,1);
 }
 
 .eyebrow {
@@ -315,6 +305,9 @@ h1 span {
   gap: 7px;
   color: rgba(231, 226, 214, 0.44);
   font-size: 8px;
+  opacity: 0;
+  transform: translate3d(24px, 0, 90px);
+  transition: opacity 700ms 440ms ease, transform 1100ms 300ms cubic-bezier(.16,.72,.26,1);
 }
 
 .hero-meta span:first-child {
@@ -332,6 +325,22 @@ h1 span {
   color: rgba(231, 226, 214, 0.42);
   font-size: 8px;
   text-decoration: none;
+  opacity: 0;
+  transform: translate3d(-18px, 0, 80px);
+  transition: opacity 700ms 520ms ease, transform 1100ms 360ms cubic-bezier(.16,.72,.26,1);
+}
+
+.experience-landed .site-header,
+.experience-landed .hero-meta,
+.experience-landed .scroll-cue {
+  opacity: 1;
+  transform: translate3d(0, 0, 0);
+}
+
+.experience-landed .hero-content {
+  opacity: 1;
+  filter: none;
+  transform: translate3d(0, -43%, 0) rotateY(0deg);
 }
 
 .scroll-cue i {
@@ -397,11 +406,6 @@ h1 span {
 @keyframes hero-arrival {
   from { opacity: 0; filter: brightness(2.4) blur(8px); transform: scale(1.12); }
   to { opacity: 1; filter: brightness(1) blur(0); transform: scale(1.04); }
-}
-
-@keyframes content-arrival {
-  from { opacity: 0; transform: translateY(-38%); }
-  to { opacity: 1; transform: translateY(-43%); }
 }
 
 @keyframes signal-pulse {

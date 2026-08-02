@@ -10,7 +10,7 @@ type Star = {
 };
 
 const DURATION = 15000;
-const SEEN_KEY = "black-vector-jump-seen-v12";
+const SEEN_KEY = "black-vector-jump-seen-v13";
 
 function clamp01(value: number) {
   return Math.max(0, Math.min(1, value));
@@ -26,17 +26,16 @@ export function HyperspaceIntro2D() {
   const animationRef = useRef<number | null>(null);
   const [runId, setRunId] = useState(0);
   const [visible, setVisible] = useState(true);
-  const [exiting, setExiting] = useState(false);
 
   const finish = useCallback(() => {
-    setExiting(true);
     window.sessionStorage.setItem(SEEN_KEY, "true");
-    window.setTimeout(() => setVisible(false), 520);
+    document.documentElement.classList.add("experience-landed");
+    setVisible(false);
   }, []);
 
   const replay = useCallback(() => {
     if (animationRef.current) cancelAnimationFrame(animationRef.current);
-    setExiting(false);
+    document.documentElement.classList.remove("experience-landed");
     setVisible(true);
     setRunId((value) => value + 1);
   }, []);
@@ -58,8 +57,9 @@ export function HyperspaceIntro2D() {
   useEffect(() => {
     const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
     if ((window.sessionStorage.getItem(SEEN_KEY) && runId === 0) || reducedMotion) {
-      setVisible(false);
-      return;
+      document.documentElement.classList.add("experience-landed");
+      const settleTimer = window.setTimeout(() => setVisible(false), 0);
+      return () => window.clearTimeout(settleTimer);
     }
 
     const canvas = canvasRef.current;
@@ -71,7 +71,6 @@ export function HyperspaceIntro2D() {
     let height = window.innerHeight;
     let pixelRatio = Math.min(window.devicePixelRatio || 1, 1.6);
     let stars: Star[] = [];
-    let grainPatterns: CanvasPattern[] = [];
     let startTime = 0;
     let lastTime = 0;
 
@@ -82,28 +81,6 @@ export function HyperspaceIntro2D() {
       star.x = Math.cos(angle) * radius * horizontalScale;
       star.y = Math.sin(angle) * radius * 0.92;
       star.z = z ?? 0.18 + Math.random() * 0.92;
-    };
-
-    const makeGrain = () => {
-      grainPatterns = Array.from({ length: 4 }, () => {
-        const grain = document.createElement("canvas");
-        grain.width = 180;
-        grain.height = 180;
-        const grainContext = grain.getContext("2d");
-        if (!grainContext) return null;
-        const pixels = grainContext.createImageData(grain.width, grain.height);
-
-        for (let index = 0; index < pixels.data.length; index += 4) {
-          const value = 92 + Math.random() * 92;
-          pixels.data[index] = value;
-          pixels.data[index + 1] = value;
-          pixels.data[index + 2] = value + Math.random() * 4;
-          pixels.data[index + 3] = 255;
-        }
-
-        grainContext.putImageData(pixels, 0, 0);
-        return context.createPattern(grain, "repeat");
-      }).filter((pattern): pattern is CanvasPattern => pattern !== null);
     };
 
     const makeStars = () => {
@@ -131,7 +108,6 @@ export function HyperspaceIntro2D() {
       canvas.style.height = `${height}px`;
       context.setTransform(pixelRatio, 0, 0, pixelRatio, 0, 0);
       makeStars();
-      makeGrain();
     };
 
     const draw = (time: number) => {
@@ -242,56 +218,6 @@ export function HyperspaceIntro2D() {
       context.globalAlpha = 1;
 
       context.globalCompositeOperation = "source-over";
-      const vignette = context.createRadialGradient(
-        centerX,
-        centerY,
-        Math.min(width, height) * 0.24,
-        centerX,
-        centerY,
-        Math.max(width, height) * 0.72,
-      );
-      vignette.addColorStop(0, "rgba(0, 0, 0, 0)");
-      vignette.addColorStop(0.58, "rgba(0, 0, 3, 0.06)");
-      vignette.addColorStop(0.82, "rgba(0, 0, 3, 0.24)");
-      vignette.addColorStop(1, `rgba(0, 0, 2, ${0.68 - transit * 0.1})`);
-      context.fillStyle = vignette;
-      context.fillRect(0, 0, width, height);
-
-      const coreRadius = Math.min(width, height) * (0.052 + exitBoost * 0.006);
-      const tunnelCore = context.createRadialGradient(
-        centerX,
-        centerY,
-        0,
-        centerX,
-        centerY,
-        coreRadius,
-      );
-      tunnelCore.addColorStop(0, "rgba(0, 1, 5, 0.98)");
-      tunnelCore.addColorStop(0.48, "rgba(0, 2, 8, 0.9)");
-      tunnelCore.addColorStop(0.78, "rgba(0, 4, 14, 0.48)");
-      tunnelCore.addColorStop(1, "rgba(0, 4, 14, 0)");
-      context.fillStyle = tunnelCore;
-      context.fillRect(centerX - coreRadius, centerY - coreRadius, coreRadius * 2, coreRadius * 2);
-
-      if (progress > 0.87 && progress < 0.95) {
-        const flashProgress = (progress - 0.87) / 0.08;
-        const flashIn = smoothstep(flashProgress / 0.46);
-        const flashOut = 1 - smoothstep((flashProgress - 0.46) / 0.54);
-        const flash = flashIn * flashOut * 0.96;
-        context.fillStyle = `rgba(239, 249, 255, ${flash})`;
-        context.fillRect(0, 0, width, height);
-      }
-
-      if (grainPatterns.length > 0) {
-        const grainIndex = Math.floor(elapsed / 42) % grainPatterns.length;
-        context.globalCompositeOperation = "soft-light";
-        context.globalAlpha = 0.045;
-        context.fillStyle = grainPatterns[grainIndex];
-        context.fillRect(0, 0, width, height);
-        context.globalAlpha = 1;
-      }
-
-      context.globalCompositeOperation = "source-over";
 
       if (progress < 1) {
         animationRef.current = requestAnimationFrame(draw);
@@ -314,7 +240,7 @@ export function HyperspaceIntro2D() {
 
   return (
     <div
-      className={`jump-intro${exiting ? " is-exiting" : ""}`}
+      className="jump-intro"
       aria-label="Hyperspace jump loading sequence"
     >
       <canvas ref={canvasRef} aria-hidden="true" />

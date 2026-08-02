@@ -13,8 +13,6 @@ export default function Home() {
       <HyperspaceIntro />
 
       <section className="hero" aria-labelledby="hero-title">
-        <div className="hero-scan" aria-hidden="true" />
-
         <header className="site-header">
           <a className="wordmark" href="#top" aria-label="Black Vector home">
             <span className="wordmark-mark" aria-hidden="true">BV</span>

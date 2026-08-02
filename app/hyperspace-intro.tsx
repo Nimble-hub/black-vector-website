@@ -6,14 +6,14 @@ import { EffectComposer } from "three/examples/jsm/postprocessing/EffectComposer
 import { OutputPass } from "three/examples/jsm/postprocessing/OutputPass.js";
 import { RenderPass } from "three/examples/jsm/postprocessing/RenderPass.js";
 import { ShaderPass } from "three/examples/jsm/postprocessing/ShaderPass.js";
-import { UnrealBloomPass } from "three/examples/jsm/postprocessing/UnrealBloomPass.js";
 import { FXAAShader } from "three/examples/jsm/shaders/FXAAShader.js";
+import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
 import { HyperspaceIntro2D } from "./hyperspace-intro-2d";
 
 const DURATION = 15000;
 const DEPTH = 132;
 const NEAR = 0.68;
-const SEEN_KEY = "black-vector-jump-seen-3d-v18";
+const SEEN_KEY = "black-vector-jump-seen-3d-v19";
 
 function clamp01(value: number) {
   return Math.max(0, Math.min(1, value));
@@ -114,34 +114,6 @@ const fragmentShader = `
     gl_FragColor = vec4(color * intensity, alpha);
   }
 `;
-
-const filmicCameraShader = {
-  uniforms: {
-    tDiffuse: { value: null },
-    uResolution: { value: new THREE.Vector2(1, 1) },
-  },
-  vertexShader: `
-    varying vec2 vUv;
-    void main() {
-      vUv = uv;
-      gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
-    }
-  `,
-  fragmentShader: `
-    precision highp float;
-    uniform sampler2D tDiffuse;
-    uniform vec2 uResolution;
-    varying vec2 vUv;
-
-    void main() {
-      vec3 color = texture2D(tDiffuse, vUv).rgb;
-      vec2 lens = (vUv - 0.5) * vec2(uResolution.x / uResolution.y, 1.0);
-      float vignette = smoothstep(0.34, 0.82, dot(lens, lens));
-      color *= mix(1.0, 0.82, vignette);
-      gl_FragColor = vec4(max(color, 0.0), 1.0);
-    }
-  `,
-};
 
 function createTunnelGeometry(count: number) {
   const geometry = new THREE.InstancedBufferGeometry();
@@ -334,6 +306,63 @@ function createDeepSpaceWorld(isMobile: boolean) {
   createShip(0.2, new THREE.Vector3(-3.4, -4.1, -27), 0.08);
   group.add(fleet);
 
+  let assetLoadCancelled = false;
+  const disposeLoadedScene = (loadedScene: THREE.Object3D) => {
+    const disposedGeometry = new Set<THREE.BufferGeometry>();
+    const disposedMaterial = new Set<THREE.Material>();
+    loadedScene.traverse((object) => {
+      if (!(object instanceof THREE.Mesh)) return;
+      if (!disposedGeometry.has(object.geometry)) {
+        disposedGeometry.add(object.geometry);
+        object.geometry.dispose();
+      }
+      const meshMaterials = Array.isArray(object.material) ? object.material : [object.material];
+      for (const meshMaterial of meshMaterials) {
+        if (!disposedMaterial.has(meshMaterial)) {
+          disposedMaterial.add(meshMaterial);
+          meshMaterial.dispose();
+        }
+      }
+    });
+  };
+
+  new GLTFLoader().load(
+    "/models/Carrier.glb",
+    (gltf) => {
+      if (assetLoadCancelled) {
+        disposeLoadedScene(gltf.scene);
+        return;
+      }
+
+      const sourceMaterials = new Set<THREE.Material>();
+      gltf.scene.traverse((object) => {
+        if (!(object instanceof THREE.Mesh)) return;
+        const sourceGeometry = object.geometry;
+        const gameGeometry = trackGeometry(sourceGeometry.clone());
+        gameGeometry.computeVertexNormals();
+        object.geometry = gameGeometry;
+        sourceGeometry.dispose();
+        const meshMaterials = Array.isArray(object.material) ? object.material : [object.material];
+        for (const meshMaterial of meshMaterials) sourceMaterials.add(meshMaterial);
+        object.material = hullMaterial;
+      });
+      for (const sourceMaterial of sourceMaterials) sourceMaterial.dispose();
+
+      const bounds = new THREE.Box3().setFromObject(gltf.scene);
+      const size = bounds.getSize(new THREE.Vector3());
+      const center = bounds.getCenter(new THREE.Vector3());
+      const scale = 10.8 / Math.max(size.x, size.y, size.z, 0.001);
+      gltf.scene.scale.setScalar(scale);
+      gltf.scene.position.copy(center).multiplyScalar(-scale);
+      flagship.clear();
+      flagship.add(gltf.scene);
+    },
+    undefined,
+    () => {
+      // The procedural silhouette remains as a graceful offline fallback.
+    },
+  );
+
   const ringGeometry = trackGeometry(new THREE.TorusGeometry(7.8, 0.018, 4, 96));
   const ringMaterial = trackMaterial(new THREE.MeshBasicMaterial({
     color: 0x44cad1,
@@ -361,32 +390,30 @@ function createDeepSpaceWorld(isMobile: boolean) {
     starMaterial.opacity = eased * 0.82;
   };
 
-  return { group, fleet, flagship, planet, orbitalRing, geometries, materials, setOpacity };
+  const cancelAssetLoad = () => {
+    assetLoadCancelled = true;
+  };
+
+  return { group, fleet, flagship, planet, orbitalRing, geometries, materials, setOpacity, cancelAssetLoad };
 }
 
 export function HyperspaceIntro() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const finishTimerRef = useRef<number | null>(null);
   const skipJumpRef = useRef(false);
   const [runId, setRunId] = useState(0);
   const [jumping, setJumping] = useState(true);
-  const [exiting, setExiting] = useState(false);
   const [fallback, setFallback] = useState(false);
 
   const finish = useCallback(() => {
     skipJumpRef.current = true;
-    setExiting(true);
     window.sessionStorage.setItem(SEEN_KEY, "true");
-    if (finishTimerRef.current) window.clearTimeout(finishTimerRef.current);
-    finishTimerRef.current = window.setTimeout(() => {
-      setJumping(false);
-      setExiting(false);
-    }, 620);
+    document.documentElement.classList.add("experience-landed");
+    setJumping(false);
   }, []);
 
   const replay = useCallback(() => {
     skipJumpRef.current = false;
-    setExiting(false);
+    document.documentElement.classList.remove("experience-landed");
     setJumping(true);
     setRunId((value) => value + 1);
   }, []);
@@ -410,6 +437,7 @@ export function HyperspaceIntro() {
     const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
     const shouldJump = runId > 0 || (!window.sessionStorage.getItem(SEEN_KEY) && !reducedMotion);
     skipJumpRef.current = !shouldJump;
+    document.documentElement.classList.toggle("experience-landed", !shouldJump);
     const settleTimer = !shouldJump
       ? window.setTimeout(() => setJumping(false), 0)
       : null;
@@ -477,11 +505,6 @@ export function HyperspaceIntro() {
 
     const composer = new EffectComposer(renderer);
     composer.addPass(new RenderPass(scene, camera));
-    const bloomPass = new UnrealBloomPass(new THREE.Vector2(1, 1), isMobile ? 0.48 : 0.58, 0.18, 0.72);
-    bloomPass.enabled = !shouldJump;
-    composer.addPass(bloomPass);
-    const filmPass = new ShaderPass(filmicCameraShader);
-    composer.addPass(filmPass);
     const fxaaPass = new ShaderPass(FXAAShader);
     composer.addPass(fxaaPass);
     const outputPass = new OutputPass();
@@ -499,7 +522,6 @@ export function HyperspaceIntro() {
       camera.aspect = width / height;
       camera.updateProjectionMatrix();
       uniforms.uResolution.value.set(width * pixelRatio, height * pixelRatio);
-      filmPass.uniforms.uResolution.value.set(width, height);
       fxaaPass.uniforms.resolution.value.set(1 / (width * pixelRatio), 1 / (height * pixelRatio));
     };
 
@@ -514,7 +536,8 @@ export function HyperspaceIntro() {
     let travel = 0;
     let jumpComplete = !shouldJump;
     let finishQueued = !shouldJump;
-    const cameraTarget = new THREE.Vector3();
+    const cameraTarget = new THREE.Vector3(0, 0, -100);
+    const desiredTarget = new THREE.Vector3();
     const desiredCamera = new THREE.Vector3();
     const animate = (time: number) => {
       if (!startTime) {
@@ -529,7 +552,7 @@ export function HyperspaceIntro() {
       if (!jumpComplete) {
         const progress = skipJumpRef.current ? 1 : clamp01(elapsed / DURATION);
         const launch = smoothstep((progress - 0.2) / 0.11);
-        const braking = smoothstep((progress - 0.85) / 0.065);
+        const braking = smoothstep((progress - 0.84) / 0.055);
         const preLaunchSpeed = 0.14;
         const hyperspaceSpeed = 74;
         const speed = THREE.MathUtils.lerp(preLaunchSpeed, hyperspaceSpeed, launch) * (1 - braking) + 0.35 * braking;
@@ -538,25 +561,21 @@ export function HyperspaceIntro() {
         uniforms.uStretch.value = (0.018 + launch * 1.72) * (1 - braking) + braking * 0.04;
         uniforms.uWidthScale.value = (0.72 + launch * 0.8) * (1 - braking * 0.35);
         uniforms.uEnergy.value = (0.28 + launch * 1.2) * (1 - braking * 0.48);
-        uniforms.uOpacity.value = smoothstep(progress / 0.035) * (1 - smoothstep((progress - 0.85) / 0.075));
-        world.setOpacity(smoothstep((progress - 0.91) / 0.055));
+        uniforms.uOpacity.value = smoothstep(progress / 0.035) * (1 - smoothstep((progress - 0.88) / 0.055));
+        world.setOpacity(smoothstep((progress - 0.865) / 0.09));
         renderer.toneMappingExposure = 0.98 + launch * 0.06;
 
         camera.position.x = 0;
         camera.position.y = 0;
         camera.position.z = 0;
         camera.rotation.set(0, 0, 0);
-        camera.fov = 64 + launch * 18 - braking * 18;
+        camera.fov = 64 + launch * 18 - braking * 20;
         camera.updateProjectionMatrix();
 
         if (progress >= 1) {
           jumpComplete = true;
           tunnel.visible = false;
           world.setOpacity(1);
-          bloomPass.enabled = true;
-          bloomPass.strength = isMobile ? 0.48 : 0.58;
-          bloomPass.threshold = 0.72;
-          bloomPass.radius = 0.18;
           renderer.toneMappingExposure = 0.98;
           if (!finishQueued) {
             finishQueued = true;
@@ -571,13 +590,17 @@ export function HyperspaceIntro() {
           0.45 - scrollProgress * 4.8,
           7.4 - scrollProgress * 8.5,
         );
-        camera.position.lerp(desiredCamera, 1 - Math.pow(0.002, delta));
-        cameraTarget.set(
+        const cameraDamping = 1 - Math.pow(0.004, delta);
+        camera.position.lerp(desiredCamera, cameraDamping);
+        desiredTarget.set(
           2.7 - scrollProgress * 8.4,
           -0.6 + scrollProgress * 0.8,
           -19 - scrollProgress * 17,
         );
+        cameraTarget.lerp(desiredTarget, cameraDamping);
         camera.lookAt(cameraTarget);
+        camera.fov = THREE.MathUtils.lerp(camera.fov, 64 - scrollProgress * 2, cameraDamping);
+        camera.updateProjectionMatrix();
 
         world.fleet.rotation.y = Math.sin(elapsed * 0.00008) * 0.022;
         world.flagship.position.y = -0.9 + Math.sin(elapsed * 0.00034) * 0.08;
@@ -618,8 +641,7 @@ export function HyperspaceIntro() {
         material.dispose();
         for (const item of world.geometries) item.dispose();
         for (const item of world.materials) item.dispose();
-        bloomPass.dispose();
-        filmPass.dispose();
+        world.cancelAssetLoad();
         fxaaPass.dispose();
         outputPass.dispose();
         composer.dispose();
@@ -641,10 +663,9 @@ export function HyperspaceIntro() {
       scene.remove(tunnel);
       geometry.dispose();
       material.dispose();
+      world.cancelAssetLoad();
       for (const item of world.geometries) item.dispose();
       for (const item of world.materials) item.dispose();
-      bloomPass.dispose();
-      filmPass.dispose();
       fxaaPass.dispose();
       outputPass.dispose();
       composer.dispose();
@@ -652,15 +673,11 @@ export function HyperspaceIntro() {
     };
   }, [fallback, finish, runId]);
 
-  useEffect(() => () => {
-    if (finishTimerRef.current) window.clearTimeout(finishTimerRef.current);
-  }, []);
-
   if (fallback) return <HyperspaceIntro2D />;
 
   return (
     <div
-      className={`space-experience${jumping ? " is-jumping" : " is-landed"}${exiting ? " is-exiting" : ""}`}
+      className={`space-experience${jumping ? " is-jumping" : " is-landed"}`}
       aria-label={jumping ? "Three-dimensional hyperspace transit sequence" : "Three-dimensional Black Vector fleet theater"}
     >
       <canvas ref={canvasRef} aria-hidden="true" />
