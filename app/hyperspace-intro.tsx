@@ -559,8 +559,12 @@ export function HyperspaceIntro() {
         anchor.object.getWorldPosition(projectedAnchor);
         projectedAnchor.add(anchor.offset).project(camera);
         const offscreen = projectedAnchor.z > 1 || Math.abs(projectedAnchor.x) > 1.2 || Math.abs(projectedAnchor.y) > 1.2;
+        const rawAnchorX = projectedAnchor.x * 0.5 + 0.5;
+        const anchorX = anchor.element.dataset.worldAnchor === "flagship"
+          ? THREE.MathUtils.clamp(rawAnchorX, isMobile ? 0.34 : 0.18, 0.92)
+          : THREE.MathUtils.clamp(rawAnchorX, 0.08, isMobile ? 0.66 : 0.78);
         anchor.element.toggleAttribute("data-offscreen", offscreen);
-        anchor.element.style.setProperty("--anchor-x", `${(projectedAnchor.x * 0.5 + 0.5) * 100}%`);
+        anchor.element.style.setProperty("--anchor-x", `${anchorX * 100}%`);
         anchor.element.style.setProperty("--anchor-y", `${(-projectedAnchor.y * 0.5 + 0.5) * 100}%`);
       }
 
@@ -568,9 +572,14 @@ export function HyperspaceIntro() {
         world.interfaceAnchor.getWorldPosition(interfaceWorldPosition);
         const cameraDistance = camera.position.distanceTo(interfaceWorldPosition);
         projectedAnchor.copy(interfaceWorldPosition).project(camera);
-        const interfaceScale = THREE.MathUtils.clamp(25 / Math.max(cameraDistance, 1), 0.16, 0.96);
+        const interfaceScale = THREE.MathUtils.clamp(25 / Math.max(cameraDistance, 1), 0.16, isMobile ? 0.78 : 0.96);
         const interfaceYaw = THREE.MathUtils.lerp(-38, 2.5, interfaceArrival);
-        heroInterface.style.setProperty("--ui-x", `${(projectedAnchor.x * 0.5 + 0.5) * 100}%`);
+        const panelWidth = Math.min(720, Math.max(window.innerWidth - 48, 1));
+        const safeGutter = isMobile ? 24 : 56;
+        const projectedX = projectedAnchor.x * 0.5 + 0.5;
+        const minimumCenterX = Math.min(0.46, (panelWidth * interfaceScale * 0.5 + safeGutter) / window.innerWidth);
+        const safeCenterX = THREE.MathUtils.clamp(projectedX, minimumCenterX, 1 - minimumCenterX);
+        heroInterface.style.setProperty("--ui-x", `${safeCenterX * 100}%`);
         heroInterface.style.setProperty("--ui-y", `${(-projectedAnchor.y * 0.5 + 0.5) * 100}%`);
         heroInterface.style.setProperty("--ui-scale", interfaceScale.toFixed(4));
         heroInterface.style.setProperty("--ui-yaw", `${interfaceYaw.toFixed(2)}deg`);
