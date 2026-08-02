@@ -3,10 +3,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import * as THREE from "three";
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
-import { EffectComposer } from "three/examples/jsm/postprocessing/EffectComposer.js";
-import { OutputPass } from "three/examples/jsm/postprocessing/OutputPass.js";
-import { RenderPass } from "three/examples/jsm/postprocessing/RenderPass.js";
-import { ShaderPass } from "three/examples/jsm/postprocessing/ShaderPass.js";
 import { HyperspaceIntro2D } from "./hyperspace-intro-2d";
 import { HyperspaceAudio } from "./hyperspace-audio";
 
@@ -53,6 +49,10 @@ const vertexShader = `
   uniform float uForwardStretch;
   uniform float uBackwardStretch;
   uniform float uWidthScale;
+  uniform float uWarpTension;
+  uniform float uWarpRelease;
+  uniform float uWarpPhase;
+  uniform float uWarpCruise;
   uniform vec2 uResolution;
 
   varying vec2 vRibbonUv;
@@ -62,10 +62,32 @@ const vertexShader = `
 
   void main() {
     float travel = mod(aSeedZ + uTravel, uDepth);
-    float anchorZ = min(-uDepth + travel, -uNear);
+    float normalizedDepth = travel / uDepth;
+    float throatField = 1.0 - smoothstep(0.04, 0.52, normalizedDepth);
+    float tensionCurve = uWarpTension * throatField;
+
+    // The launch shell begins at the distant throat and expands toward the
+    // camera, so the apparent lens is made from actual tunnel geometry rather
+    // than a screen-space rectangle.
+    float shellCenter = mix(0.035, 1.08, pow(clamp(uWarpPhase, 0.0, 1.0), 0.72));
+    float shellDistance = (normalizedDepth - shellCenter) / 0.105;
+    float shell = exp(-shellDistance * shellDistance);
+    float shellSlope = -2.0 * shellDistance * shell;
+    float cruiseWave = sin(normalizedDepth * 18.0 - uTravel * 0.11)
+      * uWarpCruise
+      * (0.012 + throatField * 0.012);
+    float radialScale = 1.0
+      + tensionCurve * 0.16
+      + uWarpRelease * (shell * 0.22 + shellSlope * 0.055)
+      + cruiseWave;
+
+    float anchorZ = min(
+      -uDepth + travel + uWarpRelease * shellSlope * 3.2,
+      -uNear
+    );
     float headZ = min(anchorZ + aLength * uForwardStretch, -uNear);
     float tailZ = anchorZ - aLength * uBackwardStretch;
-    vec2 radial = vec2(cos(aAngle), sin(aAngle)) * aRadius;
+    vec2 radial = vec2(cos(aAngle), sin(aAngle)) * aRadius * radialScale;
 
     vec4 clipTail = projectionMatrix * modelViewMatrix * vec4(radial, tailZ, 1.0);
     vec4 clipHead = projectionMatrix * modelViewMatrix * vec4(radial, headZ, 1.0);
@@ -136,96 +158,6 @@ const fragmentShader = `
   }
 `;
 
-const launchOpticsShader = {
-  uniforms: {
-    tDiffuse: { value: null },
-    uStrength: { value: 0 },
-    uChromatic: { value: 0 },
-    uExposureKick: { value: 0 },
-    uLensCompression: { value: 0 },
-    uShockwave: { value: 0 },
-    uLaunchPhase: { value: 0 },
-    uAspect: { value: 1 },
-  },
-  vertexShader: `
-    varying vec2 vUv;
-
-    void main() {
-      vUv = uv;
-      gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
-    }
-  `,
-  fragmentShader: `
-    precision highp float;
-
-    uniform sampler2D tDiffuse;
-    uniform float uStrength;
-    uniform float uChromatic;
-    uniform float uExposureKick;
-    uniform float uLensCompression;
-    uniform float uShockwave;
-    uniform float uLaunchPhase;
-    uniform float uAspect;
-
-    varying vec2 vUv;
-
-    void main() {
-      vec2 fromCenter = vUv - 0.5;
-      vec2 aspectVector = vec2(fromCenter.x * uAspect, fromCenter.y);
-      float radial = clamp(length(aspectVector), 0.0, 1.0);
-      vec2 radialDirection = radial > 0.0001
-        ? vec2(aspectVector.x / uAspect, aspectVector.y) / radial
-        : vec2(0.0);
-
-      // A circular optical field follows the tunnel mouth itself. Keeping the
-      // field compact means no rectangular screen mask and no edge clamping
-      // can become visible during the launch.
-      float tunnelField = smoothstep(0.025, 0.09, radial)
-        * (1.0 - smoothstep(0.37, 0.49, radial));
-      float compressionDisplacement = uLensCompression
-        * (0.008 + radial * 0.038)
-        * tunnelField;
-
-      float shellRadius = mix(0.055, 0.45, pow(clamp(uLaunchPhase, 0.0, 1.0), 0.72));
-      float shellDistance = (radial - shellRadius) / 0.082;
-      float shellDensity = exp(-shellDistance * shellDistance) * tunnelField;
-      float metricGradient = -2.0 * shellDistance * shellDensity;
-      float metricDisplacement = metricGradient * uShockwave * 0.022;
-      vec2 opticalUv = vUv + radialDirection
-        * (compressionDisplacement + metricDisplacement);
-
-      vec3 blur = vec3(0.0);
-      float totalWeight = 0.0;
-
-      for (int index = 0; index < 13; index += 1) {
-        float linearStep = float(index) / 12.0;
-        float stepAmount = linearStep * linearStep;
-        float weight = 1.0 - linearStep * 0.58;
-        vec2 sampleUv = clamp(
-          opticalUv - fromCenter * uStrength * tunnelField * stepAmount,
-          vec2(0.001),
-          vec2(0.999)
-        );
-        blur += texture2D(tDiffuse, sampleUv).rgb * weight;
-        totalWeight += weight;
-      }
-
-      blur /= totalWeight;
-      float spectralAmount = uChromatic * shellDensity;
-      vec2 spectralOffset = radialDirection * spectralAmount;
-      float red = texture2D(tDiffuse, clamp(opticalUv - spectralOffset, 0.001, 0.999)).r;
-      float blue = texture2D(tDiffuse, clamp(opticalUv + spectralOffset, 0.001, 0.999)).b;
-      blur.r = mix(blur.r, red, 0.74);
-      blur.b = mix(blur.b, blue, 0.74);
-
-      float tunnelLift = tunnelField * uExposureKick * 0.055;
-      float shellLift = shellDensity * uExposureKick * 0.16;
-      vec3 color = blur * (1.0 + uExposureKick * 0.085 + tunnelLift + shellLift);
-      gl_FragColor = vec4(color, 1.0);
-    }
-  `,
-};
-
 const tunnelDustVertexShader = `
   precision highp float;
 
@@ -238,14 +170,31 @@ const tunnelDustVertexShader = `
   uniform float uTravel;
   uniform float uDepth;
   uniform float uOpacity;
+  uniform float uWarpTension;
+  uniform float uWarpRelease;
+  uniform float uWarpPhase;
+  uniform float uWarpCruise;
 
   varying float vBrightness;
   varying float vLife;
 
   void main() {
     float travel = mod(aSeedZ + uTravel * 1.12, uDepth);
-    float z = -uDepth + travel;
-    vec2 radial = vec2(cos(aAngle), sin(aAngle)) * aRadius;
+    float normalizedDepth = travel / uDepth;
+    float throatField = 1.0 - smoothstep(0.04, 0.52, normalizedDepth);
+    float shellCenter = mix(0.035, 1.08, pow(clamp(uWarpPhase, 0.0, 1.0), 0.72));
+    float shellDistance = (normalizedDepth - shellCenter) / 0.105;
+    float shell = exp(-shellDistance * shellDistance);
+    float shellSlope = -2.0 * shellDistance * shell;
+    float cruiseWave = sin(normalizedDepth * 18.0 - uTravel * 0.11)
+      * uWarpCruise
+      * (0.012 + throatField * 0.012);
+    float radialScale = 1.0
+      + uWarpTension * throatField * 0.16
+      + uWarpRelease * (shell * 0.22 + shellSlope * 0.055)
+      + cruiseWave;
+    float z = -uDepth + travel + uWarpRelease * shellSlope * 3.2;
+    vec2 radial = vec2(cos(aAngle), sin(aAngle)) * aRadius * radialScale;
     vec4 viewPosition = modelViewMatrix * vec4(radial, z, 1.0);
     gl_Position = projectionMatrix * viewPosition;
     gl_PointSize = clamp(aSize * (18.0 / max(-viewPosition.z, 1.0)), 0.7, 4.2);
@@ -1728,14 +1677,6 @@ export function HyperspaceIntro() {
     renderer.toneMapping = THREE.ACESFilmicToneMapping;
     renderer.toneMappingExposure = SCENE_EXPOSURE;
 
-    const composer = new EffectComposer(renderer);
-    const renderPass = new RenderPass(scene, camera);
-    const launchOpticsPass = new ShaderPass(launchOpticsShader);
-    const outputPass = new OutputPass();
-    composer.addPass(renderPass);
-    composer.addPass(launchOpticsPass);
-    composer.addPass(outputPass);
-
     const uniforms = {
       uTravel: { value: 0 },
       uDepth: { value: DEPTH },
@@ -1746,6 +1687,10 @@ export function HyperspaceIntro() {
       uWidthScale: { value: shouldJump ? 0.76 : 1 },
       uEnergy: { value: shouldJump ? 0.24 : 1 },
       uSymmetry: { value: shouldJump ? 1 : 0 },
+      uWarpTension: { value: 0 },
+      uWarpRelease: { value: 0 },
+      uWarpPhase: { value: 0 },
+      uWarpCruise: { value: 0 },
       uResolution: { value: new THREE.Vector2(1, 1) },
     };
     const geometry = createTunnelGeometry(isMobile ? 1350 : 2300);
@@ -1771,6 +1716,10 @@ export function HyperspaceIntro() {
       uTravel: { value: 0 },
       uDepth: { value: DEPTH },
       uOpacity: { value: 0 },
+      uWarpTension: { value: 0 },
+      uWarpRelease: { value: 0 },
+      uWarpPhase: { value: 0 },
+      uWarpCruise: { value: 0 },
     };
     const tunnelDustGeometry = createTunnelDustGeometry(isMobile ? 420 : 900);
     const tunnelDustMaterial = new THREE.ShaderMaterial({
@@ -1953,13 +1902,10 @@ export function HyperspaceIntro() {
         : Math.min(window.devicePixelRatio || 1, largeFrame ? 1.25 : isMobile ? 1.35 : 1.6);
       renderer.setPixelRatio(pixelRatio);
       renderer.setSize(width, height, false);
-      composer.setPixelRatio(pixelRatio);
-      composer.setSize(width, height);
       camera.aspect = width / height;
       camera.updateProjectionMatrix();
       uniforms.uResolution.value.set(width * pixelRatio, height * pixelRatio);
       exitWakeUniforms.uResolution.value.set(width * pixelRatio, height * pixelRatio);
-      launchOpticsPass.uniforms.uAspect.value = width / height;
     };
 
     const onContextLost = (event: Event) => {
@@ -1989,8 +1935,6 @@ export function HyperspaceIntro() {
       const elapsed = time - startTime;
       const delta = Math.min((time - previousTime) / 1000, 0.05);
       previousTime = time;
-      let launchOptics = 0;
-      let launchCompression = 0;
 
       if (!jumpComplete) {
         const progress = skipJumpRef.current ? 1 : clamp01(elapsed / DURATION);
@@ -2000,15 +1944,15 @@ export function HyperspaceIntro() {
         const launchProgress = clamp01((progress - 0.285) / 0.014);
         const launch = 1 - Math.pow(1 - launchProgress, 4);
         const visualLaunch = smoothstep((progress - 0.285) / 0.035);
-        const compressionAttack = smoothstep((progress - 0.12) / 0.15);
-        const compressionRelease = 1 - smoothstep((progress - 0.285) / 0.01);
-        launchCompression = compressionAttack * compressionRelease;
-        const opticsAttack = smoothstep((progress - 0.282) / 0.006);
-        const opticsRelease = 1 - smoothstep((progress - 0.34) / 0.04);
-        launchOptics = opticsAttack * opticsRelease;
+        const tensionAttack = smoothstep((progress - 0.05) / 0.22);
+        const tensionRelease = 1 - smoothstep((progress - 0.285) / 0.028);
+        const warpTension = tensionAttack * tensionRelease;
+        const warpReleaseAttack = smoothstep((progress - 0.285) / 0.014);
+        const warpReleaseFade = 1 - smoothstep((progress - 0.58) / 0.16);
+        const warpRelease = warpReleaseAttack * warpReleaseFade;
         const launchImpulse = smoothstep((progress - 0.283) / 0.005)
           * (1 - smoothstep((progress - 0.31) / 0.018));
-        const launchOpticsPhase = clamp01((progress - 0.285) / 0.055);
+        const warpPhase = clamp01((progress - 0.285) / 0.21);
         const braking = smoothstep((progress - 0.84) / 0.055);
         const exitArrival = smoothstep((progress - 0.89) / 0.11);
         const lineGrowth = smoothstep((progress - 0.04) / 0.31);
@@ -2019,6 +1963,10 @@ export function HyperspaceIntro() {
         uniforms.uTravel.value = travel;
         tunnelDustUniforms.uTravel.value = travel;
         tunnelDustUniforms.uOpacity.value = (0.025 + charge * 0.04 + visualLaunch * 0.42) * (1 - braking);
+        tunnelDustUniforms.uWarpTension.value = warpTension;
+        tunnelDustUniforms.uWarpRelease.value = warpRelease;
+        tunnelDustUniforms.uWarpPhase.value = warpPhase;
+        tunnelDustUniforms.uWarpCruise.value = visualLaunch * (1 - braking);
         warpBubbleUniforms.uTime.value = elapsed * 0.001;
         warpBubbleUniforms.uTravel.value = travel;
         warpBubbleUniforms.uOpacity.value = (charge * 0.006 + visualLaunch * 0.13) * (1 - braking);
@@ -2029,6 +1977,10 @@ export function HyperspaceIntro() {
         uniforms.uWidthScale.value = (0.76 + charge * 0.4 + visualLaunch * 0.38) * (1 - braking * 0.35);
         uniforms.uEnergy.value = (0.24 + charge * 0.88 + visualLaunch * 0.34) * (1 - braking * 0.48);
         uniforms.uSymmetry.value = 1 - visualLaunch;
+        uniforms.uWarpTension.value = warpTension;
+        uniforms.uWarpRelease.value = warpRelease;
+        uniforms.uWarpPhase.value = warpPhase;
+        uniforms.uWarpCruise.value = visualLaunch * (1 - braking);
         uniforms.uOpacity.value = smoothstep(progress / 0.015) * (0.24 + charge * 0.76) * (1 - smoothstep((progress - 0.88) / 0.055));
         exitWakeUniforms.uTime.value = Math.max(0, (elapsed - DURATION * 0.825) / 1000);
         exitWakeUniforms.uOpacity.value = smoothstep((progress - 0.828) / 0.045) * 0.34;
@@ -2043,25 +1995,23 @@ export function HyperspaceIntro() {
         renderer.toneMappingExposure = 1.0
           + charge * 0.11
           + launch * 0.08
-          + launchOptics * 0.055
+          + launchImpulse * 0.065
+          + warpRelease * 0.035
           + exitIllumination * 0.13;
-
-        launchOpticsPass.uniforms.uStrength.value = launchOptics * (isMobile ? 0.048 : 0.07)
-          + launchImpulse * (isMobile ? 0.052 : 0.072);
-        launchOpticsPass.uniforms.uChromatic.value = launchOptics * (isMobile ? 0.00025 : 0.0004);
-        launchOpticsPass.uniforms.uExposureKick.value = Math.max(launchOptics, launchImpulse);
-        launchOpticsPass.uniforms.uLensCompression.value = launchCompression * (isMobile ? 0.78 : 1.08);
-        launchOpticsPass.uniforms.uShockwave.value = launchOptics * 0.92;
-        launchOpticsPass.uniforms.uLaunchPhase.value = launchOpticsPhase;
 
         const launchShake = smoothstep((progress - 0.285) / 0.008) * (1 - smoothstep((progress - 0.36) / 0.055));
         const brakingShake = smoothstep((progress - 0.82) / 0.05) * (1 - smoothstep((progress - 0.965) / 0.035));
         const cruiseShake = launch * (1 - braking) * 0.006;
         const shakeStrength = launchShake * 0.075 + launchImpulse * 0.035 + brakingShake * 0.032 + cruiseShake;
-        const launchRecoil = launchOptics * 0.55 + launchImpulse * 0.75;
+        const cameraDive = smoothstep((progress - 0.288) / 0.035)
+          * (1 - smoothstep((progress - 0.355) / 0.18));
+        const launchRecoil = launchImpulse * 0.72;
         camera.position.x = Math.sin(elapsed * 0.031) * shakeStrength;
         camera.position.y = Math.cos(elapsed * 0.027) * shakeStrength * 0.68;
-        camera.position.z = -0.9 * exitArrival + launchRecoil * 0.55 + Math.sin(elapsed * 0.019) * shakeStrength * 0.32;
+        camera.position.z = -0.9 * exitArrival
+          + launchRecoil * 0.48
+          - cameraDive * 0.58
+          + Math.sin(elapsed * 0.019) * shakeStrength * 0.32;
         cameraTarget.set(
           Math.sin(elapsed * 0.024) * shakeStrength * 0.72,
           Math.cos(elapsed * 0.021) * shakeStrength * 0.46,
@@ -2069,7 +2019,7 @@ export function HyperspaceIntro() {
         );
         camera.lookAt(cameraTarget);
         camera.rotation.z += Math.sin(elapsed * 0.023) * shakeStrength * 0.028;
-        camera.fov = 62 + charge * 4 - launchCompression * 5.5 + launch * 21.5 + launchImpulse * 7.5 - braking * 23.5;
+        camera.fov = 62 + charge * 4 - warpTension * 4.5 + launch * 21.5 + launchImpulse * 5.5 - braking * 23.5;
         camera.updateProjectionMatrix();
 
         if (progress >= 1) {
@@ -2136,8 +2086,7 @@ export function HyperspaceIntro() {
         : jumpComplete ? 1 : 0;
       world.update(elapsed * 0.001);
       updateWorldAnchors(currentInterfaceArrival);
-      if (Math.max(launchOptics, launchCompression) > 0.001) composer.render();
-      else renderer.render(scene, camera);
+      renderer.render(scene, camera);
     };
 
     resize();
@@ -2187,9 +2136,6 @@ export function HyperspaceIntro() {
         for (const item of world.materials) item.dispose();
         for (const item of world.textures) item.dispose();
         world.cancelAssetLoad();
-        launchOpticsPass.dispose();
-        outputPass.dispose();
-        composer.dispose();
         renderer.dispose();
         window.setTimeout(() => setFallback(true), 0);
         return;
@@ -2237,9 +2183,6 @@ export function HyperspaceIntro() {
       for (const item of world.geometries) item.dispose();
       for (const item of world.materials) item.dispose();
       for (const item of world.textures) item.dispose();
-      launchOpticsPass.dispose();
-      outputPass.dispose();
-      composer.dispose();
       renderer.dispose();
     };
   }, [experienceReady, fallback, finish, runId]);
