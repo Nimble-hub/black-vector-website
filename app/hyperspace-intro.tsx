@@ -593,11 +593,26 @@ const exitDustVertexShader = `
     vec4 viewPosition = vec4(particlePosition, 1.0);
     gl_Position = projectionMatrix * viewPosition;
 
-    gl_PointSize = clamp(aSize * (18.0 / max(-viewPosition.z, 1.0)) * (1.0 + aGlint * 3.2), 0.8, 10.2);
+    float forwardDepth = max(-viewPosition.z, 0.0);
+    float headlightProximity = 1.0 - smoothstep(3.0, 30.0, forwardDepth);
+    float headlightCone = 1.0 - smoothstep(
+      0.32,
+      1.58,
+      length(viewPosition.xy) / max(forwardDepth, 1.0)
+    );
+    float headlightResponse = headlightProximity
+      * headlightCone
+      * step(0.18, forwardDepth);
+    float effectiveGlint = max(aGlint, headlightResponse * 0.86);
+    gl_PointSize = clamp(
+      aSize * (18.0 / max(-viewPosition.z, 1.0)) * (1.0 + effectiveGlint * 3.2),
+      0.8,
+      10.2
+    );
 
     vLife = isAlive * fade * uOpacity;
-    vBrightness = aBrightness;
-    vGlint = aGlint;
+    vBrightness = aBrightness * (1.0 + headlightResponse * 2.35);
+    vGlint = effectiveGlint;
   }
 `;
 
@@ -625,16 +640,24 @@ const exitDustFragmentShader = `
     float diffraction = max(horizontalDiffraction, verticalDiffraction * 0.46)
       * diffractionFalloff * vGlint;
     float opticalHalo = (1.0 - smoothstep(0.06, 0.34, distanceFromCenter)) * vGlint;
+    float emissiveCore = pow(max(core, metallicSpecular), 1.45);
+    float emissiveHalo = (1.0 - smoothstep(0.05, 0.46, distanceFromCenter))
+      * (0.2 + vGlint * 0.34);
     vec3 chromeShadow = vec3(0.16, 0.34, 0.52);
     vec3 chromeBlue = vec3(0.5, 0.76, 0.96);
     vec3 reflectedWhite = vec3(0.975, 0.995, 1.0);
     vec3 metalBody = mix(chromeShadow, chromeBlue, 0.42 + normalZ * 0.36);
     float reflection = clamp(metallicSpecular * 1.65 + core * 0.38 + diffraction, 0.0, 1.0);
     vec3 color = mix(metalBody, reflectedWhite, reflection);
-    float alpha = max(dust * (0.56 + core * 0.46 + metallicSpecular * 0.62), max(diffraction, opticalHalo * 0.22))
+    float alpha = max(
+      dust * (0.58 + core * 0.52 + metallicSpecular * 0.66),
+      max(diffraction, max(opticalHalo * 0.24, emissiveHalo * 0.46))
+    )
       * vLife * vBrightness;
+    vec3 emissionColor = mix(vec3(0.46, 0.82, 1.0), reflectedWhite, emissiveCore);
+    vec3 emittedLight = emissionColor * (emissiveCore * 3.4 + emissiveHalo * 0.72 + diffraction * 1.35);
     gl_FragColor = vec4(
-      color * (0.82 + metallicSpecular * 3.25 + metalRim * 0.34 + diffraction * 1.85),
+      color * (0.7 + metallicSpecular * 2.75 + metalRim * 0.3) + emittedLight,
       alpha
     );
   }
@@ -1215,7 +1238,7 @@ function createDeepSpaceWorld(isMobile: boolean) {
     assetLoadCancelled = true;
   };
 
-  return { group, fleet, flagship, planet, orbitalRing, interfaceAnchor, geometries, materials, textures, setOpacity, cancelAssetLoad };
+  return { group, fleet, flagship, planet, orbitalRing, rimLight, interfaceAnchor, geometries, materials, textures, setOpacity, cancelAssetLoad };
 }
 
 export function HyperspaceIntro() {
@@ -1654,6 +1677,9 @@ export function HyperspaceIntro() {
         exitDustUniforms.uTime.value = Math.max(0, (elapsed - DURATION * 0.825) / 1000);
         exitDustUniforms.uOpacity.value = smoothstep((progress - 0.828) / 0.045);
         world.setOpacity(smoothstep((progress - 0.9) / 0.085));
+        const exitIllumination = smoothstep((progress - 0.842) / 0.042)
+          * (1 - smoothstep((progress - 0.982) / 0.034));
+        world.rimLight.intensity = 22 + exitIllumination * 52;
         renderer.toneMappingExposure = 0.94 + charge * 0.1 + launch * 0.06;
 
         const launchShake = smoothstep((progress - 0.285) / 0.012) * (1 - smoothstep((progress - 0.36) / 0.055));
@@ -1697,6 +1723,7 @@ export function HyperspaceIntro() {
         exitCrystalUniforms.uOpacity.value = 0;
         exitDustUniforms.uTime.value = Math.max(0, (elapsed - DURATION * 0.825) / 1000);
         exitDustUniforms.uOpacity.value = dustFade;
+        world.rimLight.intensity = 22 + (exitDust.visible ? dustFade * 24 : 0);
         if (wakeFade <= 0.001) {
           exitWake.visible = false;
           exitCrystals.visible = false;
