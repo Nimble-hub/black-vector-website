@@ -52,10 +52,10 @@ const vertexShader = `
     float travel = mod(aSeedZ + uTravel, uDepth);
     float tunnelAnchorZ = min(-uDepth + travel, -uNear);
     float wallDistribution = fract(aSeedZ * 0.071 + aAngle * 0.113);
-    float wallRadius = mix(4.2, 27.0, pow(wallDistribution, 0.76));
+    float wallRadius = mix(1.8, 15.5, pow(wallDistribution, 0.68));
     float wallNoise = (fract(aSeedZ * 0.173 + aAngle * 0.37) - 0.5)
       * mix(2.8, 0.5, uWallAdvance);
-    float wallZ = mix(-34.0, -1.45, uWallAdvance) + wallNoise;
+    float wallZ = mix(-46.0, -1.45, uWallAdvance) + wallNoise;
     float anchorZ = mix(wallZ, tunnelAnchorZ, uFormation);
     float headZ = min(anchorZ + aLength * uForwardStretch, -uNear);
     float tailZ = anchorZ - aLength * uBackwardStretch;
@@ -153,8 +153,8 @@ const tunnelDustVertexShader = `
     float travel = mod(aSeedZ + uTravel * 1.12, uDepth);
     float tunnelZ = -uDepth + travel;
     float wallDistribution = fract(aSeedZ * 0.083 + aAngle * 0.127);
-    float wallRadius = mix(3.8, 28.0, pow(wallDistribution, 0.74));
-    float wallZ = mix(-33.5, -1.35, uWallAdvance)
+    float wallRadius = mix(1.6, 16.5, pow(wallDistribution, 0.66));
+    float wallZ = mix(-45.5, -1.35, uWallAdvance)
       + (fract(aSeedZ * 0.191 + aAngle * 0.41) - 0.5) * mix(3.4, 0.7, uWallAdvance);
     float z = mix(wallZ, tunnelZ, uFormation);
     vec2 radialDirection = vec2(cos(aAngle), sin(aAngle));
@@ -1611,8 +1611,8 @@ export function HyperspaceIntro() {
         const launchProgress = clamp01((progress - 0.285) / 0.028);
         const launch = 1 - Math.pow(1 - launchProgress, 4);
         const visualLaunch = smoothstep((progress - 0.285) / 0.055);
-        const wallAdvance = smoothstep((progress - 0.245) / 0.07);
-        const tunnelFormation = smoothstep((progress - 0.3) / 0.065);
+        const wallAdvance = smoothstep((progress - 0.282) / 0.05);
+        const tunnelFormation = smoothstep((progress - 0.312) / 0.075);
         const braking = smoothstep((progress - 0.84) / 0.055);
         const exitArrival = smoothstep((progress - 0.89) / 0.11);
         const lineGrowth = smoothstep((progress - 0.04) / 0.31);
