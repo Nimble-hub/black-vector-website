@@ -547,7 +547,7 @@ const exitDustVertexShader = `
     vec2 clusterOrbit = mat2(turnCos, -turnSin, turnSin, turnCos) * aClusterOrigin.xy;
     float shockRise = smoothstep(0.04, 0.52, age);
     float shockTravel = (1.0 - exp(-age * (2.1 + aDrag * 0.5)))
-      * (1.15 + aTurbulence * 1.45);
+      * (1.28 + aTurbulence * 1.58);
     clusterOrbit *= 1.0
       + shockRise * (0.18 + aTurbulence * 0.1)
       + age * (0.035 + aTurbulence * 0.018);
@@ -591,8 +591,8 @@ const exitDustVertexShader = `
       * step(0.18, forwardDepth);
     float facetFlash = pow(
       max(sin(age * (3.15 + aSeed * 2.55) + aSeed * 43.0), 0.0),
-      22.0
-    ) * step(0.62, aSeed);
+      19.0
+    ) * step(0.48, aSeed);
     float seededFlash = aGlint * pow(
       max(sin(age * (1.55 + aSeed * 1.3) + aSeed * 67.0), 0.0),
       22.0
@@ -608,7 +608,7 @@ const exitDustVertexShader = `
 
     vLife = isAlive * fade * uOpacity;
     vBrightness = aBrightness * (
-      0.78 + headlightResponse * 2.8 + diamondFire * 2.65
+      0.78 + headlightResponse * 2.8 + diamondFire * 3.25
     );
     vGlint = effectiveGlint;
     vFacetRotation = aSeed * 6.2831853 + age * (0.32 + aTurbulence * 0.23);
@@ -666,8 +666,8 @@ const exitDustFragmentShader = `
     );
     vec3 flashColor = mix(reflectedWhite, spectralIce, vFacetFlash * 0.12);
     vec3 emittedLight = flashColor * (
-      pinFire * (1.6 + vFacetFlash * 7.2)
-        + diffraction * 4.25
+      pinFire * (1.6 + vFacetFlash * 8.6)
+        + diffraction * 5.0
         + crystalEdge * vGlint * 0.42
     );
     gl_FragColor = vec4(color * (1.12 + facetLight * 0.52) + emittedLight, alpha);
@@ -1037,12 +1037,12 @@ function createExitDustGeometry(count: number) {
     const broadLobe = Math.sin(angle * 3 + 0.42) * 0.92;
     const fineLobe = Math.sin(angle * 7 - 1.15) * 0.34;
     const shellChoice = Math.random();
-    const shellOffset = shellChoice < 0.68
-      ? (Math.random() - 0.5) * 1.1
-      : shellChoice < 0.9
-        ? 0.8 + Math.random() * 1.6
-        : -1.5 + Math.random() * 0.9;
-    const ringRadius = 5.9 + broadLobe + fineLobe + shellOffset;
+    const shellOffset = shellChoice < 0.6
+      ? (Math.random() - 0.5) * 1.4
+      : shellChoice < 0.82
+        ? 0.8 + Math.random() * 2.25
+        : -3.1 + Math.random() * 2.25;
+    const ringRadius = 6.1 + broadLobe + fineLobe + shellOffset;
     const originX = Math.cos(angle) * ringRadius;
     const originY = Math.sin(angle) * ringRadius * 0.72 - 0.16;
     const originZ = 1.15
@@ -1052,8 +1052,8 @@ function createExitDustGeometry(count: number) {
     const tangentY = Math.cos(angle) * 0.72;
     const radialX = Math.cos(angle);
     const radialY = Math.sin(angle) * 0.72;
-    const along = (Math.random() - 0.5) * (0.62 + Math.pow(Math.random(), 1.55) * 1.65);
-    const across = (Math.random() - 0.5) * (0.28 + Math.random() * 0.82);
+    const along = (Math.random() - 0.5) * (0.72 + Math.pow(Math.random(), 1.55) * 1.9);
+    const across = (Math.random() - 0.5) * (0.34 + Math.random() * 1.02);
     const radialSpeed = 0.2 + (0.5 + 0.5 * Math.sin(angle * 3 + 1.1)) * 0.42;
     const tangentialSpeed = Math.sin(angle * 2 + 0.35) * (0.18 + Math.random() * 0.22);
     const localTurbulence = 0.42 + (0.5 + 0.5 * Math.sin(angle * 3 + 1.1)) * 1.02;
@@ -1741,7 +1741,7 @@ export function HyperspaceIntro() {
       uTime: { value: 0 },
       uOpacity: { value: 0 },
     };
-    const exitDustGeometry = createExitDustGeometry(isMobile ? 12200 : 34000);
+    const exitDustGeometry = createExitDustGeometry(isMobile ? 16000 : 46000);
     const exitDustMaterial = new THREE.ShaderMaterial({
       uniforms: exitDustUniforms,
       vertexShader: exitDustVertexShader,
