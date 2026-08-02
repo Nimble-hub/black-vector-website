@@ -1,16 +1,18 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-
-type Star = {
-  x: number;
-  y: number;
-  z: number;
-  brightness: number;
-};
+import * as THREE from "three";
+import { EffectComposer } from "three/examples/jsm/postprocessing/EffectComposer.js";
+import { OutputPass } from "three/examples/jsm/postprocessing/OutputPass.js";
+import { RenderPass } from "three/examples/jsm/postprocessing/RenderPass.js";
+import { ShaderPass } from "three/examples/jsm/postprocessing/ShaderPass.js";
+import { UnrealBloomPass } from "three/examples/jsm/postprocessing/UnrealBloomPass.js";
+import { HyperspaceIntro2D } from "./hyperspace-intro-2d";
 
 const DURATION = 15000;
-const SEEN_KEY = "black-vector-jump-seen-v12";
+const DEPTH = 132;
+const NEAR = 0.68;
+const SEEN_KEY = "black-vector-jump-seen-3d-v1";
 
 function clamp01(value: number) {
   return Math.max(0, Math.min(1, value));
@@ -21,21 +23,190 @@ function smoothstep(value: number) {
   return t * t * (3 - 2 * t);
 }
 
+const vertexShader = `
+  precision highp float;
+
+  attribute float aAngle;
+  attribute float aRadius;
+  attribute float aSeedZ;
+  attribute float aLength;
+  attribute float aWidth;
+  attribute float aBrightness;
+  attribute float aHue;
+
+  uniform float uTravel;
+  uniform float uDepth;
+  uniform float uNear;
+  uniform vec2 uResolution;
+
+  varying vec2 vRibbonUv;
+  varying float vBrightness;
+  varying float vHue;
+  varying float vDepthFade;
+
+  void main() {
+    float travel = mod(aSeedZ + uTravel, uDepth);
+    float headZ = min(-uDepth + travel, -uNear);
+    float tailZ = headZ - aLength;
+    vec2 radial = vec2(cos(aAngle), sin(aAngle)) * aRadius;
+
+    vec4 clipTail = projectionMatrix * modelViewMatrix * vec4(radial, tailZ, 1.0);
+    vec4 clipHead = projectionMatrix * modelViewMatrix * vec4(radial, headZ, 1.0);
+    vec2 ndcTail = clipTail.xy / clipTail.w;
+    vec2 ndcHead = clipHead.xy / clipHead.w;
+    vec2 screenTail = ndcTail * uResolution * 0.5;
+    vec2 screenHead = ndcHead * uResolution * 0.5;
+    vec2 direction = normalize(screenHead - screenTail + vec2(0.00001));
+    vec2 perpendicular = vec2(-direction.y, direction.x);
+
+    float along = uv.y;
+    vec2 screenPosition = mix(screenTail, screenHead, along);
+    screenPosition += perpendicular * uv.x * aWidth;
+    vec2 ndcPosition = screenPosition / (uResolution * 0.5);
+    float clipW = mix(clipTail.w, clipHead.w, along);
+    float ndcZ = mix(clipTail.z / clipTail.w, clipHead.z / clipHead.w, along);
+
+    gl_Position = vec4(ndcPosition * clipW, ndcZ * clipW, clipW);
+    vRibbonUv = uv;
+    vBrightness = aBrightness;
+    vHue = aHue;
+    vDepthFade = smoothstep(0.0, 7.0, travel) * (1.0 - smoothstep(uDepth - 4.5, uDepth, travel));
+  }
+`;
+
+const fragmentShader = `
+  precision highp float;
+
+  varying vec2 vRibbonUv;
+  varying float vBrightness;
+  varying float vHue;
+  varying float vDepthFade;
+
+  void main() {
+    float edge = 1.0 - smoothstep(0.18, 1.0, abs(vRibbonUv.x));
+    float tailFade = smoothstep(0.0, 0.12, vRibbonUv.y);
+    float headFade = 1.0 - smoothstep(0.985, 1.0, vRibbonUv.y);
+    float longitudinal = tailFade * headFade;
+    float hotCore = 1.0 - smoothstep(0.0, 0.32, abs(vRibbonUv.x));
+    float headExposure = mix(0.34, 1.0, pow(vRibbonUv.y, 0.48));
+
+    vec3 coldBlue = vec3(0.34, 0.67, 1.0);
+    vec3 photographicWhite = vec3(0.93, 0.985, 1.0);
+    vec3 color = mix(coldBlue, photographicWhite, vHue);
+    float intensity = vBrightness * headExposure * (1.28 + hotCore * 2.45);
+    float alpha = edge * longitudinal * vDepthFade;
+
+    gl_FragColor = vec4(color * intensity, alpha);
+  }
+`;
+
+const filmicCameraShader = {
+  uniforms: {
+    tDiffuse: { value: null },
+    uTime: { value: 0 },
+    uFlash: { value: 0 },
+    uResolution: { value: new THREE.Vector2(1, 1) },
+  },
+  vertexShader: `
+    varying vec2 vUv;
+    void main() {
+      vUv = uv;
+      gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+    }
+  `,
+  fragmentShader: `
+    precision highp float;
+    uniform sampler2D tDiffuse;
+    uniform float uTime;
+    uniform float uFlash;
+    uniform vec2 uResolution;
+    varying vec2 vUv;
+
+    float random(vec2 point) {
+      return fract(sin(dot(point, vec2(12.9898, 78.233)) + uTime * 41.17) * 43758.5453);
+    }
+
+    void main() {
+      vec3 color = texture2D(tDiffuse, vUv).rgb;
+      vec2 lens = (vUv - 0.5) * vec2(uResolution.x / uResolution.y, 1.0);
+      float vignette = smoothstep(0.34, 0.82, dot(lens, lens));
+      color *= mix(1.0, 0.57, vignette);
+      float grain = random(gl_FragCoord.xy) - 0.5;
+      color += grain * 0.018;
+      color = mix(color, vec3(0.94, 0.985, 1.0), uFlash);
+      gl_FragColor = vec4(max(color, 0.0), 1.0);
+    }
+  `,
+};
+
+function createTunnelGeometry(count: number) {
+  const geometry = new THREE.InstancedBufferGeometry();
+  geometry.setAttribute(
+    "position",
+    new THREE.Float32BufferAttribute([
+      -1, 0, 0,
+      1, 0, 0,
+      1, 1, 0,
+      -1, 1, 0,
+    ], 3),
+  );
+  geometry.setAttribute(
+    "uv",
+    new THREE.Float32BufferAttribute([
+      -1, 0,
+      1, 0,
+      1, 1,
+      -1, 1,
+    ], 2),
+  );
+  geometry.setIndex([0, 1, 2, 0, 2, 3]);
+
+  const angles = new Float32Array(count);
+  const radii = new Float32Array(count);
+  const seeds = new Float32Array(count);
+  const lengths = new Float32Array(count);
+  const widths = new Float32Array(count);
+  const brightness = new Float32Array(count);
+  const hues = new Float32Array(count);
+
+  for (let index = 0; index < count; index += 1) {
+    const light = 0.64 + Math.random() * 0.36;
+    angles[index] = Math.random() * Math.PI * 2;
+    radii[index] = 2.8 + Math.pow(Math.random(), 0.68) * 13.2;
+    seeds[index] = Math.random() * DEPTH;
+    lengths[index] = 4.8 + Math.pow(Math.random(), 0.6) * 10.5;
+    widths[index] = 0.58 + light * (0.72 + Math.random() * 0.72);
+    brightness[index] = light;
+    hues[index] = Math.random() < 0.14 ? Math.random() * 0.28 : 0.82 + Math.random() * 0.18;
+  }
+
+  geometry.setAttribute("aAngle", new THREE.InstancedBufferAttribute(angles, 1));
+  geometry.setAttribute("aRadius", new THREE.InstancedBufferAttribute(radii, 1));
+  geometry.setAttribute("aSeedZ", new THREE.InstancedBufferAttribute(seeds, 1));
+  geometry.setAttribute("aLength", new THREE.InstancedBufferAttribute(lengths, 1));
+  geometry.setAttribute("aWidth", new THREE.InstancedBufferAttribute(widths, 1));
+  geometry.setAttribute("aBrightness", new THREE.InstancedBufferAttribute(brightness, 1));
+  geometry.setAttribute("aHue", new THREE.InstancedBufferAttribute(hues, 1));
+  geometry.instanceCount = count;
+  return geometry;
+}
+
 export function HyperspaceIntro() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const animationRef = useRef<number | null>(null);
+  const finishTimerRef = useRef<number | null>(null);
   const [runId, setRunId] = useState(0);
   const [visible, setVisible] = useState(true);
   const [exiting, setExiting] = useState(false);
+  const [fallback, setFallback] = useState(false);
 
   const finish = useCallback(() => {
     setExiting(true);
     window.sessionStorage.setItem(SEEN_KEY, "true");
-    window.setTimeout(() => setVisible(false), 520);
+    if (finishTimerRef.current) window.clearTimeout(finishTimerRef.current);
+    finishTimerRef.current = window.setTimeout(() => setVisible(false), 620);
   }, []);
 
   const replay = useCallback(() => {
-    if (animationRef.current) cancelAnimationFrame(animationRef.current);
     setExiting(false);
     setVisible(true);
     setRunId((value) => value + 1);
@@ -56,6 +227,7 @@ export function HyperspaceIntro() {
   }, [finish, visible]);
 
   useEffect(() => {
+    if (fallback || !visible) return;
     const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
     if ((window.sessionStorage.getItem(SEEN_KEY) && runId === 0) || reducedMotion) {
       setVisible(false);
@@ -64,258 +236,153 @@ export function HyperspaceIntro() {
 
     const canvas = canvasRef.current;
     if (!canvas) return;
-    const context = canvas.getContext("2d");
-    if (!context) return;
 
-    let width = window.innerWidth;
-    let height = window.innerHeight;
-    let pixelRatio = Math.min(window.devicePixelRatio || 1, 1.6);
-    let stars: Star[] = [];
-    let grainPatterns: CanvasPattern[] = [];
-    let startTime = 0;
-    let lastTime = 0;
-
-    const placeOnTunnelWall = (star: Star, z?: number) => {
-      const angle = Math.random() * Math.PI * 2;
-      const radius = 0.075 + Math.pow(Math.random(), 0.72) * 1.28;
-      const horizontalScale = Math.max(1.05, Math.min(1.55, (width / height) * 0.82));
-      star.x = Math.cos(angle) * radius * horizontalScale;
-      star.y = Math.sin(angle) * radius * 0.92;
-      star.z = z ?? 0.18 + Math.random() * 0.92;
-    };
-
-    const makeGrain = () => {
-      grainPatterns = Array.from({ length: 4 }, () => {
-        const grain = document.createElement("canvas");
-        grain.width = 180;
-        grain.height = 180;
-        const grainContext = grain.getContext("2d");
-        if (!grainContext) return null;
-        const pixels = grainContext.createImageData(grain.width, grain.height);
-
-        for (let index = 0; index < pixels.data.length; index += 4) {
-          const value = 92 + Math.random() * 92;
-          pixels.data[index] = value;
-          pixels.data[index + 1] = value;
-          pixels.data[index + 2] = value + Math.random() * 4;
-          pixels.data[index + 3] = 255;
-        }
-
-        grainContext.putImageData(pixels, 0, 0);
-        return context.createPattern(grain, "repeat");
-      }).filter((pattern): pattern is CanvasPattern => pattern !== null);
-    };
-
-    const makeStars = () => {
-      const count = width < 720 ? 520 : 960;
-      stars = Array.from({ length: count }, () => {
-        const star: Star = {
-          x: 0,
-          y: 0,
-          z: 1,
-          brightness: 0.52 + Math.random() * 0.48,
-        };
-        placeOnTunnelWall(star);
-        return star;
+    let renderer: THREE.WebGLRenderer;
+    try {
+      renderer = new THREE.WebGLRenderer({
+        canvas,
+        antialias: false,
+        alpha: false,
+        depth: false,
+        stencil: false,
+        powerPreference: "high-performance",
       });
+    } catch {
+      setFallback(true);
+      return;
+    }
+
+    const isMobile = window.matchMedia("(max-width: 720px)").matches;
+    const scene = new THREE.Scene();
+    scene.background = new THREE.Color(0x000104);
+    const camera = new THREE.PerspectiveCamera(74, 1, 0.1, 160);
+    camera.position.set(0, 0, 0);
+
+    renderer.outputColorSpace = THREE.SRGBColorSpace;
+    renderer.toneMapping = THREE.ACESFilmicToneMapping;
+    renderer.toneMappingExposure = 1.08;
+
+    const uniforms = {
+      uTravel: { value: 0 },
+      uDepth: { value: DEPTH },
+      uNear: { value: NEAR },
+      uResolution: { value: new THREE.Vector2(1, 1) },
     };
+    const geometry = createTunnelGeometry(isMobile ? 1500 : 2600);
+    const material = new THREE.ShaderMaterial({
+      uniforms,
+      vertexShader,
+      fragmentShader,
+      transparent: true,
+      blending: THREE.AdditiveBlending,
+      depthTest: false,
+      depthWrite: false,
+      toneMapped: false,
+    });
+    const tunnel = new THREE.Mesh(geometry, material);
+    tunnel.frustumCulled = false;
+    tunnel.matrixAutoUpdate = false;
+    tunnel.updateMatrix();
+    scene.add(tunnel);
+
+    const composer = new EffectComposer(renderer);
+    composer.addPass(new RenderPass(scene, camera));
+    const bloomPass = new UnrealBloomPass(new THREE.Vector2(1, 1), isMobile ? 0.72 : 0.94, 0.28, 0.64);
+    composer.addPass(bloomPass);
+    const filmPass = new ShaderPass(filmicCameraShader);
+    composer.addPass(filmPass);
+    composer.addPass(new OutputPass());
 
     const resize = () => {
-      width = window.innerWidth;
-      height = window.innerHeight;
-      const pixelBudget = width * height > 3_000_000 ? 1.3 : width < 720 ? 1.5 : 1.8;
-      pixelRatio = Math.min(window.devicePixelRatio || 1, pixelBudget);
-      canvas.width = width * pixelRatio;
-      canvas.height = height * pixelRatio;
-      canvas.style.width = `${width}px`;
-      canvas.style.height = `${height}px`;
-      context.setTransform(pixelRatio, 0, 0, pixelRatio, 0, 0);
-      makeStars();
-      makeGrain();
+      const width = window.innerWidth;
+      const height = window.innerHeight;
+      const largeFrame = width * height > 3_000_000;
+      const pixelRatio = Math.min(window.devicePixelRatio || 1, largeFrame ? 1.2 : isMobile ? 1.35 : 1.65);
+      renderer.setPixelRatio(pixelRatio);
+      renderer.setSize(width, height, false);
+      composer.setPixelRatio(pixelRatio);
+      composer.setSize(width, height);
+      camera.aspect = width / height;
+      camera.updateProjectionMatrix();
+      uniforms.uResolution.value.set(width * pixelRatio, height * pixelRatio);
+      filmPass.uniforms.uResolution.value.set(width, height);
     };
 
-    const draw = (time: number) => {
+    const onContextLost = (event: Event) => {
+      event.preventDefault();
+      renderer.setAnimationLoop(null);
+      setFallback(true);
+    };
+
+    let startTime = 0;
+    let previousTime = 0;
+    let travel = 0;
+    const animate = (time: number) => {
       if (!startTime) {
         startTime = time;
-        lastTime = time;
+        previousTime = time;
       }
 
       const elapsed = time - startTime;
-      const delta = Math.min(time - lastTime, 50) / 1000;
-      const progress = Math.min(elapsed / DURATION, 1);
-      lastTime = time;
+      const progress = clamp01(elapsed / DURATION);
+      const delta = Math.min((time - previousTime) / 1000, 0.05);
+      previousTime = time;
 
-      const exitBoost = smoothstep((progress - 0.8) / 0.105);
-      const braking = smoothstep((progress - 0.915) / 0.085);
-      const trailStrength = 1 - smoothstep((progress - 0.94) / 0.06);
-      const cruiseSpeed = 2.73 + Math.sin(progress * Math.PI * 5) * 0.055 + exitBoost * 0.94;
-      const speed = cruiseSpeed * (1 - braking) + 0.04 * braking;
-      const transit = 1 - smoothstep((progress - 0.96) / 0.04);
+      const exitBoost = smoothstep((progress - 0.8) / 0.11);
+      const braking = smoothstep((progress - 0.92) / 0.08);
+      const speed = (25.5 + exitBoost * 10.5) * (1 - braking) + 0.35 * braking;
+      travel += speed * delta;
+      uniforms.uTravel.value = travel;
 
-      context.fillStyle = "#000104";
-      context.fillRect(0, 0, width, height);
-      const lensBreath = Math.sin(elapsed * 0.00027) * 0.0022;
-      const centerX = width * (0.5 + Math.sin(elapsed * 0.00019) * 0.0015);
-      const centerY = height * (0.48 + Math.cos(elapsed * 0.00017) * 0.0013);
-      const focal = Math.min(width, height) * 0.65 * (1 + lensBreath);
+      camera.position.x = Math.sin(elapsed * 0.00023) * 0.018;
+      camera.position.y = Math.cos(elapsed * 0.00019) * 0.014;
+      camera.rotation.z = Math.sin(elapsed * 0.00013) * 0.0018;
 
-      const tailWhitePaths = [new Path2D(), new Path2D(), new Path2D()];
-      const tailBluePaths = [new Path2D(), new Path2D(), new Path2D()];
-      const headWhitePaths = [new Path2D(), new Path2D(), new Path2D()];
-      const headBluePaths = [new Path2D(), new Path2D(), new Path2D()];
-      const glowPaths = [new Path2D(), new Path2D(), new Path2D()];
-
-      for (const star of stars) {
-        const previousZ = star.z;
-        star.z -= speed * delta;
-        if (star.z < 0.045) {
-          star.z += 1.05;
-          placeOnTunnelWall(star, star.z);
-          star.brightness = 0.52 + Math.random() * 0.48;
-        }
-
-        const x = centerX + (star.x / star.z) * focal;
-        const y = centerY + (star.y / star.z) * focal;
-        const tailZ = Math.min(1.35, previousZ + speed * (0.018 + trailStrength * 0.135));
-        const tailX = centerX + (star.x / tailZ) * focal;
-        const tailY = centerY + (star.y / tailZ) * focal;
-        const depth = star.z < 0.24 ? 2 : star.z < 0.56 ? 1 : 0;
-        const blue = star.brightness < 0.62;
-        const tailPath = blue ? tailBluePaths[depth] : tailWhitePaths[depth];
-        const headPath = blue ? headBluePaths[depth] : headWhitePaths[depth];
-        const splitX = tailX + (x - tailX) * 0.48;
-        const splitY = tailY + (y - tailY) * 0.48;
-
-        tailPath.moveTo(tailX, tailY);
-        tailPath.lineTo(splitX, splitY);
-        headPath.moveTo(splitX, splitY);
-        headPath.lineTo(x, y);
-        if (star.brightness > 0.64) {
-          glowPaths[depth].moveTo(tailX, tailY);
-          glowPaths[depth].lineTo(x, y);
-        }
+      let flash = 0;
+      if (progress > 0.87 && progress < 0.955) {
+        const phase = (progress - 0.87) / 0.085;
+        flash = smoothstep(phase / 0.44) * (1 - smoothstep((phase - 0.44) / 0.56)) * 0.96;
       }
+      filmPass.uniforms.uTime.value = elapsed / 1000;
+      filmPass.uniforms.uFlash.value = flash;
+      composer.render(delta);
 
-      context.globalCompositeOperation = "lighter";
-      context.lineCap = "round";
-      const crispWidths = [0.85, 1.6, 2.9];
-      const glowWidths = [3.8, 7.2, 13];
-      const depthAlpha = [0.58, 0.8, 1];
-      const exposure = 0.986 + Math.sin(elapsed * 0.0011) * 0.006 + Math.sin(elapsed * 0.0027) * 0.003;
-
-      for (let depth = 0; depth < 3; depth += 1) {
-        context.globalAlpha = trailStrength * (0.11 + depth * 0.075);
-        context.strokeStyle = "#4d97ff";
-        context.lineWidth = glowWidths[depth];
-        context.filter = depth === 0 ? "blur(1.8px)" : "blur(1px)";
-        context.stroke(glowPaths[depth]);
-      }
-
-      for (let depth = 0; depth < 3; depth += 1) {
-        context.filter = "none";
-        context.globalAlpha = depthAlpha[depth] * 0.58 * exposure;
-        context.lineWidth = crispWidths[depth] * (0.62 + trailStrength * 0.2);
-        context.strokeStyle = "#559ce5";
-        context.stroke(tailBluePaths[depth]);
-        context.strokeStyle = "#a9d9f4";
-        context.stroke(tailWhitePaths[depth]);
-
-        context.globalAlpha = depthAlpha[depth] * (0.82 + transit * 0.18) * exposure;
-        context.lineWidth = crispWidths[depth] * (0.9 + trailStrength * 0.34);
-        context.strokeStyle = "#b7deff";
-        context.stroke(headBluePaths[depth]);
-        context.strokeStyle = "#ffffff";
-        context.stroke(headWhitePaths[depth]);
-      }
-
-      const coreWidths = [0.42, 0.72, 1.15];
-      for (let depth = 0; depth < 3; depth += 1) {
-        context.globalAlpha = depthAlpha[depth] * 0.94 * exposure;
-        context.lineWidth = coreWidths[depth];
-        context.strokeStyle = "#eaf7ff";
-        context.stroke(headBluePaths[depth]);
-        context.strokeStyle = "#ffffff";
-        context.stroke(headWhitePaths[depth]);
-      }
-
-      context.filter = "none";
-      context.globalAlpha = 1;
-
-      context.globalCompositeOperation = "source-over";
-      const vignette = context.createRadialGradient(
-        centerX,
-        centerY,
-        Math.min(width, height) * 0.24,
-        centerX,
-        centerY,
-        Math.max(width, height) * 0.72,
-      );
-      vignette.addColorStop(0, "rgba(0, 0, 0, 0)");
-      vignette.addColorStop(0.58, "rgba(0, 0, 3, 0.06)");
-      vignette.addColorStop(0.82, "rgba(0, 0, 3, 0.24)");
-      vignette.addColorStop(1, `rgba(0, 0, 2, ${0.68 - transit * 0.1})`);
-      context.fillStyle = vignette;
-      context.fillRect(0, 0, width, height);
-
-      const coreRadius = Math.min(width, height) * (0.052 + exitBoost * 0.006);
-      const tunnelCore = context.createRadialGradient(
-        centerX,
-        centerY,
-        0,
-        centerX,
-        centerY,
-        coreRadius,
-      );
-      tunnelCore.addColorStop(0, "rgba(0, 1, 5, 0.98)");
-      tunnelCore.addColorStop(0.48, "rgba(0, 2, 8, 0.9)");
-      tunnelCore.addColorStop(0.78, "rgba(0, 4, 14, 0.48)");
-      tunnelCore.addColorStop(1, "rgba(0, 4, 14, 0)");
-      context.fillStyle = tunnelCore;
-      context.fillRect(centerX - coreRadius, centerY - coreRadius, coreRadius * 2, coreRadius * 2);
-
-      if (progress > 0.87 && progress < 0.95) {
-        const flashProgress = (progress - 0.87) / 0.08;
-        const flashIn = smoothstep(flashProgress / 0.46);
-        const flashOut = 1 - smoothstep((flashProgress - 0.46) / 0.54);
-        const flash = flashIn * flashOut * 0.96;
-        context.fillStyle = `rgba(239, 249, 255, ${flash})`;
-        context.fillRect(0, 0, width, height);
-      }
-
-      if (grainPatterns.length > 0) {
-        const grainIndex = Math.floor(elapsed / 42) % grainPatterns.length;
-        context.globalCompositeOperation = "soft-light";
-        context.globalAlpha = 0.045;
-        context.fillStyle = grainPatterns[grainIndex];
-        context.fillRect(0, 0, width, height);
-        context.globalAlpha = 1;
-      }
-
-      context.globalCompositeOperation = "source-over";
-
-      if (progress < 1) {
-        animationRef.current = requestAnimationFrame(draw);
-      } else {
+      if (progress >= 1) {
+        renderer.setAnimationLoop(null);
         finish();
       }
     };
 
     resize();
     window.addEventListener("resize", resize);
-    animationRef.current = requestAnimationFrame(draw);
+    canvas.addEventListener("webglcontextlost", onContextLost);
+    renderer.setAnimationLoop(animate);
 
     return () => {
+      renderer.setAnimationLoop(null);
       window.removeEventListener("resize", resize);
-      if (animationRef.current) cancelAnimationFrame(animationRef.current);
+      canvas.removeEventListener("webglcontextlost", onContextLost);
+      scene.remove(tunnel);
+      geometry.dispose();
+      material.dispose();
+      bloomPass.dispose();
+      filmPass.dispose();
+      composer.dispose();
+      renderer.dispose();
     };
-  }, [finish, runId]);
+  }, [fallback, finish, runId, visible]);
 
+  useEffect(() => () => {
+    if (finishTimerRef.current) window.clearTimeout(finishTimerRef.current);
+  }, []);
+
+  if (fallback) return <HyperspaceIntro2D />;
   if (!visible) return null;
 
   return (
     <div
-      className={`jump-intro${exiting ? " is-exiting" : ""}`}
-      aria-label="Hyperspace jump loading sequence"
+      className={`jump-intro jump-intro-3d${exiting ? " is-exiting" : ""}`}
+      aria-label="Three-dimensional hyperspace transit sequence"
     >
       <canvas ref={canvasRef} aria-hidden="true" />
     </div>
