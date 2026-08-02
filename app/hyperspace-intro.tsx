@@ -12,7 +12,7 @@ import { HyperspaceIntro2D } from "./hyperspace-intro-2d";
 const DURATION = 15000;
 const DEPTH = 132;
 const NEAR = 0.68;
-const SEEN_KEY = "black-vector-jump-seen-3d-v2";
+const SEEN_KEY = "black-vector-jump-seen-3d-v3";
 
 function clamp01(value: number) {
   return Math.max(0, Math.min(1, value));
@@ -96,7 +96,7 @@ const fragmentShader = `
     vec3 coldBlue = vec3(0.34, 0.67, 1.0);
     vec3 photographicWhite = vec3(0.93, 0.985, 1.0);
     vec3 color = mix(coldBlue, photographicWhite, vHue);
-    float intensity = vBrightness * headExposure * (1.28 + hotCore * 2.45);
+    float intensity = vBrightness * headExposure * (0.66 + hotCore * 1.25);
     float alpha = edge * longitudinal * vDepthFade * uOpacity;
 
     gl_FragColor = vec4(color * intensity, alpha);
@@ -135,7 +135,7 @@ const filmicCameraShader = {
       float vignette = smoothstep(0.34, 0.82, dot(lens, lens));
       color *= mix(1.0, 0.57, vignette);
       float grain = random(gl_FragCoord.xy) - 0.5;
-      color += grain * 0.018;
+      color += grain * 0.012;
       color = mix(color, vec3(0.94, 0.985, 1.0), uFlash);
       gl_FragColor = vec4(max(color, 0.0), 1.0);
     }
@@ -173,12 +173,12 @@ function createTunnelGeometry(count: number) {
   const hues = new Float32Array(count);
 
   for (let index = 0; index < count; index += 1) {
-    const light = 0.64 + Math.random() * 0.36;
+    const light = 0.46 + Math.random() * 0.4;
     angles[index] = Math.random() * Math.PI * 2;
     radii[index] = 2.8 + Math.pow(Math.random(), 0.68) * 13.2;
     seeds[index] = Math.random() * DEPTH;
     lengths[index] = 4.8 + Math.pow(Math.random(), 0.6) * 10.5;
-    widths[index] = 0.58 + light * (0.72 + Math.random() * 0.72);
+    widths[index] = 0.32 + light * (0.38 + Math.random() * 0.24);
     brightness[index] = light;
     hues[index] = Math.random() < 0.14 ? Math.random() * 0.28 : 0.82 + Math.random() * 0.18;
   }
@@ -439,7 +439,7 @@ export function HyperspaceIntro() {
 
     renderer.outputColorSpace = THREE.SRGBColorSpace;
     renderer.toneMapping = THREE.ACESFilmicToneMapping;
-    renderer.toneMappingExposure = 1.08;
+    renderer.toneMappingExposure = 0.88;
 
     const uniforms = {
       uTravel: { value: 0 },
@@ -448,7 +448,7 @@ export function HyperspaceIntro() {
       uOpacity: { value: shouldJump ? 1 : 0 },
       uResolution: { value: new THREE.Vector2(1, 1) },
     };
-    const geometry = createTunnelGeometry(isMobile ? 1500 : 2600);
+    const geometry = createTunnelGeometry(isMobile ? 900 : 1650);
     const material = new THREE.ShaderMaterial({
       uniforms,
       vertexShader,
@@ -473,7 +473,7 @@ export function HyperspaceIntro() {
 
     const composer = new EffectComposer(renderer);
     composer.addPass(new RenderPass(scene, camera));
-    const bloomPass = new UnrealBloomPass(new THREE.Vector2(1, 1), isMobile ? 0.72 : 0.94, 0.28, 0.64);
+    const bloomPass = new UnrealBloomPass(new THREE.Vector2(1, 1), isMobile ? 0.34 : 0.42, 0.16, 0.78);
     composer.addPass(bloomPass);
     const filmPass = new ShaderPass(filmicCameraShader);
     composer.addPass(filmPass);
