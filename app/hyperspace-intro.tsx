@@ -159,6 +159,12 @@ const vertexShader = `
       * aRadius
       * radialScale
       * pointWake;
+    // Bow each segmented ribbon gently across the tunnel wall. The endpoints
+    // remain anchored while the middle follows the barrel, which keeps the
+    // speed lines sharp but gives the volume a visibly curved cross-section.
+    float tubeBow = sin(along * 3.14159265)
+      * (0.014 + uWarpRelease * 0.022 + uWarpCruise * 0.018);
+    pointRadial *= 1.0 + tubeBow;
     float pointZ = mix(tailZ, headZ, along);
     vec4 clipPoint = projectionMatrix * modelViewMatrix * vec4(pointRadial, pointZ, 1.0);
     vec2 screenPosition = (clipPoint.xy / clipPoint.w) * uResolution * 0.5;
@@ -166,11 +172,11 @@ const vertexShader = `
     vec2 ndcPosition = screenPosition / (uResolution * 0.5);
     float apertureRadius = mix(
       0.28,
-      1.72,
+      1.55,
       pow(clamp(uFormation, 0.0, 1.0), 0.68)
     );
     float apertureSoftness = mix(0.1, 0.22, uFormation);
-    float screenRadius = length(ndcPosition * vec2(0.75, 1.2));
+    float screenRadius = length(ndcPosition * vec2(0.9, 1.08));
     float tunnelAperture = 1.0 - smoothstep(
       apertureRadius - apertureSoftness,
       apertureRadius,
@@ -179,7 +185,11 @@ const vertexShader = `
     // Before the aperture opens these same short ribbons read as a dense,
     // full-frame star field. The field then hands off to the expanding wake.
     float preWarpStarField = (1.0 - smoothstep(0.0, 0.72, uFormation)) * 0.74;
-    vFormationMask = max(tunnelAperture, preWarpStarField);
+    // Hold full coverage on the horizontal and vertical edges while allowing
+    // only the far corners to roll away. A slight wall bias makes the viewer
+    // read a continuous cylindrical shell rather than a filled rectangle.
+    float curvedWall = mix(0.95, 1.0, smoothstep(0.42, 1.04, screenRadius));
+    vFormationMask = max(tunnelAperture, preWarpStarField) * curvedWall;
     float clipW = clipPoint.w;
     float ndcZ = clipPoint.z / clipPoint.w;
 
@@ -318,14 +328,14 @@ const tunnelDustVertexShader = `
     vec2 dustNdc = gl_Position.xy / max(gl_Position.w, 0.0001);
     float apertureRadius = mix(
       0.28,
-      1.72,
+      1.55,
       pow(clamp(uFormation, 0.0, 1.0), 0.68)
     );
     float apertureSoftness = mix(0.1, 0.22, uFormation);
     float dustAperture = 1.0 - smoothstep(
       apertureRadius - apertureSoftness,
       apertureRadius,
-      length(dustNdc * vec2(0.75, 1.2))
+      length(dustNdc * vec2(0.9, 1.08))
     );
     float preWarpDustField = (1.0 - smoothstep(0.0, 0.74, uFormation)) * 0.82;
     vLife *= max(dustAperture, preWarpDustField);
@@ -446,14 +456,15 @@ const warpBubbleVertexShader = `
     float twistCos = cos(twist);
     float twistSin = sin(twist);
     vec3 displacedPosition = position;
-    float axialEnvelope = pow(max(sin(depth * 3.14159265), 0.0), 0.34);
+    float axialEnvelope = pow(max(sin(depth * 3.14159265), 0.0), 0.29);
     // A broad barrel with rounded shoulders makes the field curve around the
     // camera instead of terminating in a pointed radial-burst silhouette.
-    float bubbleScale = mix(0.74, 1.14, axialEnvelope);
+    float bubbleScale = mix(0.72, 1.16, axialEnvelope);
     bubbleScale *= 1.0 - uCompression * 0.035 + uRelease * 0.055;
+    vec2 bubbleCrossSection = vec2(1.28, 0.82);
     displacedPosition.xy *= bubbleScale;
-    displacedPosition.xy *= vec2(1.28, 0.82);
-    displacedPosition.xy += radial * (
+    displacedPosition.xy *= bubbleCrossSection;
+    displacedPosition.xy += radial * bubbleCrossSection * (
       radialOffset + displacement * (0.42 + uCruise * 0.34)
     );
     displacedPosition.xy = mat2(twistCos, -twistSin, twistSin, twistCos) * displacedPosition.xy;
