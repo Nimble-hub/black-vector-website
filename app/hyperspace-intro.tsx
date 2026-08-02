@@ -18,6 +18,7 @@ const SCENE_RIM_BASE = 48;
 const EXIT_RIM_BOOST = 86;
 const SEEN_KEY = "black-vector-jump-seen-3d-v20";
 const BASE_PATH = process.env.NEXT_PUBLIC_BASE_PATH ?? "";
+const CRUISE_PULSE_STARTS = [0.47, 0.62, 0.75] as const;
 
 declare global {
   interface Window {
@@ -58,6 +59,8 @@ const vertexShader = `
   uniform float uWarpPhase;
   uniform float uWarpCruise;
   uniform float uFormation;
+  uniform float uPressurePulse;
+  uniform float uPressurePhase;
   uniform vec2 uResolution;
 
   varying vec2 vRibbonUv;
@@ -82,10 +85,18 @@ const vertexShader = `
     float cruiseWave = sin(normalizedDepth * 18.0 - uTravel * 0.11)
       * uWarpCruise
       * (0.012 + throatField * 0.012);
+    float pulseCenter = mix(
+      0.04,
+      1.08,
+      pow(clamp(uPressurePhase, 0.0, 1.0), 0.68)
+    );
+    float pulseDistance = (normalizedDepth - pulseCenter) / 0.075;
+    float pressureShell = exp(-pulseDistance * pulseDistance);
     float radialScale = 1.0
       + tensionCurve * 0.16
       + uWarpRelease * (shell * 0.22 + shellSlope * 0.055)
-      + cruiseWave;
+      + cruiseWave
+      + uPressurePulse * pressureShell * 0.085;
     float aperture = mix(
       0.82,
       1.0,
@@ -260,6 +271,7 @@ const tunnelDustVertexShader = `
   attribute float aSize;
   attribute float aBrightness;
   attribute float aGlint;
+  attribute float aFlyby;
 
   uniform float uTravel;
   uniform float uDepth;
@@ -270,10 +282,13 @@ const tunnelDustVertexShader = `
   uniform float uWarpCruise;
   uniform float uLaunchDust;
   uniform float uFormation;
+  uniform float uPressurePulse;
+  uniform float uPressurePhase;
 
   varying float vBrightness;
   varying float vLife;
   varying float vGlint;
+  varying float vFlyby;
   varying vec4 vDustDynamics;
 
   void main() {
@@ -287,10 +302,18 @@ const tunnelDustVertexShader = `
     float cruiseWave = sin(normalizedDepth * 18.0 - uTravel * 0.11)
       * uWarpCruise
       * (0.012 + throatField * 0.012);
+    float pulseCenter = mix(
+      0.04,
+      1.08,
+      pow(clamp(uPressurePhase, 0.0, 1.0), 0.68)
+    );
+    float pulseDistance = (normalizedDepth - pulseCenter) / 0.075;
+    float pressureShell = exp(-pulseDistance * pulseDistance);
     float radialScale = 1.0
       + uWarpTension * throatField * 0.16
       + uWarpRelease * (shell * 0.22 + shellSlope * 0.055)
-      + cruiseWave;
+      + cruiseWave
+      + uPressurePulse * pressureShell * 0.085;
     float aperture = mix(
       0.82,
       1.0,
@@ -315,9 +338,14 @@ const tunnelDustVertexShader = `
     vec4 viewPosition = modelViewMatrix * vec4(radial, z, 1.0);
     gl_Position = projectionMatrix * viewPosition;
     float launchScale = 1.0 + uLaunchDust * (0.18 + shell * 0.65);
-    float pointLimit = mix(3.6, 6.2, aGlint);
+    float nearCamera = smoothstep(0.72, 0.985, normalizedDepth);
+    float flybyPresence = aFlyby * uWarpCruise * nearCamera;
+    float pointLimit = mix(mix(3.6, 6.2, aGlint), 17.0, flybyPresence);
     gl_PointSize = clamp(
-      aSize * launchScale * (18.0 / max(-viewPosition.z, 1.0)),
+      aSize
+        * launchScale
+        * (1.0 + flybyPresence * 6.0)
+        * (18.0 / max(-viewPosition.z, 1.0)),
       0.45,
       pointLimit
     );
@@ -341,6 +369,7 @@ const tunnelDustVertexShader = `
     vLife *= max(dustAperture, preWarpDustField);
     vLife *= uOpacity;
     vGlint = aGlint;
+    vFlyby = flybyPresence;
     vDustDynamics = vec4(uLaunchDust, shell, aAngle, normalizedDepth);
   }
 `;
@@ -351,6 +380,7 @@ const tunnelDustFragmentShader = `
   varying float vBrightness;
   varying float vLife;
   varying float vGlint;
+  varying float vFlyby;
   varying vec4 vDustDynamics;
 
   void main() {
@@ -371,23 +401,30 @@ const tunnelDustFragmentShader = `
     float core = 1.0 - smoothstep(0.0, 0.105, distanceFromCenter);
     float launchSpark = vDustDynamics.x * (0.34 + vDustDynamics.y * 0.66);
     float wakeTransit = smoothstep(0.12, 0.82, vDustDynamics.w);
+    float nearFlyby = vFlyby * smoothstep(0.68, 0.98, vDustDynamics.w);
     float glintEnergy = 0.12
       + launchSpark * 0.72
       + wakeTransit * 0.12
-      + vGlint * 0.42;
+      + vGlint * 0.42
+      + nearFlyby * 0.92;
     vec2 radialAxis = vec2(cos(vDustDynamics.z), sin(vDustDynamics.z));
     vec2 tangentAxis = vec2(-radialAxis.y, radialAxis.x);
     float along = abs(dot(point, radialAxis));
     float across = abs(dot(point, tangentAxis));
     float microStreak = (1.0 - smoothstep(0.1, 0.5, along))
       * (1.0 - smoothstep(0.025, 0.11, across))
-      * clamp(launchSpark * 0.58 + wakeTransit * 0.86, 0.0, 1.0);
+      * clamp(
+        launchSpark * 0.58 + wakeTransit * 0.86 + nearFlyby * 1.4,
+        0.0,
+        1.0
+      );
     float horizontalRay = 1.0 - smoothstep(0.018, 0.075, abs(point.y));
     float verticalRay = 1.0 - smoothstep(0.018, 0.075, abs(point.x));
     float rayFade = 1.0 - smoothstep(0.06, 0.5, distanceFromCenter);
     float diffraction = max(horizontalRay, verticalRay * 0.7)
       * rayFade
-      * glintEnergy;
+      * glintEnergy
+      * (1.0 + nearFlyby * 0.75);
     vec3 ice = mix(vec3(0.34, 0.7, 1.0), vec3(0.97, 0.995, 1.0), core);
     float diffractionAlpha = diffraction * (0.24 + vGlint * 0.48);
     float diamondPresence = 1.0 - wakeTransit * 0.56;
@@ -397,7 +434,7 @@ const tunnelDustFragmentShader = `
     )
       * vLife
       * vBrightness
-      * (1.0 + launchSpark * 0.42);
+      * (1.0 + launchSpark * 0.42 + nearFlyby * 0.7);
     gl_FragColor = vec4(
       ice * (
         0.78
@@ -609,6 +646,8 @@ const gravitationalLensShader = {
     uFlash: { value: 0 },
     uMotionBlur: { value: 0 },
     uSceneWarp: { value: 0 },
+    uBowWave: { value: 0 },
+    uBowPhase: { value: 0 },
     uTime: { value: 0 },
     uCruise: { value: 0 },
   },
@@ -633,6 +672,8 @@ const gravitationalLensShader = {
     uniform float uFlash;
     uniform float uMotionBlur;
     uniform float uSceneWarp;
+    uniform float uBowWave;
+    uniform float uBowPhase;
     uniform float uTime;
     uniform float uCruise;
 
@@ -666,6 +707,17 @@ const gravitationalLensShader = {
       float innerSkin = exp(-pow(innerDistance / (ringWidth * 0.72), 2.0) * 2.1);
       float outerSkin = exp(-pow(outerDistance / (ringWidth * 1.16), 2.0) * 1.85);
       float shellStack = photonRing + innerSkin * 0.48 + outerSkin * 0.34;
+      // A stable bow wave loads in front of the ship and then rolls around the
+      // camera at ignition. It is a clean compression threshold—no fractures
+      // or tearing—so the drive reads as controlled technology.
+      float bowRadius = mix(
+        shapedHorizon * 0.76,
+        1.22,
+        pow(clamp(uBowPhase, 0.0, 1.0), 0.62)
+      );
+      float bowWidth = mix(0.024, 0.085, uBowPhase);
+      float bowDistance = (radius - bowRadius) / max(bowWidth, 0.001);
+      float bowFront = exp(-bowDistance * bowDistance * 2.1) * uBowWave;
       float outerField = 1.0 - smoothstep(horizon * 0.96, horizon * 3.85, radius);
       float wideField = 1.0 - smoothstep(
         horizon * 1.05,
@@ -681,6 +733,7 @@ const gravitationalLensShader = {
       float deflection = uStrength * outerField * innerGuard * falloff * 0.082
         + shellFold * uStrength * (0.0125 + uCruise * 0.0042)
         + uFlash * outerField * innerGuard * falloff * 0.035
+        + bowFront * (0.012 + (1.0 - uBowPhase) * 0.01)
         + uStrength * wideField * innerGuard
           * (0.0055 + uFlash * 0.016 + uCruise * 0.0018);
       vec2 uvMin = vec2(0.001);
@@ -766,7 +819,7 @@ const gravitationalLensShader = {
       }
 
       float fieldBlend = max(
-        outerField,
+        max(outerField, bowFront * 0.82),
         max(
           wideField * (0.2 + uFlash * 0.48 + uCruise * 0.12),
           uSceneWarp * frameReach * (0.44 + frameCurve * 0.24)
@@ -784,7 +837,12 @@ const gravitationalLensShader = {
         * (photonRing + innerSkin * 0.22 + outerSkin * 0.14)
         * (0.024 + compressedLight * 0.42) * uStrength;
       vec3 launchLight = vec3(0.74, 0.9, 1.0)
-        * (photonRing * 0.12 + horizontalFlare * 0.075) * uFlash;
+        * (
+          photonRing * 0.12
+          + horizontalFlare * 0.075
+          + bowFront * (0.07 + uFlash * 0.055)
+        )
+        * max(uFlash, uBowWave * 0.58);
       float core = (1.0 - smoothstep(horizon * 0.28, horizon * 0.86, radius))
         * uDarkness;
       vec3 color = mix(base, lensed, fieldBlend);
@@ -1343,6 +1401,7 @@ function createTunnelDustGeometry(count: number) {
   const sizes = new Float32Array(count);
   const brightness = new Float32Array(count);
   const glints = new Float32Array(count);
+  const flybys = new Float32Array(count);
 
   for (let index = 0; index < count; index += 1) {
     const isSideDust = Math.random() < 0.68;
@@ -1364,6 +1423,10 @@ function createTunnelDustGeometry(count: number) {
       : (isSideDust ? 0.58 : isCoreDust ? 0.66 : 0.46)
         + Math.random() * (isSideDust ? 0.36 : isCoreDust ? 0.28 : 0.38);
     glints[index] = isHeroGlint ? 1 : 0;
+    // A small deterministic subset becomes near-lens hero particles. Their
+    // depth still comes from the shared tunnel flow, so the flybys feel like
+    // rare pieces of the same diamond dust rather than a separate overlay.
+    flybys[index] = index % 157 === 0 ? 1 : 0;
   }
 
   geometry.setAttribute("position", new THREE.BufferAttribute(positions, 3));
@@ -1373,6 +1436,7 @@ function createTunnelDustGeometry(count: number) {
   geometry.setAttribute("aSize", new THREE.BufferAttribute(sizes, 1));
   geometry.setAttribute("aBrightness", new THREE.BufferAttribute(brightness, 1));
   geometry.setAttribute("aGlint", new THREE.BufferAttribute(glints, 1));
+  geometry.setAttribute("aFlyby", new THREE.BufferAttribute(flybys, 1));
   return geometry;
 }
 
@@ -2167,6 +2231,8 @@ export function HyperspaceIntro() {
       uWarpPhase: { value: 0 },
       uWarpCruise: { value: 0 },
       uFormation: { value: 0 },
+      uPressurePulse: { value: 0 },
+      uPressurePhase: { value: 0 },
       uResolution: { value: new THREE.Vector2(1, 1) },
     };
     const geometry = createTunnelGeometry(isMobile ? 1350 : 2300);
@@ -2198,6 +2264,8 @@ export function HyperspaceIntro() {
       uWarpCruise: { value: 0 },
       uLaunchDust: { value: 0 },
       uFormation: { value: 0 },
+      uPressurePulse: { value: 0 },
+      uPressurePhase: { value: 0 },
     };
     const tunnelDustGeometry = createTunnelDustGeometry(isMobile ? 1150 : 3000);
     const tunnelDustMaterial = new THREE.ShaderMaterial({
@@ -2471,9 +2539,30 @@ export function HyperspaceIntro() {
         ) * (1 - smoothstep(
           (progress - (LAUNCH_PROGRESS + 0.012)) / 0.012,
         ));
+        const bowCharge = smoothstep((sequencePressure - 0.68) / 0.32)
+          * (1 - launch);
+        const bowRelease = smoothstep(
+          (progress - (LAUNCH_PROGRESS - 0.002)) / 0.004,
+        ) * (1 - smoothstep(
+          (progress - (LAUNCH_PROGRESS + 0.06)) / 0.045,
+        ));
+        const bowWave = Math.max(bowCharge * 0.34, bowRelease);
+        const bowPhase = clamp01(
+          (progress - (LAUNCH_PROGRESS - 0.006)) / 0.067,
+        );
         const warpPhase = clamp01((progress - LAUNCH_PROGRESS) / 0.21);
         const braking = smoothstep((progress - 0.84) / 0.055);
         const exitArrival = smoothstep((progress - 0.89) / 0.11);
+        let pressurePulse = 0;
+        let pressurePhase = 0;
+        for (const pulseStart of CRUISE_PULSE_STARTS) {
+          const localPhase = (progress - pulseStart) / 0.072;
+          if (localPhase < 0 || localPhase > 1) continue;
+          const localPulse = Math.sin(localPhase * Math.PI);
+          if (localPulse <= pressurePulse) continue;
+          pressurePulse = localPulse;
+          pressurePhase = localPhase;
+        }
         const fieldSwayX = Math.sin(elapsed * 0.00108)
           + Math.sin(elapsed * 0.00047 + 1.8) * 0.42;
         const fieldSwayY = Math.cos(elapsed * 0.00091 + 0.7)
@@ -2530,6 +2619,8 @@ export function HyperspaceIntro() {
         tunnelDustUniforms.uWarpPhase.value = warpPhase;
         tunnelDustUniforms.uWarpCruise.value = visualLaunch * (1 - braking);
         tunnelDustUniforms.uFormation.value = sequencePressure;
+        tunnelDustUniforms.uPressurePulse.value = pressurePulse;
+        tunnelDustUniforms.uPressurePhase.value = pressurePhase;
         tunnelDustUniforms.uLaunchDust.value = Math.min(
           1,
           dustReveal * 0.14
@@ -2543,12 +2634,17 @@ export function HyperspaceIntro() {
         warpBubbleUniforms.uCompression.value = warpTension;
         warpBubbleUniforms.uRelease.value = warpRelease;
         warpBubbleUniforms.uCruise.value = visualLaunch * (1 - braking);
-        warpBubbleUniforms.uImpact.value = Math.max(launchImpulse, streakStretch);
+        warpBubbleUniforms.uImpact.value = Math.max(
+          launchImpulse,
+          streakStretch,
+          pressurePulse * 0.34,
+        );
         warpBubbleUniforms.uOpacity.value = (
           warpTension * 0.075
             + warpRelease * 0.62
             + visualLaunch * 0.96
             + launchImpulse * 0.13
+            + pressurePulse * 0.1
         ) * (1 - braking);
         const lensTravelFade = 1 - smoothstep(
           (progress - (LAUNCH_PROGRESS + 0.08)) / 0.14,
@@ -2568,11 +2664,14 @@ export function HyperspaceIntro() {
             + streakStretch * 0.4
             + crashZoom * 0.3
             + launchImpulse * 0.2
+            + pressurePulse * 0.06
             + cruiseLens * 0.08
         ) * (1 - braking));
         lensPass.enabled = lensStrength > 0.002;
         lensPass.uniforms.uStrength.value = lensStrength;
         lensPass.uniforms.uSceneWarp.value = sceneWarp;
+        lensPass.uniforms.uBowWave.value = bowWave;
+        lensPass.uniforms.uBowPhase.value = bowPhase;
         // Keep the optical axis locked to the camera. Moving the distortion
         // center independently from the rig creates a visible rocking motion
         // even when the actual flight path is smooth.
@@ -2624,6 +2723,8 @@ export function HyperspaceIntro() {
         uniforms.uWarpPhase.value = warpPhase;
         uniforms.uWarpCruise.value = visualLaunch * (1 - braking);
         uniforms.uFormation.value = sequencePressure;
+        uniforms.uPressurePulse.value = pressurePulse;
+        uniforms.uPressurePhase.value = pressurePhase;
         uniforms.uOpacity.value = smoothstep(progress / 0.015)
           * (0.3 + charge * 0.7)
           * (1 - visualLaunch * 0.14)
@@ -2634,15 +2735,35 @@ export function HyperspaceIntro() {
         exitCrystalUniforms.uOpacity.value = 0;
         exitDustUniforms.uTime.value = Math.max(0, (elapsed - DURATION * 0.825) / 1000);
         exitDustUniforms.uOpacity.value = smoothstep((progress - 0.828) / 0.045);
-        world.setOpacity(captureMode ? 0 : smoothstep((progress - 0.9) / 0.085));
+        // Let the destination exist behind the collapsing tunnel before the
+        // exit completes. The early power curve keeps it subliminal at first,
+        // then turns the final tunnel fade into a continuous reveal.
+        const destinationForeshadow = Math.pow(
+          smoothstep((progress - 0.835) / 0.145),
+          1.55,
+        );
+        world.setOpacity(captureMode ? 0 : destinationForeshadow);
         const exitIllumination = smoothstep((progress - 0.842) / 0.042)
           * (1 - smoothstep((progress - 0.982) / 0.034));
+        const exposureSpike = smoothstep(
+          (progress - (LAUNCH_PROGRESS - 0.001)) / 0.003,
+        ) * (1 - smoothstep(
+          (progress - (LAUNCH_PROGRESS + 0.014)) / 0.01,
+        ));
+        const exposureSettle = smoothstep(
+          (progress - (LAUNCH_PROGRESS + 0.011)) / 0.008,
+        ) * (1 - smoothstep(
+          (progress - (LAUNCH_PROGRESS + 0.04)) / 0.022,
+        ));
         world.rimLight.intensity = SCENE_RIM_BASE + exitIllumination * EXIT_RIM_BOOST;
         renderer.toneMappingExposure = 1.0
           + charge * 0.17
           + launch * 0.08
           + launchImpulse * 0.18
           + warpRelease * 0.035
+          + exposureSpike * 0.34
+          - exposureSettle * 0.1
+          + pressurePulse * 0.025
           + exitIllumination * 0.13;
 
         const launchLocal = clamp01((progress - LAUNCH_PROGRESS) / 0.11);

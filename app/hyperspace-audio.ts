@@ -18,6 +18,9 @@ export class HyperspaceAudio {
   private jumpGain: GainNode | null = null;
   private musicSource: AudioBufferSourceNode | null = null;
   private musicGain: GainNode | null = null;
+  private structuralSources: AudioScheduledSourceNode[] = [];
+  private structuralGain: GainNode | null = null;
+  private structuralNoiseBuffer: AudioBuffer | null = null;
   private muted = false;
 
   constructor(muted = false) {
@@ -33,6 +36,7 @@ export class HyperspaceAudio {
     if (!context) return;
     this.jumpBufferPromise ??= this.loadBuffer(context, JUMP_SOUNDTRACK_URL, "hyperspace audio");
     this.musicBufferPromise ??= this.loadBuffer(context, SCORE_LOOP_URL, "Black Vector score");
+    this.getStructuralNoiseBuffer(context);
   }
 
   async start() {
@@ -46,6 +50,7 @@ export class HyperspaceAudio {
 
     this.stopJump(0.018);
     this.stopMusic(0.08);
+    this.stopStructural(0.018);
 
     const start = context.currentTime + 0.04;
     const jumpGain = context.createGain();
@@ -63,6 +68,7 @@ export class HyperspaceAudio {
     this.jumpSource = jumpSource;
     this.jumpGain = jumpGain;
     jumpSource.start(start);
+    this.createStructuralResonance(start);
 
     const musicBuffer = await this.musicBufferPromise;
     if (musicBuffer && !this.muted && this.jumpSource === jumpSource) {
@@ -99,6 +105,7 @@ export class HyperspaceAudio {
   stop(fadeSeconds = 0.08) {
     this.stopJump(fadeSeconds);
     this.stopMusic(fadeSeconds);
+    this.stopStructural(fadeSeconds);
   }
 
   dispose() {
@@ -108,7 +115,83 @@ export class HyperspaceAudio {
     this.master = null;
     this.jumpBufferPromise = null;
     this.musicBufferPromise = null;
+    this.structuralNoiseBuffer = null;
     if (context && context.state !== "closed") void context.close();
+  }
+
+  private createStructuralResonance(start: number) {
+    if (!this.context || !this.master) return;
+    const context = this.context;
+    const structuralGain = context.createGain();
+    structuralGain.gain.setValueAtTime(0.0001, start);
+    structuralGain.gain.linearRampToValueAtTime(0.009, start + 3.55);
+    structuralGain.gain.linearRampToValueAtTime(0.032, start + 4.85);
+    structuralGain.gain.linearRampToValueAtTime(0.068, start + 5.72);
+    structuralGain.gain.linearRampToValueAtTime(0.082, start + 5.79);
+    structuralGain.gain.exponentialRampToValueAtTime(0.026, start + 6.8);
+    structuralGain.gain.linearRampToValueAtTime(0.018, start + 12.9);
+    structuralGain.gain.linearRampToValueAtTime(0.052, start + 14.15);
+    structuralGain.gain.exponentialRampToValueAtTime(0.0001, start + 16.25);
+    structuralGain.connect(this.master);
+    this.structuralGain = structuralGain;
+
+    const fundamental = context.createOscillator();
+    const fundamentalGain = context.createGain();
+    fundamental.type = "triangle";
+    fundamental.frequency.setValueAtTime(47, start);
+    fundamental.frequency.linearRampToValueAtTime(43, start + 6.8);
+    fundamental.frequency.linearRampToValueAtTime(39, start + 14.15);
+    fundamentalGain.gain.value = 0.46;
+    fundamental.connect(fundamentalGain).connect(structuralGain);
+
+    const harmonic = context.createOscillator();
+    const harmonicFilter = context.createBiquadFilter();
+    const harmonicGain = context.createGain();
+    harmonic.type = "sawtooth";
+    harmonic.frequency.setValueAtTime(94, start);
+    harmonic.frequency.linearRampToValueAtTime(86, start + 6.8);
+    harmonicFilter.type = "bandpass";
+    harmonicFilter.frequency.value = 188;
+    harmonicFilter.Q.value = 3.6;
+    harmonicGain.gain.value = 0.13;
+    harmonic.connect(harmonicFilter).connect(harmonicGain).connect(structuralGain);
+
+    const noiseSource = context.createBufferSource();
+    const noiseFilter = context.createBiquadFilter();
+    const noiseGain = context.createGain();
+    noiseSource.buffer = this.getStructuralNoiseBuffer(context);
+    noiseFilter.type = "bandpass";
+    noiseFilter.frequency.value = 320;
+    noiseFilter.Q.value = 1.15;
+    noiseGain.gain.value = 0.34;
+    noiseSource.connect(noiseFilter).connect(noiseGain).connect(structuralGain);
+
+    const stopAt = start + 16.4;
+    fundamental.addEventListener("ended", () => {
+      if (this.structuralGain !== structuralGain) return;
+      this.structuralSources.length = 0;
+      this.structuralGain = null;
+      structuralGain.disconnect();
+    }, { once: true });
+    for (const source of [fundamental, harmonic, noiseSource]) {
+      source.start(start);
+      source.stop(stopAt);
+      this.structuralSources.push(source);
+    }
+  }
+
+  private getStructuralNoiseBuffer(context: AudioContext) {
+    if (this.structuralNoiseBuffer) return this.structuralNoiseBuffer;
+    const frameCount = Math.ceil(context.sampleRate * 16.5);
+    const buffer = context.createBuffer(1, frameCount, context.sampleRate);
+    const data = buffer.getChannelData(0);
+    let pressure = 0;
+    for (let index = 0; index < frameCount; index += 1) {
+      pressure = pressure * 0.985 + (Math.random() * 2 - 1) * 0.015;
+      data[index] = pressure * 3.2;
+    }
+    this.structuralNoiseBuffer = buffer;
+    return buffer;
   }
 
   private createMusicSource(buffer: AudioBuffer, start: number, fadeSeconds: number) {
@@ -147,6 +230,23 @@ export class HyperspaceAudio {
     this.musicSource = null;
     this.musicGain = null;
     this.fadeAndStop(source, gain, fadeSeconds);
+  }
+
+  private stopStructural(fadeSeconds: number) {
+    if (!this.context || !this.structuralGain) return;
+    const gain = this.structuralGain;
+    const sources = this.structuralSources.splice(0);
+    this.structuralGain = null;
+    const now = this.context.currentTime;
+    gain.gain.cancelScheduledValues(now);
+    gain.gain.setTargetAtTime(0.0001, now, Math.max(fadeSeconds / 3, 0.006));
+    window.setTimeout(() => {
+      for (const source of sources) {
+        try { source.stop(); } catch { /* The source may have ended naturally. */ }
+        source.disconnect();
+      }
+      gain.disconnect();
+    }, Math.max(fadeSeconds * 1000 + 70, 90));
   }
 
   private fadeAndStop(source: AudioBufferSourceNode, gain: GainNode, fadeSeconds: number) {
