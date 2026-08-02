@@ -12,7 +12,7 @@ import { HyperspaceIntro2D } from "./hyperspace-intro-2d";
 const DURATION = 15000;
 const DEPTH = 132;
 const NEAR = 0.68;
-const SEEN_KEY = "black-vector-jump-seen-3d-v9";
+const SEEN_KEY = "black-vector-jump-seen-3d-v10";
 
 function clamp01(value: number) {
   return Math.max(0, Math.min(1, value));
@@ -46,8 +46,6 @@ const vertexShader = `
   varying float vBrightness;
   varying float vHue;
   varying float vDepthFade;
-  varying float vRenderedLength;
-  varying float vHalfSegment;
 
   void main() {
     float travel = mod(aSeedZ + uTravel, uDepth);
@@ -63,13 +61,10 @@ const vertexShader = `
     vec2 screenHead = ndcHead * uResolution * 0.5;
     vec2 direction = normalize(screenHead - screenTail + vec2(0.00001));
     vec2 perpendicular = vec2(direction.y, -direction.x);
-    float coreLength = length(screenHead - screenTail);
     float halfWidth = aWidth * uWidthScale;
-    vec2 renderedTail = screenTail - direction * halfWidth;
-    vec2 renderedHead = screenHead + direction * halfWidth;
 
     float along = uv.y;
-    vec2 screenPosition = mix(renderedTail, renderedHead, along);
+    vec2 screenPosition = mix(screenTail, screenHead, along);
     screenPosition += perpendicular * uv.x * halfWidth;
     vec2 ndcPosition = screenPosition / (uResolution * 0.5);
     float clipW = mix(clipTail.w, clipHead.w, along);
@@ -80,8 +75,6 @@ const vertexShader = `
     vBrightness = aBrightness;
     vHue = aHue;
     vDepthFade = smoothstep(0.0, 2.2, travel) * (1.0 - smoothstep(uDepth - 0.85, uDepth, travel));
-    vRenderedLength = coreLength + halfWidth * 2.0;
-    vHalfSegment = coreLength * 0.5;
   }
 `;
 
@@ -92,28 +85,25 @@ const fragmentShader = `
   varying float vBrightness;
   varying float vHue;
   varying float vDepthFade;
-  varying float vRenderedLength;
-  varying float vHalfSegment;
 
   uniform float uOpacity;
   uniform float uEnergy;
 
   void main() {
-    float inferredWidth = max(vRenderedLength - vHalfSegment * 2.0, 0.002) * 0.5;
-    vec2 local = vec2((vRibbonUv.y - 0.5) * vRenderedLength, vRibbonUv.x * inferredWidth);
-    vec2 capsuleVector = vec2(max(abs(local.x) - vHalfSegment, 0.0), local.y);
-    float capsuleDistance = length(capsuleVector) - inferredWidth;
-    float antialias = max(fwidth(capsuleDistance), 0.55);
-    float capsule = 1.0 - smoothstep(-antialias, antialias, capsuleDistance);
-    float hotCore = 1.0 - smoothstep(0.0, 0.38, abs(local.y) / inferredWidth);
-    float headExposure = mix(0.34, 1.0, pow(vRibbonUv.y, 0.48));
-    float longitudinal = mix(0.2, 1.0, pow(vRibbonUv.y, 0.58));
+    float taper = mix(0.12, 1.0, smoothstep(0.0, 0.24, vRibbonUv.y));
+    float side = abs(vRibbonUv.x) / max(taper, 0.001);
+    float beam = 1.0 - smoothstep(0.68, 1.0, side);
+    float tailFade = smoothstep(0.0, 0.055, vRibbonUv.y);
+    float headFade = 1.0 - smoothstep(0.975, 1.0, vRibbonUv.y);
+    float hotCore = 1.0 - smoothstep(0.0, 0.28, side);
+    float headExposure = mix(0.3, 1.0, pow(vRibbonUv.y, 0.44));
+    float longitudinal = tailFade * headFade * mix(0.24, 1.0, pow(vRibbonUv.y, 0.5));
 
     vec3 coldBlue = vec3(0.34, 0.67, 1.0);
     vec3 photographicWhite = vec3(0.93, 0.985, 1.0);
     vec3 color = mix(coldBlue, photographicWhite, vHue);
     float intensity = vBrightness * headExposure * (0.78 + hotCore * 1.52) * uEnergy;
-    float alpha = capsule * longitudinal * vDepthFade * uOpacity;
+    float alpha = beam * longitudinal * vDepthFade * uOpacity;
 
     gl_FragColor = vec4(color * intensity, alpha);
   }
@@ -123,6 +113,7 @@ const filmicCameraShader = {
   uniforms: {
     tDiffuse: { value: null },
     uFlash: { value: 0 },
+    uTunnelAtmosphere: { value: 0 },
     uResolution: { value: new THREE.Vector2(1, 1) },
   },
   vertexShader: `
@@ -136,12 +127,18 @@ const filmicCameraShader = {
     precision highp float;
     uniform sampler2D tDiffuse;
     uniform float uFlash;
+    uniform float uTunnelAtmosphere;
     uniform vec2 uResolution;
     varying vec2 vUv;
 
     void main() {
       vec3 color = texture2D(tDiffuse, vUv).rgb;
       vec2 lens = (vUv - 0.5) * vec2(uResolution.x / uResolution.y, 1.0);
+      float radial = length(lens);
+      float outsideBore = smoothstep(0.075, 0.19, radial);
+      float insideFrame = 1.0 - smoothstep(0.7, 1.08, radial);
+      float tunnelWall = outsideBore * insideFrame;
+      color += vec3(0.018, 0.055, 0.105) * tunnelWall * uTunnelAtmosphere;
       float vignette = smoothstep(0.34, 0.82, dot(lens, lens));
       color *= mix(1.0, 0.82, vignette);
       color = mix(color, vec3(0.94, 0.985, 1.0), uFlash);
@@ -186,7 +183,7 @@ function createTunnelGeometry(count: number) {
     radii[index] = 2.35 + Math.pow(Math.random(), 0.72) * 13.45;
     seeds[index] = Math.random() * DEPTH;
     lengths[index] = 4.8 + Math.pow(Math.random(), 0.6) * 10.5;
-    widths[index] = 0.36 + light * (0.42 + Math.random() * 0.26);
+    widths[index] = 0.48 + light * (0.58 + Math.random() * 0.36);
     brightness[index] = light;
     hues[index] = Math.random() < 0.14 ? Math.random() * 0.28 : 0.82 + Math.random() * 0.18;
   }
@@ -459,7 +456,7 @@ export function HyperspaceIntro() {
       uEnergy: { value: shouldJump ? 0.28 : 1 },
       uResolution: { value: new THREE.Vector2(1, 1) },
     };
-    const geometry = createTunnelGeometry(isMobile ? 1550 : 2800);
+    const geometry = createTunnelGeometry(isMobile ? 1800 : 3200);
     const material = new THREE.ShaderMaterial({
       uniforms,
       vertexShader,
@@ -529,6 +526,7 @@ export function HyperspaceIntro() {
       const delta = Math.min((time - previousTime) / 1000, 0.05);
       previousTime = time;
       let flash = 0;
+      let tunnelAtmosphere = 0;
 
       if (!jumpComplete) {
         const progress = skipJumpRef.current ? 1 : clamp01(elapsed / DURATION);
@@ -543,6 +541,7 @@ export function HyperspaceIntro() {
         const preLaunchSpeed = 0.18 + charge * 8.2;
         const hyperspaceSpeed = 42 + exitBoost * 14 + launchKick * 30;
         const speed = THREE.MathUtils.lerp(preLaunchSpeed, hyperspaceSpeed, launch) * (1 - braking) + 0.35 * braking;
+        tunnelAtmosphere = (0.18 + launch * 0.82 + chargeWall * 0.92) * (1 - braking);
         travel += speed * delta;
         uniforms.uTravel.value = travel;
         uniforms.uStretch.value = (0.018 + chargeWall * 0.92 + launch * 1.06 + launchKick * 0.5) * (1 - braking) + braking * 0.04;
@@ -610,6 +609,7 @@ export function HyperspaceIntro() {
       }
 
       filmPass.uniforms.uFlash.value = flash;
+      filmPass.uniforms.uTunnelAtmosphere.value = tunnelAtmosphere;
       composer.render(delta);
     };
 
