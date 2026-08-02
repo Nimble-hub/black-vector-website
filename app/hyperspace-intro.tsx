@@ -12,7 +12,7 @@ import { HyperspaceIntro2D } from "./hyperspace-intro-2d";
 const DURATION = 15000;
 const DEPTH = 132;
 const NEAR = 0.68;
-const SEEN_KEY = "black-vector-jump-seen-3d-v8";
+const SEEN_KEY = "black-vector-jump-seen-3d-v9";
 
 function clamp01(value: number) {
   return Math.max(0, Math.min(1, value));
@@ -183,7 +183,7 @@ function createTunnelGeometry(count: number) {
   for (let index = 0; index < count; index += 1) {
     const light = 0.46 + Math.random() * 0.4;
     angles[index] = Math.random() * Math.PI * 2;
-    radii[index] = 0.42 + Math.pow(Math.random(), 1.18) * 15.3;
+    radii[index] = 2.35 + Math.pow(Math.random(), 0.72) * 13.45;
     seeds[index] = Math.random() * DEPTH;
     lengths[index] = 4.8 + Math.pow(Math.random(), 0.6) * 10.5;
     widths[index] = 0.36 + light * (0.42 + Math.random() * 0.26);
@@ -537,6 +537,7 @@ export function HyperspaceIntro() {
         const launchPhase = clamp01((progress - 0.24) / 0.12);
         const launchKick = Math.sin(launchPhase * Math.PI);
         const chargeWall = charge * (1 - launch);
+        const stretchedCharge = chargeWall * smoothstep((charge - 0.48) / 0.52);
         const exitBoost = smoothstep((progress - 0.8) / 0.11);
         const braking = smoothstep((progress - 0.92) / 0.08);
         const preLaunchSpeed = 0.18 + charge * 8.2;
@@ -549,8 +550,10 @@ export function HyperspaceIntro() {
         uniforms.uEnergy.value = (0.28 + chargeWall * 1.38 + launch * 0.88 + launchKick * 0.46) * (1 - braking * 0.48);
         uniforms.uOpacity.value = smoothstep(progress / 0.035) * (1 - smoothstep((progress - 0.84) / 0.16));
         world.setOpacity(smoothstep((progress - 0.87) / 0.13));
-        bloomPass.strength = (isMobile ? 0.48 : 0.58) + chargeWall * (isMobile ? 0.58 : 0.74) + launchKick * (isMobile ? 0.42 : 0.58);
-        bloomPass.threshold = 0.72 - chargeWall * 0.2 - launchKick * 0.13;
+        const cruiseBloom = isMobile ? 0.48 : 0.58;
+        bloomPass.strength = cruiseBloom * (0.38 + launch * 0.62) + stretchedCharge * (isMobile ? 0.22 : 0.28) + launchKick * (isMobile ? 0.3 : 0.4);
+        bloomPass.threshold = 0.8 - stretchedCharge * 0.09 - launch * 0.08 - launchKick * 0.08;
+        bloomPass.radius = 0.07 + stretchedCharge * 0.04 + launch * 0.11;
         renderer.toneMappingExposure = 0.98 + chargeWall * 0.28 + launchKick * 0.28 + launch * 0.05;
 
         const cruiseRumble = launch * (1 - braking);
@@ -577,6 +580,7 @@ export function HyperspaceIntro() {
           world.setOpacity(1);
           bloomPass.strength = isMobile ? 0.48 : 0.58;
           bloomPass.threshold = 0.72;
+          bloomPass.radius = 0.18;
           renderer.toneMappingExposure = 0.98;
           if (!finishQueued) {
             finishQueued = true;
