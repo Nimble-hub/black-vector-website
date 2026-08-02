@@ -40,3 +40,6 @@ next-env.d.ts
 /.wrangler/
 /outputs/
 /work/
+
+# Licensed production masters; keep local and out of the public repository.
+/.source-assets/

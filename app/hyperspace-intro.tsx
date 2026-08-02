@@ -471,6 +471,7 @@ export function HyperspaceIntro() {
     const storedMuted = window.localStorage.getItem("black-vector-audio-muted") === "true";
     const audio = new HyperspaceAudio(storedMuted);
     audioRef.current = audio;
+    audio.prepare();
     const readinessTimer = window.setTimeout(() => {
       setNeedsEngagement(!hasSeenJump && !reducedMotion);
       setExperienceReady(hasSeenJump || reducedMotion);
@@ -675,7 +676,7 @@ export function HyperspaceIntro() {
 
       if (!jumpComplete) {
         const progress = skipJumpRef.current ? 1 : clamp01(elapsed / DURATION);
-        const launch = smoothstep((progress - 0.2) / 0.11);
+        const launch = smoothstep((progress - 0.305) / 0.045);
         const braking = smoothstep((progress - 0.84) / 0.055);
         const preLaunchSpeed = 0.14;
         const hyperspaceSpeed = 74;
