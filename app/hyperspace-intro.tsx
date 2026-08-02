@@ -323,35 +323,39 @@ const exitWakeVertexShader = `
   varying float vLife;
 
   void main() {
-    float cycle = fract(aSeed + uTime * (0.42 + aDrift * 0.18));
-    float advance = pow(cycle, 1.55);
-    float headZ = mix(-86.0, -0.82, advance);
-    float tailZ = headZ - aLength * (0.45 + cycle * 1.4);
-    float radialScale = mix(0.52, 1.55, pow(cycle, 1.2));
-    vec2 radial = vec2(cos(aAngle), sin(aAngle)) * aRadius * radialScale;
-
-    vec4 clipTail = projectionMatrix * modelViewMatrix * vec4(radial, tailZ, 1.0);
-    vec4 clipHead = projectionMatrix * modelViewMatrix * vec4(radial, headZ, 1.0);
-    vec2 ndcTail = clipTail.xy / clipTail.w;
-    vec2 ndcHead = clipHead.xy / clipHead.w;
-    vec2 screenTail = ndcTail * uResolution * 0.5;
-    vec2 screenHead = ndcHead * uResolution * 0.5;
-    vec2 direction = normalize(screenHead - screenTail + vec2(0.00001));
-    vec2 perpendicular = vec2(direction.y, -direction.x);
-    float perspectiveWidth = clamp(13.0 / max(clipHead.w, 0.5), 0.75, 4.0);
-    float halfWidth = max(aWidth * perspectiveWidth, 1.05);
-
+    float delay = aSeed * 0.48;
+    float age = max(uTime - delay, 0.0);
+    float lifetime = 2.7 + aDrift * 1.8;
+    float life = clamp(age / lifetime, 0.0, 1.0);
+    float active = step(delay, uTime) * (1.0 - step(lifetime, age));
+    float directionSign = mix(-1.0, 1.0, step(0.5, fract(aSeed * 17.31)));
+    float orbit = aAngle + directionSign * (
+      age * (0.64 + aDrift * 0.86)
+        + sin(age * 1.85 + aSeed * 19.0) * 0.14
+    );
+    vec2 radialDirection = vec2(cos(orbit), sin(orbit));
+    vec2 tangentDirection = vec2(-radialDirection.y, radialDirection.x);
+    float edgeBand = mix(0.62, 1.08, clamp((aRadius - 2.2) / 9.8, 0.0, 1.0));
+    float radialGrowth = mix(0.78, 1.16, smoothstep(0.0, 0.72, life));
+    vec2 halfResolution = uResolution * 0.5;
+    vec2 center = radialDirection
+      * vec2(halfResolution.x * 0.91, halfResolution.y * 0.88)
+      * edgeBand
+      * radialGrowth;
     float along = uv.y;
-    vec2 screenPosition = mix(screenTail, screenHead, along);
-    screenPosition += perpendicular * uv.x * halfWidth;
-    vec2 ndcPosition = screenPosition / (uResolution * 0.5);
-    float clipW = mix(clipTail.w, clipHead.w, along);
-    float ndcZ = mix(clipTail.z / clipTail.w, clipHead.z / clipHead.w, along);
-
-    gl_Position = vec4(ndcPosition * clipW, ndcZ * clipW, clipW);
+    float arcLength = 18.0 + aLength * 10.5;
+    float curlDepth = (5.0 + aDrift * 13.0) * sin(along * 3.14159265);
+    vec2 screenPosition = center
+      + tangentDirection * (along - 0.5) * arcLength
+      + radialDirection * curlDepth
+      + radialDirection * uv.x * (1.2 + aWidth * 2.8);
+    gl_Position = vec4(screenPosition / halfResolution, 0.0, 1.0);
     vShardUv = uv;
     vBrightness = aBrightness;
-    vLife = smoothstep(0.0, 0.08, cycle) * (1.0 - smoothstep(0.72, 1.0, cycle)) * uOpacity;
+    vLife = active
+      * smoothstep(0.0, 0.065, life)
+      * (1.0 - smoothstep(0.66, 1.0, life))
+      * uOpacity;
   }
 `;
 
@@ -369,9 +373,10 @@ const exitWakeFragmentShader = `
     float tail = smoothstep(0.0, 0.2, vShardUv.y);
     float tip = 1.0 - smoothstep(0.965, 1.0, vShardUv.y);
     float crystal = smoothstep(0.7, 0.96, vShardUv.y) * tip;
-    float alpha = shard * tail * tip * vLife * vBrightness;
+    float filament = 1.0 - smoothstep(0.04, 0.36, abs(vShardUv.x));
+    float alpha = max(shard * 0.62, filament) * tail * tip * vLife * vBrightness;
     vec3 ice = mix(vec3(0.28, 0.72, 1.0), vec3(0.97, 0.995, 1.0), crystal);
-    gl_FragColor = vec4(ice * (0.7 + crystal * 1.8), alpha);
+    gl_FragColor = vec4(ice * (0.92 + crystal * 2.15), alpha);
   }
 `;
 
@@ -433,7 +438,7 @@ const exitCrystalVertexShader = `
     vec4 viewPosition = vec4(particlePosition, 1.0);
     gl_Position = projectionMatrix * viewPosition;
     float facetShimmer = 0.92 + sin(age * (4.0 + aSeed * 3.0) + aSeed * 31.0) * 0.08;
-    gl_PointSize = clamp(aSize * facetShimmer * (18.0 / max(-viewPosition.z, 1.0)), 1.2, 24.0);
+    gl_PointSize = clamp(aSize * facetShimmer * (24.0 / max(-viewPosition.z, 1.0)), 1.8, 34.0);
 
     vLife = active * fade * uOpacity;
     vBrightness = aBrightness;
@@ -535,7 +540,7 @@ const exitDustVertexShader = `
       12.0
     );
     float sparkleSize = 1.0 + aSparkle * sparkleWave * 2.8;
-    gl_PointSize = clamp(aSize * sparkleSize * (22.0 / max(-viewPosition.z, 1.0)), 0.75, 24.0);
+    gl_PointSize = clamp(aSize * sparkleSize * (28.0 / max(-viewPosition.z, 1.0)), 1.4, 36.0);
 
     vLife = active * fade * uOpacity;
     vBrightness = aBrightness;
@@ -569,8 +574,8 @@ const exitDustFragmentShader = `
     vec3 iceBlue = vec3(0.28, 0.7, 1.0);
     vec3 frostWhite = vec3(0.95, 0.995, 1.0);
     vec3 color = mix(iceBlue, frostWhite, core * 0.62 + glint * 0.82);
-    float alpha = shape * vLife * vBrightness * (0.74 + core * 0.5 + glint * 0.72);
-    gl_FragColor = vec4(color * (0.82 + core * 0.92 + glint * 1.8), alpha);
+    float alpha = shape * vLife * vBrightness * (0.94 + core * 0.62 + glint * 0.9);
+    gl_FragColor = vec4(color * (1.08 + core * 1.12 + glint * 2.25), alpha);
   }
 `;
 
@@ -780,9 +785,9 @@ function createExitCrystalGeometry(count: number) {
     lifetimes[index] = 3.8 + Math.random() * 1.7;
     const isMicroFrost = Math.random() < 0.78;
     sizes[index] = isMicroFrost
-      ? 0.55 + Math.pow(Math.random(), 0.8) * 1.85
-      : 3.6 + Math.pow(Math.random(), 0.72) * 6.8;
-    brightness[index] = isMicroFrost ? 0.42 + Math.random() * 0.38 : 0.6 + Math.random() * 0.4;
+      ? 1.0 + Math.pow(Math.random(), 0.8) * 2.6
+      : 5.2 + Math.pow(Math.random(), 0.72) * 8.6;
+    brightness[index] = isMicroFrost ? 0.64 + Math.random() * 0.36 : 0.78 + Math.random() * 0.42;
     turbulence[index] = 0.52 + Math.random() * 1.05;
     seeds[index] = Math.random();
     swirls[index] = cluster.swirl;
@@ -860,9 +865,9 @@ function createExitDustGeometry(count: number) {
     lifetimes[index] = 4.8 + Math.random() * 2.1;
     const sparkle = Math.random() < 0.42;
     sizes[index] = sparkle
-      ? 2.8 + Math.pow(Math.random(), 1.35) * 5.8
-      : 0.48 + Math.pow(Math.random(), 1.65) * 1.85;
-    brightness[index] = 0.62 + Math.random() * 0.38;
+      ? 5.2 + Math.pow(Math.random(), 1.35) * 8.4
+      : 1.0 + Math.pow(Math.random(), 1.65) * 3.1;
+    brightness[index] = 0.78 + Math.random() * 0.42;
     turbulence[index] = 0.72 + Math.random() * 1.65;
     seeds[index] = Math.random();
     sparkles[index] = sparkle ? 0.72 + Math.random() * 0.28 : 0;
@@ -1370,7 +1375,7 @@ export function HyperspaceIntro() {
       uOpacity: { value: 0 },
       uResolution: { value: new THREE.Vector2(1, 1) },
     };
-    const exitWakeGeometry = createExitWakeGeometry(isMobile ? 230 : 420);
+    const exitWakeGeometry = createExitWakeGeometry(isMobile ? 300 : 560);
     const exitWakeMaterial = new THREE.ShaderMaterial({
       uniforms: exitWakeUniforms,
       vertexShader: exitWakeVertexShader,
@@ -1386,7 +1391,7 @@ export function HyperspaceIntro() {
     exitWake.frustumCulled = false;
     exitWake.matrixAutoUpdate = false;
     exitWake.updateMatrix();
-    exitWake.visible = false;
+    exitWake.visible = shouldJump;
     scene.add(exitWake);
 
     const exitCrystalUniforms = {
@@ -1558,12 +1563,12 @@ export function HyperspaceIntro() {
         uniforms.uEnergy.value = (0.24 + charge * 0.88 + visualLaunch * 0.34) * (1 - braking * 0.48);
         uniforms.uSymmetry.value = 1 - visualLaunch;
         uniforms.uOpacity.value = smoothstep(progress / 0.015) * (0.24 + charge * 0.76) * (1 - smoothstep((progress - 0.88) / 0.055));
-        exitWakeUniforms.uTime.value = 0;
-        exitWakeUniforms.uOpacity.value = 0;
+        exitWakeUniforms.uTime.value = Math.max(0, (elapsed - DURATION * 0.858) / 1000);
+        exitWakeUniforms.uOpacity.value = smoothstep((progress - 0.86) / 0.028) * 0.92;
         exitCrystalUniforms.uTime.value = Math.max(0, (elapsed - DURATION * 0.872) / 1000);
-        exitCrystalUniforms.uOpacity.value = smoothstep((progress - 0.875) / 0.04);
+        exitCrystalUniforms.uOpacity.value = smoothstep((progress - 0.865) / 0.035) * 1.38;
         exitDustUniforms.uTime.value = Math.max(0, (elapsed - DURATION * 0.87) / 1000);
-        exitDustUniforms.uOpacity.value = smoothstep((progress - 0.872) / 0.035) * 1.08;
+        exitDustUniforms.uOpacity.value = smoothstep((progress - 0.862) / 0.03) * 1.52;
         world.setOpacity(smoothstep((progress - 0.865) / 0.09));
         renderer.toneMappingExposure = 0.94 + charge * 0.1 + launch * 0.06;
 
@@ -1576,8 +1581,8 @@ export function HyperspaceIntro() {
         camera.position.y = Math.cos(elapsed * 0.027) * shakeStrength * 0.68;
         camera.position.z = -0.9 * exitArrival + launchRecoil * 0.32 + Math.sin(elapsed * 0.019) * shakeStrength * 0.32;
         cameraTarget.set(
-          4.8 * exitArrival + Math.sin(elapsed * 0.024) * shakeStrength * 0.72,
-          -0.2 * exitArrival + Math.cos(elapsed * 0.021) * shakeStrength * 0.46,
+          Math.sin(elapsed * 0.024) * shakeStrength * 0.72,
+          Math.cos(elapsed * 0.021) * shakeStrength * 0.46,
           THREE.MathUtils.lerp(-100, -38, exitArrival),
         );
         camera.lookAt(cameraTarget);
@@ -1602,12 +1607,12 @@ export function HyperspaceIntro() {
         const landingElapsed = landingStartTime === null ? 1600 : Math.max(0, time - landingStartTime);
         const wakeFade = 1 - smoothstep(landingElapsed / 3200);
         const dustFade = 1 - smoothstep(landingElapsed / 5200);
-        exitWakeUniforms.uTime.value = 0;
-        exitWakeUniforms.uOpacity.value = 0;
+        exitWakeUniforms.uTime.value = Math.max(0, (elapsed - DURATION * 0.858) / 1000);
+        exitWakeUniforms.uOpacity.value = wakeFade * 0.88;
         exitCrystalUniforms.uTime.value = Math.max(0, (elapsed - DURATION * 0.872) / 1000);
-        exitCrystalUniforms.uOpacity.value = wakeFade;
+        exitCrystalUniforms.uOpacity.value = wakeFade * 1.3;
         exitDustUniforms.uTime.value = Math.max(0, (elapsed - DURATION * 0.87) / 1000);
-        exitDustUniforms.uOpacity.value = dustFade * 1.04;
+        exitDustUniforms.uOpacity.value = dustFade * 1.42;
         if (wakeFade <= 0.001) {
           exitWake.visible = false;
           exitCrystals.visible = false;
@@ -1627,8 +1632,8 @@ export function HyperspaceIntro() {
         const cameraDamping = 1 - Math.pow(0.004, delta);
         camera.position.lerp(desiredCamera, cameraDamping);
         desiredTarget.set(
-          4.8 - scrollProgress * 6.8,
-          -0.2 + scrollProgress * 0.6,
+          -scrollProgress * 2,
+          scrollProgress * 0.4,
           -38 - scrollProgress * 12,
         );
         cameraTarget.lerp(desiredTarget, cameraDamping);
