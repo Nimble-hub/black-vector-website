@@ -122,6 +122,95 @@ const fragmentShader = `
   }
 `;
 
+const tunnelDustVertexShader = `
+  precision highp float;
+
+  attribute float aAngle;
+  attribute float aRadius;
+  attribute float aSeedZ;
+  attribute float aSize;
+  attribute float aBrightness;
+
+  uniform float uTravel;
+  uniform float uDepth;
+  uniform float uOpacity;
+
+  varying float vBrightness;
+  varying float vLife;
+
+  void main() {
+    float travel = mod(aSeedZ + uTravel * 1.12, uDepth);
+    float z = -uDepth + travel;
+    vec2 radial = vec2(cos(aAngle), sin(aAngle)) * aRadius;
+    vec4 viewPosition = modelViewMatrix * vec4(radial, z, 1.0);
+    gl_Position = projectionMatrix * viewPosition;
+    gl_PointSize = clamp(aSize * (18.0 / max(-viewPosition.z, 1.0)), 0.7, 4.2);
+
+    vBrightness = aBrightness;
+    vLife = smoothstep(0.0, 12.0, travel)
+      * (1.0 - smoothstep(uDepth - 5.0, uDepth, travel))
+      * uOpacity;
+  }
+`;
+
+const tunnelDustFragmentShader = `
+  precision highp float;
+
+  varying float vBrightness;
+  varying float vLife;
+
+  void main() {
+    float distanceFromCenter = length(gl_PointCoord - 0.5);
+    float speck = 1.0 - smoothstep(0.18, 0.5, distanceFromCenter);
+    float core = 1.0 - smoothstep(0.0, 0.15, distanceFromCenter);
+    vec3 ice = mix(vec3(0.34, 0.7, 1.0), vec3(0.97, 0.995, 1.0), core);
+    float alpha = speck * vLife * vBrightness;
+    gl_FragColor = vec4(ice * (0.62 + core * 0.72), alpha);
+  }
+`;
+
+const tunnelCausticVertexShader = `
+  precision highp float;
+
+  varying vec2 vCausticUv;
+
+  void main() {
+    vCausticUv = uv;
+    gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+  }
+`;
+
+const tunnelCausticFragmentShader = `
+  precision highp float;
+
+  uniform float uTime;
+  uniform float uOpacity;
+
+  varying vec2 vCausticUv;
+
+  void main() {
+    float angle = vCausticUv.x * 6.2831853;
+    float depth = vCausticUv.y;
+    float flow = uTime;
+    float warp = sin(angle * 3.0 + depth * 16.0 - flow * 0.9) * 0.42
+      + sin(angle * 5.0 - depth * 11.0 + flow * 0.65) * 0.24;
+    float bandA = abs(sin(angle * 7.0 + depth * 24.0 + warp + flow * 1.25));
+    float bandB = abs(sin(angle * 11.0 - depth * 17.0 - warp * 1.4 - flow * 0.82));
+    float filamentA = pow(1.0 - bandA, 14.0);
+    float filamentB = pow(1.0 - bandB, 17.0) * 0.78;
+    float filaments = max(filamentA, filamentB);
+    float breakupWave = sin(angle * 2.0 + depth * 37.0 - flow * 0.45);
+    float breakup = 0.58 + 0.42 * breakupWave * breakupWave;
+    float depthFade = smoothstep(0.015, 0.1, depth)
+      * (1.0 - smoothstep(0.92, 0.995, depth));
+    float alpha = filaments * breakup * depthFade * uOpacity;
+    vec3 electricBlue = vec3(0.16, 0.62, 1.0);
+    vec3 iceWhite = vec3(0.86, 0.975, 1.0);
+    vec3 color = mix(electricBlue, iceWhite, filamentA * 0.72 + filamentB * 0.5);
+    gl_FragColor = vec4(color * (0.68 + filaments * 0.92), alpha);
+  }
+`;
+
 const exitWakeVertexShader = `
   precision highp float;
 
@@ -326,6 +415,32 @@ function createTunnelGeometry(count: number) {
   geometry.setAttribute("aBrightness", new THREE.InstancedBufferAttribute(brightness, 1));
   geometry.setAttribute("aHue", new THREE.InstancedBufferAttribute(hues, 1));
   geometry.instanceCount = count;
+  return geometry;
+}
+
+function createTunnelDustGeometry(count: number) {
+  const geometry = new THREE.BufferGeometry();
+  const positions = new Float32Array(count * 3);
+  const angles = new Float32Array(count);
+  const radii = new Float32Array(count);
+  const seeds = new Float32Array(count);
+  const sizes = new Float32Array(count);
+  const brightness = new Float32Array(count);
+
+  for (let index = 0; index < count; index += 1) {
+    angles[index] = Math.random() * Math.PI * 2;
+    radii[index] = 2.5 + Math.pow(Math.random(), 0.72) * 9.7;
+    seeds[index] = Math.random() * DEPTH;
+    sizes[index] = 1.05 + Math.pow(Math.random(), 1.8) * 2.35;
+    brightness[index] = 0.32 + Math.random() * 0.68;
+  }
+
+  geometry.setAttribute("position", new THREE.BufferAttribute(positions, 3));
+  geometry.setAttribute("aAngle", new THREE.BufferAttribute(angles, 1));
+  geometry.setAttribute("aRadius", new THREE.BufferAttribute(radii, 1));
+  geometry.setAttribute("aSeedZ", new THREE.BufferAttribute(seeds, 1));
+  geometry.setAttribute("aSize", new THREE.BufferAttribute(sizes, 1));
+  geometry.setAttribute("aBrightness", new THREE.BufferAttribute(brightness, 1));
   return geometry;
 }
 
@@ -892,6 +1007,61 @@ export function HyperspaceIntro() {
     tunnel.visible = shouldJump;
     scene.add(tunnel);
 
+    const tunnelDustUniforms = {
+      uTravel: { value: 0 },
+      uDepth: { value: DEPTH },
+      uOpacity: { value: 0 },
+    };
+    const tunnelDustGeometry = createTunnelDustGeometry(isMobile ? 420 : 900);
+    const tunnelDustMaterial = new THREE.ShaderMaterial({
+      uniforms: tunnelDustUniforms,
+      vertexShader: tunnelDustVertexShader,
+      fragmentShader: tunnelDustFragmentShader,
+      transparent: true,
+      blending: THREE.AdditiveBlending,
+      depthTest: false,
+      depthWrite: false,
+      toneMapped: false,
+    });
+    const tunnelDust = new THREE.Points(tunnelDustGeometry, tunnelDustMaterial);
+    tunnelDust.frustumCulled = false;
+    tunnelDust.matrixAutoUpdate = false;
+    tunnelDust.updateMatrix();
+    tunnelDust.visible = shouldJump;
+    scene.add(tunnelDust);
+
+    const tunnelCausticUniforms = {
+      uTime: { value: 0 },
+      uOpacity: { value: 0 },
+    };
+    const tunnelCausticGeometry = new THREE.CylinderGeometry(
+      12.2,
+      12.2,
+      DEPTH,
+      isMobile ? 36 : 64,
+      1,
+      true,
+    );
+    tunnelCausticGeometry.rotateX(Math.PI / 2);
+    const tunnelCausticMaterial = new THREE.ShaderMaterial({
+      uniforms: tunnelCausticUniforms,
+      vertexShader: tunnelCausticVertexShader,
+      fragmentShader: tunnelCausticFragmentShader,
+      transparent: true,
+      blending: THREE.AdditiveBlending,
+      depthTest: false,
+      depthWrite: false,
+      toneMapped: false,
+      side: THREE.BackSide,
+    });
+    const tunnelCaustics = new THREE.Mesh(tunnelCausticGeometry, tunnelCausticMaterial);
+    tunnelCaustics.position.z = -DEPTH / 2;
+    tunnelCaustics.frustumCulled = false;
+    tunnelCaustics.matrixAutoUpdate = false;
+    tunnelCaustics.updateMatrix();
+    tunnelCaustics.visible = shouldJump;
+    scene.add(tunnelCaustics);
+
     const exitWakeUniforms = {
       uTime: { value: 0 },
       uOpacity: { value: 0 },
@@ -1048,6 +1218,10 @@ export function HyperspaceIntro() {
         const speed = THREE.MathUtils.lerp(preLaunchSpeed, hyperspaceSpeed, launch) * (1 - braking) + 0.35 * braking;
         travel += speed * delta;
         uniforms.uTravel.value = travel;
+        tunnelDustUniforms.uTravel.value = travel;
+        tunnelDustUniforms.uOpacity.value = (0.025 + charge * 0.04 + visualLaunch * 0.42) * (1 - braking);
+        tunnelCausticUniforms.uTime.value = elapsed * 0.0012 + travel * 0.018;
+        tunnelCausticUniforms.uOpacity.value = (charge * 0.018 + visualLaunch * 0.12) * (1 - braking);
         const stretchCharge = Math.pow(lineGrowth, 0.7);
         const staticStretch = THREE.MathUtils.lerp(0.035, 0.43, stretchCharge);
         uniforms.uForwardStretch.value = staticStretch * (1 - braking) + braking * 0.01;
@@ -1085,6 +1259,8 @@ export function HyperspaceIntro() {
           jumpComplete = true;
           landingStartTime = time;
           tunnel.visible = false;
+          tunnelDust.visible = false;
+          tunnelCaustics.visible = false;
           world.setOpacity(1);
           renderer.toneMappingExposure = 0.98;
           if (!finishQueued) {
@@ -1172,6 +1348,10 @@ export function HyperspaceIntro() {
       if (!hasLightGeometry) {
         geometry.dispose();
         material.dispose();
+        tunnelDustGeometry.dispose();
+        tunnelDustMaterial.dispose();
+        tunnelCausticGeometry.dispose();
+        tunnelCausticMaterial.dispose();
         exitWakeGeometry.dispose();
         exitWakeMaterial.dispose();
         exitCrystalGeometry.dispose();
@@ -1196,10 +1376,16 @@ export function HyperspaceIntro() {
       window.removeEventListener("resize", resize);
       canvas.removeEventListener("webglcontextlost", onContextLost);
       scene.remove(tunnel);
+      scene.remove(tunnelDust);
+      scene.remove(tunnelCaustics);
       scene.remove(exitWake);
       scene.remove(exitCrystals);
       geometry.dispose();
       material.dispose();
+      tunnelDustGeometry.dispose();
+      tunnelDustMaterial.dispose();
+      tunnelCausticGeometry.dispose();
+      tunnelCausticMaterial.dispose();
       exitWakeGeometry.dispose();
       exitWakeMaterial.dispose();
       exitCrystalGeometry.dispose();
