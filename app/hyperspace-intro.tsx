@@ -185,29 +185,77 @@ const tunnelCausticFragmentShader = `
 
   uniform float uTime;
   uniform float uOpacity;
+  uniform float uTravel;
 
   varying vec2 vCausticUv;
+
+  vec2 hash22(vec2 point) {
+    vec2 hashed = vec2(
+      dot(point, vec2(127.1, 311.7)),
+      dot(point, vec2(269.5, 183.3))
+    );
+    return fract(sin(hashed) * 43758.5453);
+  }
+
+  float causticCells(vec2 point, float flow) {
+    vec2 cell = floor(point);
+    vec2 local = fract(point);
+    float nearest = 8.0;
+    float secondNearest = 8.0;
+
+    for (int y = -1; y <= 1; y += 1) {
+      for (int x = -1; x <= 1; x += 1) {
+        vec2 neighbor = vec2(float(x), float(y));
+        vec2 sampleCell = cell + neighbor;
+        sampleCell.x = mod(sampleCell.x, 7.0);
+        vec2 seed = hash22(sampleCell);
+        vec2 waterMotion = vec2(
+          sin(flow * 0.58 + seed.x * 6.2831853),
+          cos(flow * 0.46 + seed.y * 6.2831853)
+        );
+        vec2 samplePoint = neighbor + 0.5 + waterMotion * 0.36 - local;
+        float distanceSquared = dot(samplePoint, samplePoint);
+        float previousNearest = nearest;
+        nearest = min(nearest, distanceSquared);
+        secondNearest = min(secondNearest, max(previousNearest, distanceSquared));
+      }
+    }
+
+    return sqrt(secondNearest) - sqrt(nearest);
+  }
 
   void main() {
     float angle = vCausticUv.x * 6.2831853;
     float depth = vCausticUv.y;
     float flow = uTime;
-    float warp = sin(angle * 3.0 + depth * 16.0 - flow * 0.9) * 0.42
-      + sin(angle * 5.0 - depth * 11.0 + flow * 0.65) * 0.24;
-    float bandA = abs(sin(angle * 7.0 + depth * 24.0 + warp + flow * 1.25));
-    float bandB = abs(sin(angle * 11.0 - depth * 17.0 - warp * 1.4 - flow * 0.82));
-    float filamentA = pow(1.0 - bandA, 14.0);
-    float filamentB = pow(1.0 - bandB, 17.0) * 0.78;
-    float filaments = max(filamentA, filamentB);
-    float breakupWave = sin(angle * 2.0 + depth * 37.0 - flow * 0.45);
-    float breakup = 0.58 + 0.42 * breakupWave * breakupWave;
+    float longitudinalWarp = sin(angle * 2.0 - flow * 0.34) * 0.42
+      + sin(angle * 5.0 + depth * 13.0 + flow * 0.22) * 0.18;
+    float tunnelFlow = uTravel * (18.0 / 132.0);
+    vec2 causticPoint = vec2(
+      vCausticUv.x * 7.0,
+      depth * 18.0 - tunnelFlow + longitudinalWarp
+    );
+    float cellGap = causticCells(causticPoint, flow);
+    float waterWeb = 1.0 - smoothstep(0.025, 0.15, cellGap);
+    float electricCore = 1.0 - smoothstep(0.006, 0.043, cellGap);
+    float rollingRefraction = 0.62 + 0.38 * pow(
+      0.5 + 0.5 * sin(angle * 3.0 + depth * 31.0 - flow * 0.72),
+      2.0
+    );
+    float chargePulse = 0.72 + 0.28 * sin(
+      flow * 2.15 + depth * 46.0 + sin(angle * 4.0 - flow * 0.4) * 1.4
+    );
+    chargePulse *= chargePulse;
+    float filaments = waterWeb * 0.38 + electricCore * (0.72 + chargePulse * 0.72);
     float depthFade = smoothstep(0.015, 0.1, depth)
       * (1.0 - smoothstep(0.92, 0.995, depth));
-    float alpha = filaments * breakup * depthFade * uOpacity;
-    vec3 electricBlue = vec3(0.16, 0.62, 1.0);
-    vec3 iceWhite = vec3(0.86, 0.975, 1.0);
-    vec3 color = mix(electricBlue, iceWhite, filamentA * 0.72 + filamentB * 0.5);
-    gl_FragColor = vec4(color * (0.68 + filaments * 0.92), alpha);
+    float alpha = filaments * rollingRefraction * depthFade * uOpacity;
+    vec3 deepCyan = vec3(0.04, 0.32, 0.72);
+    vec3 electricBlue = vec3(0.22, 0.76, 1.0);
+    vec3 lightningWhite = vec3(0.9, 0.985, 1.0);
+    vec3 waterColor = mix(deepCyan, electricBlue, waterWeb);
+    vec3 color = mix(waterColor, lightningWhite, electricCore * (0.58 + chargePulse * 0.42));
+    gl_FragColor = vec4(color * (0.52 + electricCore * 1.34), alpha);
   }
 `;
 
@@ -1033,10 +1081,11 @@ export function HyperspaceIntro() {
     const tunnelCausticUniforms = {
       uTime: { value: 0 },
       uOpacity: { value: 0 },
+      uTravel: { value: 0 },
     };
     const tunnelCausticGeometry = new THREE.CylinderGeometry(
-      12.2,
-      12.2,
+      18.2,
+      18.2,
       DEPTH,
       isMobile ? 36 : 64,
       1,
@@ -1220,8 +1269,9 @@ export function HyperspaceIntro() {
         uniforms.uTravel.value = travel;
         tunnelDustUniforms.uTravel.value = travel;
         tunnelDustUniforms.uOpacity.value = (0.025 + charge * 0.04 + visualLaunch * 0.42) * (1 - braking);
-        tunnelCausticUniforms.uTime.value = elapsed * 0.0012 + travel * 0.018;
-        tunnelCausticUniforms.uOpacity.value = (charge * 0.018 + visualLaunch * 0.12) * (1 - braking);
+        tunnelCausticUniforms.uTime.value = elapsed * 0.00105 + travel * 0.012;
+        tunnelCausticUniforms.uTravel.value = travel;
+        tunnelCausticUniforms.uOpacity.value = (charge * 0.022 + visualLaunch * 0.16) * (1 - braking);
         const stretchCharge = Math.pow(lineGrowth, 0.7);
         const staticStretch = THREE.MathUtils.lerp(0.035, 0.43, stretchCharge);
         uniforms.uForwardStretch.value = staticStretch * (1 - braking) + braking * 0.01;
