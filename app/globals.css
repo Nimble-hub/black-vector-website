@@ -39,6 +39,11 @@ a {
   color: inherit;
 }
 
+main {
+  position: relative;
+  isolation: isolate;
+}
+
 button:focus-visible,
 a:focus-visible {
   outline: 2px solid var(--cyan);
@@ -66,6 +71,32 @@ a:focus-visible {
   inset: 0;
 }
 
+.space-experience {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  overflow: hidden;
+  background: #000104;
+  opacity: 1;
+  pointer-events: none;
+  transition: opacity 620ms ease, filter 620ms ease;
+}
+
+.space-experience.is-jumping {
+  z-index: 100;
+}
+
+.space-experience.is-exiting {
+  opacity: 0;
+  filter: brightness(1.8);
+}
+
+.space-experience canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
 .eyebrow,
 .signal-state,
 .hero-meta,
@@ -77,9 +108,12 @@ a:focus-visible {
 
 .hero {
   position: relative;
+  z-index: 1;
   min-height: 100svh;
   overflow: hidden;
-  background: var(--space);
+  background:
+    linear-gradient(90deg, rgba(5, 7, 10, 0.9) 0%, rgba(5, 7, 10, 0.36) 46%, transparent 76%),
+    linear-gradient(0deg, rgba(5, 7, 10, 0.76) 0%, transparent 42%);
   isolation: isolate;
 }
 
@@ -293,12 +327,14 @@ h1 span {
 }
 
 .archive {
-  min-height: 72vh;
+  position: relative;
+  z-index: 1;
+  min-height: 100svh;
   padding: clamp(100px, 14vw, 220px) clamp(24px, 12vw, 184px);
   border-top: 1px solid rgba(155, 170, 179, 0.12);
   background:
-    linear-gradient(135deg, transparent 65%, rgba(68, 202, 209, 0.035)),
-    var(--void);
+    linear-gradient(90deg, rgba(5, 7, 10, 0.88) 0%, rgba(5, 7, 10, 0.48) 48%, transparent 78%),
+    linear-gradient(135deg, transparent 65%, rgba(68, 202, 209, 0.035));
 }
 
 .archive h2 {
@@ -307,11 +343,40 @@ h1 span {
   line-height: 0.92;
 }
 
-.archive > p:last-child {
+.archive > p:not(.eyebrow) {
   max-width: 580px;
   margin: 32px 0 0;
   color: var(--alloy);
   line-height: 1.7;
+}
+
+.node-index {
+  display: grid;
+  width: min(620px, 100%);
+  margin-top: 58px;
+  border-top: 1px solid rgba(155, 170, 179, 0.2);
+  color: rgba(231, 226, 214, 0.48);
+  font-family: Consolas, "Cascadia Mono", monospace;
+  font-size: 9px;
+  letter-spacing: 0.14em;
+}
+
+.node-index span {
+  padding: 15px 0;
+  border-bottom: 1px solid rgba(155, 170, 179, 0.12);
+}
+
+.node-index span:first-child {
+  color: var(--cyan);
+}
+
+.archive-secondary {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  padding-left: clamp(24px, 48vw, 760px);
+  background:
+    linear-gradient(270deg, rgba(5, 7, 10, 0.9) 0%, rgba(5, 7, 10, 0.46) 50%, transparent 82%);
 }
 
 @keyframes hero-arrival {
@@ -342,6 +407,7 @@ h1 span {
   .hero-meta { display: none; }
   .scroll-cue { bottom: 24px; }
   h1 { font-size: clamp(46px, 15vw, 72px); }
+  .archive-secondary { padding-left: 24px; }
 }
 
 @media (prefers-reduced-motion: reduce) {

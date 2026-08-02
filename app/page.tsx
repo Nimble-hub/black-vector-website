@@ -13,7 +13,6 @@ export default function Home() {
       <HyperspaceIntro />
 
       <section className="hero" aria-labelledby="hero-title">
-        <div className="hero-art" aria-hidden="true" />
         <div className="hero-scan" aria-hidden="true" />
 
         <header className="site-header">
@@ -47,9 +46,9 @@ export default function Home() {
           </div>
         </div>
 
-        <div className="hero-meta" aria-label="Visual development image details">
-          <span>CONCEPT ART // VISUAL DEVELOPMENT</span>
-          <span>HUMAN CARRIER / DISCORD REF. 1533253150839148836</span>
+        <div className="hero-meta" aria-label="Live theater details">
+          <span>LIVE THEATER // PROCEDURAL 3D</span>
+          <span>FLEET CAMERA / SECTOR BV-01</span>
         </div>
 
         <a className="scroll-cue" href="#archive">
@@ -60,10 +59,24 @@ export default function Home() {
 
       <section className="archive" id="archive" aria-labelledby="archive-title">
         <p className="eyebrow">ARCHIVE NODE 01 // STRATEGIC OVERVIEW</p>
-        <h2 id="archive-title">A WAR FOUGHT IN THE DARK BETWEEN SIGNALS.</h2>
+        <h2 id="archive-title">COMMAND THE FRACTURE.</h2>
         <p>
-          This first build establishes the cinematic entry. The wider campaign,
-          faction, ship, and lore archive will unfold from here.
+          Black Vector is a fleet-command RTS about distance, incomplete
+          intelligence, and decisions that continue moving after you make them.
+        </p>
+        <div className="node-index" aria-label="Archive status">
+          <span>01 / FLEET COMMAND</span>
+          <span>02 / SIGNAL WARFARE</span>
+          <span>03 / THE 27-DAY SKIRMISH</span>
+        </div>
+      </section>
+
+      <section className="archive archive-secondary" aria-labelledby="signal-title">
+        <p className="eyebrow">ARCHIVE NODE 02 // SIGNAL WARFARE</p>
+        <h2 id="signal-title">NOTHING ARRIVES IN REAL TIME.</h2>
+        <p>
+          Read the battlespace through delayed transmissions, commit your fleet,
+          and live with the uncertainty between the order and its consequence.
         </p>
       </section>
     </main>
