@@ -40,7 +40,7 @@ $jumpFilter = @"
 [7:a]atrim=start=0:end=5.7,asetpts=PTS-STARTPTS,highpass=f=24,lowpass=f=7600,equalizer=f=58:t=q:w=0.8:g=2.0,equalizer=f=180:t=q:w=1.0:g=-2.0,equalizer=f=2200:t=q:w=0.85:g=1.8,afade=t=out:st=4.8:d=0.9,volume=0.62,adelay=5699|5699[growlyHit];
 [8:a]atrim=start=0:end=3.1,asetpts=PTS-STARTPTS,highpass=f=20,lowpass=f=340,equalizer=f=43:t=q:w=0.72:g=3.2,equalizer=f=88:t=q:w=0.85:g=1.6,equalizer=f=210:t=q:w=1.0:g=-2.5,afade=t=out:st=2.35:d=0.75,volume=0.46,adelay=5430|5430[metalSub];
 [9:a]atrim=start=0.8:end=10.15,asetpts=PTS-STARTPTS,highpass=f=34,lowpass=f=6800,equalizer=f=62:t=q:w=0.82:g=-2.8,equalizer=f=155:t=q:w=0.92:g=1.8,equalizer=f=520:t=q:w=0.9:g=2.2,equalizer=f=2400:t=q:w=0.82:g=1.4,acompressor=threshold=0.19:ratio=2.0:attack=28:release=220:makeup=1.12,afade=t=in:st=0:d=0.42,afade=t=out:st=8.45:d=0.9,volume=0.44,adelay=5880|5880[travelEngine];
-[10:a]atrim=start=13.95:end=25.5,asetpts=PTS-STARTPTS,atempo=2.0,highpass=f=35,lowpass=f=10500,equalizer=f=95:t=q:w=0.9:g=-2.2,equalizer=f=430:t=q:w=1.0:g=-1.5,equalizer=f=1850:t=q:w=0.85:g=2.4,equalizer=f=5600:t=q:w=0.8:g=2.1,acompressor=threshold=0.18:ratio=1.8:attack=22:release=165:makeup=1.1,afade=t=in:st=0:d=0.28,afade=t=out:st=5.62:d=0.155,volume=0.42[growlyBuild];
+[10:a]atrim=start=16.0:end=25.5,asetpts=PTS-STARTPTS,atempo=1.645,highpass=f=28,lowpass=f=11000,equalizer=f=58:t=q:w=0.78:g=3.2,equalizer=f=112:t=q:w=0.9:g=2.4,equalizer=f=330:t=q:w=1.0:g=-1.8,equalizer=f=1750:t=q:w=0.85:g=2.6,equalizer=f=5600:t=q:w=0.8:g=1.8,acompressor=threshold=0.16:ratio=1.65:attack=26:release=185:makeup=1.15,afade=t=in:st=0:d=0.22,afade=t=out:st=5.62:d=0.155,volume=0.62[growlyBuild];
 [11:a]atrim=start=8.27:end=15.02,asetpts=PTS-STARTPTS,atempo=2.0,highpass=f=72,lowpass=f=12000,equalizer=f=180:t=q:w=0.9:g=-2.4,equalizer=f=920:t=q:w=0.9:g=1.8,equalizer=f=3300:t=q:w=0.8:g=2.6,equalizer=f=7800:t=q:w=0.75:g=2.2,acompressor=threshold=0.2:ratio=1.7:attack=16:release=135:makeup=1.08,afade=t=in:st=0:d=0.2,afade=t=out:st=3.20:d=0.175,volume=0.44,adelay=2400|2400[electronicBuild];
 [growlyBuild][electronicBuild][machineryMid][chargeAir][buildA][buildB][launchImpact][growlyHit][metalSub][travelRumble][travelEngine][exitDrop]amix=inputs=12:normalize=0:dropout_transition=0,highpass=f=20,equalizer=f=55:t=q:w=0.8:g=2.0,equalizer=f=125:t=q:w=0.9:g=1.0,equalizer=f=340:t=q:w=1.0:g=-2.0,equalizer=f=1800:t=q:w=0.8:g=1.0,equalizer=f=4800:t=q:w=0.75:g=1.3,acompressor=threshold=0.18:ratio=1.85:attack=18:release=180:makeup=1.05:knee=2.5,loudnorm=I=-12.5:TP=-1.0:LRA=8,atrim=end=21.3[master]
 "@ -replace "`r?`n", ""
@@ -61,7 +61,7 @@ $jumpOutput = Join-Path $publicAudio "hyperspace-jump.mp3"
   -i $electronicRiser.FullName `
   -filter_complex $jumpFilter `
   -map "[master]" -ar 48000 -ac 2 -c:a libmp3lame -b:a 256k `
-  -metadata title="Black Vector Hyperspace Theater Mix 08" `
+  -metadata title="Black Vector Hyperspace Theater Mix 09" `
   -metadata comment="Licensed source masters preserved locally" `
   $jumpOutput
 if ($LASTEXITCODE -ne 0) { throw "Hyperspace soundtrack build failed." }
