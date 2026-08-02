@@ -9,8 +9,8 @@ type Star = {
   brightness: number;
 };
 
-const DURATION = 3300;
-const SEEN_KEY = "black-vector-jump-seen";
+const DURATION = 15000;
+const SEEN_KEY = "black-vector-jump-seen-v3";
 
 function easeInCubic(value: number) {
   return value * value * value;
@@ -22,7 +22,6 @@ export function HyperspaceIntro() {
   const [runId, setRunId] = useState(0);
   const [visible, setVisible] = useState(true);
   const [exiting, setExiting] = useState(false);
-  const [status, setStatus] = useState("CALIBRATING VECTOR");
 
   const finish = useCallback(() => {
     setExiting(true);
@@ -32,7 +31,6 @@ export function HyperspaceIntro() {
 
   const replay = useCallback(() => {
     if (animationRef.current) cancelAnimationFrame(animationRef.current);
-    setStatus("CALIBRATING VECTOR");
     setExiting(false);
     setVisible(true);
     setRunId((value) => value + 1);
@@ -70,7 +68,6 @@ export function HyperspaceIntro() {
     let stars: Star[] = [];
     let startTime = 0;
     let lastTime = 0;
-    let announcedJump = false;
 
     const makeStars = () => {
       const count = width < 720 ? 260 : 520;
@@ -105,21 +102,19 @@ export function HyperspaceIntro() {
       const progress = Math.min(elapsed / DURATION, 1);
       lastTime = time;
 
-      let speed = 0.03;
-      if (progress > 0.1 && progress < 0.68) {
-        speed = 0.06 + easeInCubic((progress - 0.1) / 0.58) * 1.85;
-      } else if (progress >= 0.68 && progress < 0.82) {
-        speed = 2.05;
-      } else if (progress >= 0.82) {
-        speed = Math.max(0.05, 2.05 * (1 - (progress - 0.82) / 0.18));
+      let speed = 0.025;
+      if (progress > 0.1 && progress < 0.25) {
+        speed = 0.04 + easeInCubic((progress - 0.1) / 0.15) * 1.48;
+      } else if (progress >= 0.25 && progress < 0.82) {
+        speed = 1.52 + Math.sin(progress * Math.PI * 8) * 0.08;
+      } else if (progress >= 0.82 && progress < 0.9) {
+        speed = 1.62 + easeInCubic((progress - 0.82) / 0.08) * 0.78;
+      } else if (progress >= 0.9) {
+        speed = Math.max(0.035, 2.4 * (1 - (progress - 0.9) / 0.1));
       }
 
-      if (progress > 0.28 && !announcedJump) {
-        announcedJump = true;
-        setStatus("VECTOR LOCKED // JUMPING");
-      }
-
-      context.fillStyle = "#020305";
+      const transit = Math.max(0, Math.min(1, (progress - 0.13) / 0.18));
+      context.fillStyle = transit > 0.08 ? "#020713" : "#020305";
       context.fillRect(0, 0, width, height);
       const centerX = width * 0.5;
       const centerY = height * 0.48;
@@ -137,7 +132,7 @@ export function HyperspaceIntro() {
 
         const x = centerX + (star.x / star.z) * focal;
         const y = centerY + (star.y / star.z) * focal;
-        const tailZ = Math.min(1.2, previousZ + speed * 0.04);
+        const tailZ = Math.min(1.25, previousZ + speed * (0.055 + transit * 0.055));
         const tailX = centerX + (star.x / tailZ) * focal;
         const tailY = centerY + (star.y / tailZ) * focal;
         const alpha = Math.min(0.92, star.brightness * (1.08 - star.z));
@@ -153,17 +148,17 @@ export function HyperspaceIntro() {
         context.stroke();
       }
 
-      const charge = Math.max(0, Math.min(1, (progress - 0.48) / 0.3));
+      const charge = Math.max(0, Math.min(1, (progress - 0.12) / 0.16));
       const glow = context.createRadialGradient(centerX, centerY, 0, centerX, centerY, width * 0.42);
-      glow.addColorStop(0, `rgba(231, 249, 255, ${charge * 0.28})`);
-      glow.addColorStop(0.08, `rgba(68, 202, 209, ${charge * 0.12})`);
+      glow.addColorStop(0, `rgba(231, 249, 255, ${charge * 0.32})`);
+      glow.addColorStop(0.08, `rgba(80, 160, 255, ${charge * 0.2})`);
       glow.addColorStop(1, "rgba(0, 0, 0, 0)");
       context.fillStyle = glow;
       context.fillRect(0, 0, width, height);
 
-      if (progress > 0.73 && progress < 0.84) {
-        const flashProgress = (progress - 0.73) / 0.11;
-        const flash = Math.sin(flashProgress * Math.PI) * 0.76;
+      if (progress > 0.88 && progress < 0.94) {
+        const flashProgress = (progress - 0.88) / 0.06;
+        const flash = Math.sin(flashProgress * Math.PI) * 0.82;
         context.fillStyle = `rgba(231, 246, 248, ${flash})`;
         context.fillRect(0, 0, width, height);
       }
@@ -195,13 +190,6 @@ export function HyperspaceIntro() {
       aria-label="Hyperspace jump loading sequence"
     >
       <canvas ref={canvasRef} aria-hidden="true" />
-      <div className="jump-interface">
-        <div className="jump-reticle" aria-hidden="true"><span /></div>
-        <p className="jump-status" aria-live="polite">{status}</p>
-        <button className="skip-jump" type="button" onClick={finish}>
-          SKIP JUMP <span aria-hidden="true">ESC</span>
-        </button>
-      </div>
     </div>
   );
 }
