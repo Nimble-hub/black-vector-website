@@ -503,32 +503,43 @@ const exitDustVertexShader = `
     float fade = smoothstep(0.0, 0.045, life) * (1.0 - smoothstep(0.7, 1.0, life));
 
     vec3 localOffset = position - aClusterOrigin;
-    float spin = age * aSwirl * 1.22 + sin(age * 1.9 + aClusterPhase) * 0.31;
+    float spin = age * aSwirl * 0.42
+      + sin(age * (1.35 + aSeed * 0.7) + aClusterPhase) * 0.22;
     float spinCos = cos(spin);
     float spinSin = sin(spin);
     localOffset.xy = mat2(spinCos, -spinSin, spinSin, spinCos) * localOffset.xy;
-    localOffset *= 1.0 + age * (0.1 + aSeed * 0.06);
+    localOffset *= 1.0 + age * (0.035 + aSeed * 0.025);
 
-    float clusterTurn = age * aSwirl * 0.34
-      + sin(age * 1.08 + aClusterPhase) * 0.12;
+    float turbulenceOnset = smoothstep(0.12, 0.72, age);
+    float clusterTurn = age * aSwirl * 0.08
+      + sin(age * 0.92 + aClusterPhase) * turbulenceOnset * 0.1
+      + sin(age * 2.36 + aClusterPhase * 1.61) * turbulenceOnset * 0.035;
     float turnCos = cos(clusterTurn);
     float turnSin = sin(clusterTurn);
     vec2 clusterOrbit = mat2(turnCos, -turnSin, turnSin, turnCos) * aClusterOrigin.xy;
-    clusterOrbit *= 1.0 + age * (0.1 + aSeed * 0.055);
+    clusterOrbit *= 1.0 + age * 0.025;
     vec2 radialDirection = normalize(clusterOrbit + vec2(0.0001));
     vec2 tangentDirection = vec2(-radialDirection.y, radialDirection.x);
 
-    float gustStrength = aTurbulence * smoothstep(0.0, 0.1, age) * (0.24 + age * 0.16);
-    float curlA = sin(age * 4.15 + aClusterPhase + aSeed * 2.0);
-    float curlB = cos(age * 2.7 + aClusterPhase * 1.17 + aSeed * 1.6);
+    float gustPulse = 0.42 + 0.58 * (
+      0.5 + 0.5 * sin(age * (1.45 + aSeed * 0.9) + aClusterPhase * 2.1)
+    );
+    float gustStrength = aTurbulence * turbulenceOnset * gustPulse * (0.24 + age * 0.13);
+    float curlA = sin(age * (3.15 + aSeed * 1.7) + aClusterPhase + aSeed * 5.0);
+    float curlB = cos(age * (1.85 + aSeed * 1.25) + aClusterPhase * 1.17 + aSeed * 3.6);
     vec3 gust = vec3(
-      tangentDirection * (curlA * 0.36 + sin(age * 1.24 + aClusterPhase) * age * 0.14)
-        + radialDirection * curlB * 0.18,
-      sin(age * 2.05 + aClusterPhase + aSeed * 2.4) * 0.14
+      tangentDirection * (curlA * 0.62 + sin(age * 0.86 + aClusterPhase) * age * 0.12)
+        + radialDirection * curlB * 0.3,
+      sin(age * 2.05 + aClusterPhase + aSeed * 4.4) * 0.22
     ) * gustStrength;
+
+    float dragRate = 0.78 + aSeed * 1.05;
+    float retainedTravel = (1.0 - exp(-age * dragRate)) / dragRate;
+    float forwardSpeed = 2.6 + aVelocity.z * 5.4;
+    float forwardInertia = -forwardSpeed * retainedTravel;
     vec3 particlePosition = vec3(clusterOrbit, aClusterOrigin.z)
       + localOffset
-      + vec3(aVelocity.xy * age * 0.34, aVelocity.z * min(age, 3.6))
+      + vec3(aVelocity.xy * retainedTravel * 0.26, forwardInertia)
       + gust;
     vec4 viewPosition = vec4(particlePosition, 1.0);
     gl_Position = projectionMatrix * viewPosition;
