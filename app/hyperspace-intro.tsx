@@ -301,6 +301,7 @@ const warpBubbleFragmentShader = `
   uniform float uCompression;
   uniform float uRelease;
   uniform float uCruise;
+  uniform float uImpact;
 
   varying vec4 vFieldData;
   varying vec3 vEnergyData;
@@ -348,6 +349,18 @@ const warpBubbleFragmentShader = `
     float eddySheet = smoothstep(0.48, 0.9, counterEddy) * softSheet;
     float rim = pow(clamp(fresnel, 0.0, 1.0), 0.78);
 
+    // A slower, broader current gives the shell real depth behind the fast
+    // tunnel traces. It reads as refracted space instead of a drawn pattern.
+    float slowFlow = depth * 4.35 - uTravel * (0.018 + uCruise * 0.009);
+    float slowDomain = 0.5 + 0.5 * sin(
+      slowFlow + angle * 1.28 + domainB * 0.82 - uTime * 0.055 + layerPhase
+    );
+    float deepVeil = smoothstep(0.24, 0.86, slowDomain)
+      * smoothstep(0.08, 0.7, softSheet + rim * 0.18);
+    float passage = pow(max(0.0, sin(
+      depth * 6.2831853 - uTravel * 0.026 + angle * 0.34 - layerPhase
+    )), 4.0) * uCruise;
+
     float glintCarrier = max(0.0, sin(
       angle * 8.0 + axialFlow * 2.7 + domainC * 1.4 + layerPhase
     ));
@@ -359,9 +372,12 @@ const warpBubbleFragmentShader = `
 
     float shellEnergy = softSheet * 0.13
       + eddySheet * 0.075
+      + deepVeil * 0.055
       + ridge * (0.15 + distortion * 0.04)
       + rim * (0.065 + softSheet * 0.12)
-      + glint * 0.92;
+      + glint * 0.92
+      + passage * (0.018 + rim * 0.032)
+      + uImpact * (0.026 + rim * 0.045) * (0.35 + softSheet * 0.65);
     float depthFade = smoothstep(0.018, 0.12, depth)
       * (1.0 - smoothstep(0.88, 0.995, depth));
     float layerWeight = mix(0.46, 0.92, 1.0 - abs(layer));
@@ -378,12 +394,18 @@ const warpBubbleFragmentShader = `
     vec3 rimCyan = vec3(0.32, 0.76, 1.0);
     vec3 photographicWhite = vec3(0.92, 0.985, 1.0);
     vec3 warmRefraction = vec3(0.64, 0.44, 0.3);
+    vec3 spectralViolet = vec3(0.34, 0.16, 0.82);
     vec3 bodyColor = mix(deepBubbleBlue, ionBlue, softSheet * 0.68 + ridge * 0.2);
     vec3 color = mix(bodyColor, rimCyan, clamp(rim * 0.5 + ridge * 0.32, 0.0, 1.0));
     color = mix(color, warmRefraction, ridge * counterEddy * 0.055);
+    color = mix(color, spectralViolet, glint * (0.045 + (1.0 - counterEddy) * 0.055));
     color = mix(color, photographicWhite, glint);
-    float pressureLift = 1.0 + uCompression * 0.08 + uRelease * 0.16;
-    gl_FragColor = vec4(color * pressureLift * (0.86 + glint * 2.0), alpha);
+    float pressureLift = 1.0
+      + uCompression * 0.08
+      + uRelease * 0.16
+      + uImpact * 0.3;
+    float highlightRolloff = 0.86 + glint * 1.8 + passage * rim * 0.24;
+    gl_FragColor = vec4(color * pressureLift * highlightRolloff, alpha);
   }
 `;
 
@@ -1912,6 +1934,7 @@ export function HyperspaceIntro() {
       uCompression: { value: 0 },
       uRelease: { value: 0 },
       uCruise: { value: 0 },
+      uImpact: { value: 0 },
     };
     const warpBubbleGeometry = createWarpBubbleGeometry(isMobile);
     const warpBubbleMaterial = new THREE.ShaderMaterial({
@@ -2144,10 +2167,12 @@ export function HyperspaceIntro() {
         warpBubbleUniforms.uCompression.value = warpTension;
         warpBubbleUniforms.uRelease.value = warpRelease;
         warpBubbleUniforms.uCruise.value = visualLaunch * (1 - braking);
+        warpBubbleUniforms.uImpact.value = launchImpulse;
         warpBubbleUniforms.uOpacity.value = (
           warpTension * 0.075
             + warpRelease * 0.62
             + visualLaunch * 0.96
+            + launchImpulse * 0.13
         ) * (1 - braking);
         const lensTravelFade = 1 - smoothstep(
           (progress - (LAUNCH_PROGRESS + 0.08)) / 0.14,
@@ -2208,27 +2233,52 @@ export function HyperspaceIntro() {
           + warpRelease * 0.035
           + exitIllumination * 0.13;
 
-        const launchShake = smoothstep((progress - LAUNCH_PROGRESS) / 0.008) * (1 - smoothstep((progress - (LAUNCH_PROGRESS + 0.075)) / 0.055));
-        const brakingShake = smoothstep((progress - 0.82) / 0.05) * (1 - smoothstep((progress - 0.965) / 0.035));
-        const cruiseShake = launch * (1 - braking) * 0.006;
-        const shakeStrength = launchShake * 0.075 + launchImpulse * 0.035 + brakingShake * 0.032 + cruiseShake;
-        const cameraDive = smoothstep((progress - (LAUNCH_PROGRESS + 0.003)) / 0.035)
-          * (1 - smoothstep((progress - (LAUNCH_PROGRESS + 0.07)) / 0.18));
-        const launchRecoil = launchImpulse * 0.72;
-        camera.position.x = Math.sin(elapsed * 0.031) * shakeStrength;
-        camera.position.y = Math.cos(elapsed * 0.027) * shakeStrength * 0.68;
+        const launchLocal = clamp01((progress - LAUNCH_PROGRESS) / 0.11);
+        const pressureDrift = warpTension * (1 - launch) * 0.018;
+        const impactKick = smoothstep((progress - (LAUNCH_PROGRESS - 0.002)) / 0.004)
+          * (1 - smoothstep((progress - (LAUNCH_PROGRESS + 0.018)) / 0.016));
+        const launchShake = smoothstep((progress - LAUNCH_PROGRESS) / 0.004)
+          * (1 - smoothstep((progress - (LAUNCH_PROGRESS + 0.07)) / 0.06));
+        const brakingShake = smoothstep((progress - 0.82) / 0.05)
+          * (1 - smoothstep((progress - 0.965) / 0.035));
+        const cruiseShake = visualLaunch * (1 - braking) * 0.005;
+        const impactDecay = launchShake * (1 - smoothstep(launchLocal));
+        const shakeStrength = impactKick * 0.15
+          + impactDecay * 0.11
+          + launchShake * 0.035
+          + brakingShake * 0.032
+          + cruiseShake;
+        const cameraDive = smoothstep((progress - (LAUNCH_PROGRESS + 0.004)) / 0.022)
+          * (1 - smoothstep((progress - (LAUNCH_PROGRESS + 0.115)) / 0.085));
+        const launchRecoil = impactKick * 0.95;
+        const shakeX = Math.sin(elapsed * 0.043)
+          + Math.sin(elapsed * 0.071 + 1.7) * 0.38;
+        const shakeY = Math.cos(elapsed * 0.037 + 0.6)
+          + Math.sin(elapsed * 0.083) * 0.31;
+        const shakeZ = Math.sin(elapsed * 0.052 + 2.1)
+          + Math.sin(elapsed * 0.097) * 0.24;
+        camera.position.x = shakeX * shakeStrength
+          + Math.sin(elapsed * 0.0018) * pressureDrift;
+        camera.position.y = shakeY * shakeStrength * 0.7
+          - pressureDrift * 0.42;
         camera.position.z = -0.9 * exitArrival
-          + launchRecoil * 0.48
-          - cameraDive * 0.58
-          + Math.sin(elapsed * 0.019) * shakeStrength * 0.32;
+          + launchRecoil * 0.62
+          - cameraDive * 1.12
+          + shakeZ * shakeStrength * 0.28;
         cameraTarget.set(
-          Math.sin(elapsed * 0.024) * shakeStrength * 0.72,
-          Math.cos(elapsed * 0.021) * shakeStrength * 0.46,
+          shakeX * shakeStrength * 0.76 + impactKick * 0.055,
+          shakeY * shakeStrength * 0.5 - impactKick * 0.034,
           THREE.MathUtils.lerp(-100, -38, exitArrival),
         );
         camera.lookAt(cameraTarget);
-        camera.rotation.z += Math.sin(elapsed * 0.023) * shakeStrength * 0.028;
-        camera.fov = 62 + charge * 2.5 - warpTension * 9.5 + launch * 21.5 + launchImpulse * 7.5 - braking * 23.5;
+        camera.rotation.z += shakeX * shakeStrength * 0.022;
+        camera.fov = 62
+          + charge * 2.5
+          - warpTension * 9.5
+          + launch * 21.5
+          + impactKick * 8.5
+          + cameraDive * 2.2
+          - braking * 23.5;
         camera.updateProjectionMatrix();
 
         if (progress >= 1) {
