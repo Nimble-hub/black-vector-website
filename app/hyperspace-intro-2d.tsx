@@ -9,7 +9,7 @@ type Star = {
   brightness: number;
 };
 
-const DURATION = 15000;
+const DURATION = 16500;
 const SEEN_KEY = "black-vector-jump-seen-v13";
 
 function clamp01(value: number) {

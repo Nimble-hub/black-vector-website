@@ -1,9 +1,9 @@
 const BASE_PATH = process.env.NEXT_PUBLIC_BASE_PATH ?? "";
-const JUMP_SOUNDTRACK_URL = `${BASE_PATH}/audio/hyperspace-jump.mp3?v=theater-6`;
+const JUMP_SOUNDTRACK_URL = `${BASE_PATH}/audio/hyperspace-jump.mp3?v=theater-8`;
 const SCORE_LOOP_URL = `${BASE_PATH}/audio/black-vector-score-loop.mp3?v=score-2`;
 const PLAYBACK_GAIN = 0.96;
 const MUSIC_GAIN = 0.051;
-const MUSIC_ENTRY_SECONDS = 15.04;
+const MUSIC_ENTRY_SECONDS = 16.54;
 
 type AudioWindow = Window & typeof globalThis & {
   webkitAudioContext?: typeof AudioContext;

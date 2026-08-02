@@ -6,7 +6,8 @@ import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
 import { HyperspaceIntro2D } from "./hyperspace-intro-2d";
 import { HyperspaceAudio } from "./hyperspace-audio";
 
-const DURATION = 15000;
+const DURATION = 16500;
+const LAUNCH_PROGRESS = 0.35;
 const DEPTH = 132;
 const NEAR = 0.68;
 const SCENE_EXPOSURE = 1.18;
@@ -1940,22 +1941,22 @@ export function HyperspaceIntro() {
         const progress = skipJumpRef.current ? 1 : clamp01(elapsed / DURATION);
         // Keep the light wall charging while acceleration begins so the short
         // traces stretch into hyperspace as one uninterrupted motion.
-        const charge = smoothstep(progress / 0.35);
-        const launchProgress = clamp01((progress - 0.285) / 0.014);
+        const charge = smoothstep(progress / LAUNCH_PROGRESS);
+        const launchProgress = clamp01((progress - LAUNCH_PROGRESS) / 0.014);
         const launch = 1 - Math.pow(1 - launchProgress, 4);
-        const visualLaunch = smoothstep((progress - 0.285) / 0.035);
+        const visualLaunch = smoothstep((progress - LAUNCH_PROGRESS) / 0.035);
         const tensionAttack = smoothstep((progress - 0.05) / 0.22);
-        const tensionRelease = 1 - smoothstep((progress - 0.285) / 0.028);
+        const tensionRelease = 1 - smoothstep((progress - LAUNCH_PROGRESS) / 0.028);
         const warpTension = tensionAttack * tensionRelease;
-        const warpReleaseAttack = smoothstep((progress - 0.285) / 0.014);
-        const warpReleaseFade = 1 - smoothstep((progress - 0.58) / 0.16);
+        const warpReleaseAttack = smoothstep((progress - LAUNCH_PROGRESS) / 0.014);
+        const warpReleaseFade = 1 - smoothstep((progress - (LAUNCH_PROGRESS + 0.295)) / 0.16);
         const warpRelease = warpReleaseAttack * warpReleaseFade;
-        const launchImpulse = smoothstep((progress - 0.283) / 0.005)
-          * (1 - smoothstep((progress - 0.31) / 0.018));
-        const warpPhase = clamp01((progress - 0.285) / 0.21);
+        const launchImpulse = smoothstep((progress - (LAUNCH_PROGRESS - 0.002)) / 0.005)
+          * (1 - smoothstep((progress - (LAUNCH_PROGRESS + 0.025)) / 0.018));
+        const warpPhase = clamp01((progress - LAUNCH_PROGRESS) / 0.21);
         const braking = smoothstep((progress - 0.84) / 0.055);
         const exitArrival = smoothstep((progress - 0.89) / 0.11);
-        const lineGrowth = smoothstep((progress - 0.04) / 0.31);
+        const lineGrowth = smoothstep((progress - 0.04) / (LAUNCH_PROGRESS - 0.04));
         const preLaunchSpeed = 0;
         const hyperspaceSpeed = 92;
         const speed = THREE.MathUtils.lerp(preLaunchSpeed, hyperspaceSpeed, launch) * (1 - braking) + 0.35 * braking;
@@ -1971,7 +1972,7 @@ export function HyperspaceIntro() {
         warpBubbleUniforms.uTravel.value = travel;
         warpBubbleUniforms.uOpacity.value = (charge * 0.006 + visualLaunch * 0.13) * (1 - braking);
         const stretchCharge = Math.pow(lineGrowth, 0.7);
-        const staticStretch = THREE.MathUtils.lerp(0.035, 0.43, stretchCharge);
+        const staticStretch = THREE.MathUtils.lerp(0.035, 0.52, stretchCharge);
         uniforms.uForwardStretch.value = staticStretch * (1 - braking) + braking * 0.01;
         uniforms.uBackwardStretch.value = (staticStretch + visualLaunch * 0.89) * (1 - braking) + braking * 0.03;
         uniforms.uWidthScale.value = (0.76 + charge * 0.4 + visualLaunch * 0.38) * (1 - braking * 0.35);
@@ -1999,12 +2000,12 @@ export function HyperspaceIntro() {
           + warpRelease * 0.035
           + exitIllumination * 0.13;
 
-        const launchShake = smoothstep((progress - 0.285) / 0.008) * (1 - smoothstep((progress - 0.36) / 0.055));
+        const launchShake = smoothstep((progress - LAUNCH_PROGRESS) / 0.008) * (1 - smoothstep((progress - (LAUNCH_PROGRESS + 0.075)) / 0.055));
         const brakingShake = smoothstep((progress - 0.82) / 0.05) * (1 - smoothstep((progress - 0.965) / 0.035));
         const cruiseShake = launch * (1 - braking) * 0.006;
         const shakeStrength = launchShake * 0.075 + launchImpulse * 0.035 + brakingShake * 0.032 + cruiseShake;
-        const cameraDive = smoothstep((progress - 0.288) / 0.035)
-          * (1 - smoothstep((progress - 0.355) / 0.18));
+        const cameraDive = smoothstep((progress - (LAUNCH_PROGRESS + 0.003)) / 0.035)
+          * (1 - smoothstep((progress - (LAUNCH_PROGRESS + 0.07)) / 0.18));
         const launchRecoil = launchImpulse * 0.72;
         camera.position.x = Math.sin(elapsed * 0.031) * shakeStrength;
         camera.position.y = Math.cos(elapsed * 0.027) * shakeStrength * 0.68;
