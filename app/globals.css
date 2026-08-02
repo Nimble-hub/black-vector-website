@@ -258,8 +258,7 @@ a:focus-visible {
   inset: -46px -68px -46px -44px;
   z-index: -1;
   border-left: 1px solid rgba(68, 202, 209, 0.42);
-  background: linear-gradient(90deg, rgba(3, 8, 12, 0.88), rgba(3, 8, 12, 0.52) 62%, transparent);
-  clip-path: polygon(0 0, 92% 0, 100% 13%, 100% 100%, 0 100%);
+  background: transparent;
   transform: translateZ(-2px);
 }
 
@@ -484,9 +483,7 @@ h1 span {
   min-height: 100svh;
   padding: clamp(100px, 14vw, 220px) clamp(24px, 12vw, 184px);
   border-top: 1px solid rgba(155, 170, 179, 0.12);
-  background:
-    linear-gradient(90deg, rgba(5, 7, 10, 0.88) 0%, rgba(5, 7, 10, 0.48) 48%, transparent 78%),
-    linear-gradient(135deg, transparent 65%, rgba(68, 202, 209, 0.035));
+  background: transparent;
 }
 
 .archive h2 {
@@ -527,8 +524,7 @@ h1 span {
   flex-direction: column;
   justify-content: center;
   padding-left: clamp(24px, 48vw, 760px);
-  background:
-    linear-gradient(270deg, rgba(5, 7, 10, 0.9) 0%, rgba(5, 7, 10, 0.46) 50%, transparent 82%);
+  background: transparent;
 }
 
 @keyframes signal-pulse {
