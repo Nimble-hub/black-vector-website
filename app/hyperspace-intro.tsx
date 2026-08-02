@@ -10,7 +10,7 @@ type Star = {
 };
 
 const DURATION = 15000;
-const SEEN_KEY = "black-vector-jump-seen-v8";
+const SEEN_KEY = "black-vector-jump-seen-v9";
 
 function clamp01(value: number) {
   return Math.max(0, Math.min(1, value));
@@ -75,6 +75,15 @@ export function HyperspaceIntro() {
     let startTime = 0;
     let lastTime = 0;
 
+    const placeOnTunnelWall = (star: Star, z?: number) => {
+      const angle = Math.random() * Math.PI * 2;
+      const radius = 0.24 + Math.pow(Math.random(), 0.72) * 1.08;
+      const horizontalScale = Math.max(1.05, Math.min(1.55, (width / height) * 0.82));
+      star.x = Math.cos(angle) * radius * horizontalScale;
+      star.y = Math.sin(angle) * radius * 0.92;
+      star.z = z ?? 0.18 + Math.random() * 0.92;
+    };
+
     const makeGrain = () => {
       grainPatterns = Array.from({ length: 4 }, () => {
         const grain = document.createElement("canvas");
@@ -99,12 +108,16 @@ export function HyperspaceIntro() {
 
     const makeStars = () => {
       const count = width < 720 ? 340 : 620;
-      stars = Array.from({ length: count }, () => ({
-        x: (Math.random() - 0.5) * 2.55,
-        y: (Math.random() - 0.5) * 1.82,
-        z: 0.18 + Math.random() * 0.92,
-        brightness: 0.52 + Math.random() * 0.48,
-      }));
+      stars = Array.from({ length: count }, () => {
+        const star: Star = {
+          x: 0,
+          y: 0,
+          z: 1,
+          brightness: 0.52 + Math.random() * 0.48,
+        };
+        placeOnTunnelWall(star);
+        return star;
+      });
     };
 
     const resize = () => {
@@ -163,6 +176,30 @@ export function HyperspaceIntro() {
         context.fillRect(0, 0, width, height);
       }
 
+      context.save();
+      context.globalCompositeOperation = "screen";
+      context.filter = "blur(8px)";
+      for (let ring = 0; ring < 6; ring += 1) {
+        const phase = (elapsed * 0.0002 + ring / 6) % 1;
+        const expansion = smoothstep(phase);
+        const ringRadius = Math.min(width, height) * (0.075 + expansion * 0.63);
+        const ringAlpha = Math.sin(phase * Math.PI) * transit * 0.024;
+        context.beginPath();
+        context.ellipse(
+          centerX,
+          centerY,
+          ringRadius * 1.42,
+          ringRadius * 0.82,
+          0,
+          0,
+          Math.PI * 2,
+        );
+        context.strokeStyle = `rgba(88, 158, 255, ${ringAlpha})`;
+        context.lineWidth = 1.5 + expansion * 8;
+        context.stroke();
+      }
+      context.restore();
+
       const tailWhitePaths = [new Path2D(), new Path2D(), new Path2D()];
       const tailBluePaths = [new Path2D(), new Path2D(), new Path2D()];
       const headWhitePaths = [new Path2D(), new Path2D(), new Path2D()];
@@ -174,8 +211,8 @@ export function HyperspaceIntro() {
         star.z -= speed * delta;
         if (star.z < 0.045) {
           star.z += 1.05;
-          star.x = (Math.random() - 0.5) * 2.55;
-          star.y = (Math.random() - 0.5) * 1.82;
+          placeOnTunnelWall(star, star.z);
+          star.brightness = 0.52 + Math.random() * 0.48;
         }
 
         const x = centerX + (star.x / star.z) * focal;
