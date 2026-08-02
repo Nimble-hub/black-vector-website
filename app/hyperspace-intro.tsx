@@ -235,55 +235,59 @@ const warpBubbleVertexShader = `
 
   uniform float uTime;
   uniform float uTravel;
+  uniform float uCompression;
+  uniform float uRelease;
+  uniform float uCruise;
 
-  varying vec2 vFieldUv;
-  varying float vLayer;
-  varying float vCompression;
-  varying float vDistortion;
-  varying float vFresnel;
+  varying vec4 vFieldData;
+  varying vec3 vEnergyData;
 
   void main() {
     float angle = atan(position.y, position.x);
     float depth = uv.y;
     float layerPhase = aLayer * 2.0943951;
-    float compression = 0.5 + 0.5 * sin(
-      depth * 6.5 - uTravel * 0.075
-        + sin(angle * 2.0 + layerPhase) * 1.1
+    float axialFlow = depth * 7.2 - uTravel * 0.052;
+    float broadWarp = sin(
+      axialFlow + angle * 1.7 + sin(angle * 2.0 - axialFlow * 0.38) * 1.2
+        + layerPhase
     );
-    compression = smoothstep(0.18, 0.88, compression);
-    float macroWave = sin(
-      depth * 11.0 - uTravel * 0.08 + angle * 2.2 + layerPhase
-        + sin(angle * 3.5 - depth * 4.0 + uTime * 0.7) * 0.8
+    float counterFlow = sin(
+      axialFlow * 0.58 - angle * 2.8 + uTime * 0.24
+        + sin(axialFlow * 0.44 + angle * 3.0) * 0.9
+        - layerPhase
     );
-    float pressureWave = sin(
-      depth * 19.0 - uTravel * 0.13 - uTime * 1.1
-        + sin(angle * 4.0 + depth * 5.0 - layerPhase) * 0.75
+    float fineFold = sin(
+      axialFlow * 1.9 + angle * 4.2 - uTime * 0.31 + layerPhase
     );
-    float displacement = macroWave * 0.38
-      + pressureWave * (0.08 + compression * 0.18);
+    float compression = smoothstep(0.08, 0.96, 0.5 + 0.5 * broadWarp);
+    float displacement = broadWarp * 0.52
+      + counterFlow * (0.18 + uCruise * 0.08)
+      + fineFold * (0.055 + compression * 0.065);
     vec2 radial = normalize(position.xy);
-    float radialOffset = aLayer * 0.72;
-    float twist = sin(depth * 7.0 - uTravel * 0.035 + layerPhase) * 0.025;
+    float radialOffset = aLayer * 0.92;
+    float twist = (
+      sin(axialFlow * 0.46 + angle * 2.0 + layerPhase) * 0.012
+        + counterFlow * 0.006
+    ) * uCruise;
     float twistCos = cos(twist);
     float twistSin = sin(twist);
     vec3 displacedPosition = position;
-    float axialEnvelope = pow(max(sin(depth * 3.14159265), 0.0), 0.18);
-    float bubbleScale = mix(0.9, 1.0, axialEnvelope);
+    float axialEnvelope = pow(max(sin(depth * 3.14159265), 0.0), 0.24);
+    float bubbleScale = mix(0.82, 1.0, axialEnvelope);
+    bubbleScale *= 1.0 - uCompression * 0.035 + uRelease * 0.055;
     displacedPosition.xy *= bubbleScale;
-    displacedPosition.xy += radial * (radialOffset + displacement);
+    displacedPosition.xy += radial * (
+      radialOffset + displacement * (0.42 + uCruise * 0.34)
+    );
     displacedPosition.xy = mat2(twistCos, -twistSin, twistSin, twistCos) * displacedPosition.xy;
-    displacedPosition.z += sin(
-      angle * 2.5 + depth * 8.0 - uTime * 0.85 + layerPhase
-    ) * compression * 0.16;
+    displacedPosition.z += counterFlow * compression * uCruise * 0.22;
 
     vec4 viewPosition = modelViewMatrix * vec4(displacedPosition, 1.0);
     vec3 viewNormal = normalize(normalMatrix * normal);
     vec3 viewDirection = normalize(-viewPosition.xyz);
-    vFieldUv = uv;
-    vLayer = aLayer;
-    vCompression = compression;
-    vDistortion = abs(displacement);
-    vFresnel = pow(1.0 - abs(dot(viewNormal, viewDirection)), 1.05);
+    float fresnel = pow(1.0 - abs(dot(viewNormal, viewDirection)), 1.12);
+    vFieldData = vec4(uv, aLayer, fresnel);
+    vEnergyData = vec3(compression, abs(displacement), axialEnvelope);
     gl_Position = projectionMatrix * viewPosition;
   }
 `;
@@ -294,71 +298,92 @@ const warpBubbleFragmentShader = `
   uniform float uTime;
   uniform float uOpacity;
   uniform float uTravel;
+  uniform float uCompression;
+  uniform float uRelease;
+  uniform float uCruise;
 
-  varying vec2 vFieldUv;
-  varying float vLayer;
-  varying float vCompression;
-  varying float vDistortion;
-  varying float vFresnel;
+  varying vec4 vFieldData;
+  varying vec3 vEnergyData;
 
   void main() {
-    float angle = vFieldUv.x * 6.2831853;
-    float depth = vFieldUv.y;
-    float layerPhase = vLayer * 2.0943951;
-    float domainWarpA = sin(
-      angle * 2.1 + depth * 7.0 - uTime * 0.55 + layerPhase
-    ) * 0.55 + sin(
-      angle * 3.7 - depth * 5.0 + uTime * 0.38 - layerPhase
-    ) * 0.24;
-    float domainWarpB = sin(
-      angle * 2.8 - depth * 5.5 + uTime * 0.42 + layerPhase
-    ) * 0.48 + sin(
-      angle * 4.4 + depth * 4.0 - uTime * 0.27
-    ) * 0.2;
+    float angle = vFieldData.x * 6.2831853;
+    float depth = vFieldData.y;
+    float layer = vFieldData.z;
+    float fresnel = vFieldData.w;
+    float compression = vEnergyData.x;
+    float distortion = vEnergyData.y;
+    float axialEnvelope = vEnergyData.z;
+    float layerPhase = layer * 2.0943951;
+    float axialFlow = depth * 8.2 - uTravel * (0.042 + uCruise * 0.018);
 
-    float densityA = 0.5 + 0.5 * sin(
-      angle * 2.6 + depth * 9.5 - uTravel * 0.07 + domainWarpA * 1.4
+    float domainA = sin(
+      angle * 1.65 + axialFlow
+        + sin(angle * 2.4 - axialFlow * 0.43 + uTime * 0.12) * 1.35
+        + layerPhase
     );
-    float densityB = 0.5 + 0.5 * sin(
-      angle * 4.1 - depth * 6.5 + uTravel * 0.045
-        + domainWarpB * 1.2 + layerPhase
+    float domainB = sin(
+      angle * 2.85 - axialFlow * 0.64
+        + sin(angle * 1.8 + axialFlow * 0.36 - uTime * 0.08) * 1.05
+        - layerPhase
     );
-    float volumeDensity = clamp(
-      densityA * 0.55 + densityB * 0.3 + vCompression * 0.15,
+    float domainC = sin(
+      angle * 4.6 + axialFlow * 1.42 - uTime * 0.19
+        + domainA * 0.72
+    );
+
+    float broadField = clamp(
+      0.5 + domainA * 0.27 + domainB * 0.18 + domainC * 0.08,
       0.0,
       1.0
     );
-    float softCloud = smoothstep(0.22, 0.86, volumeDensity);
-    float rim = pow(clamp(vFresnel, 0.0, 1.0), 0.7);
-    float surfaceBreath = 0.5 + 0.5 * sin(
-      depth * 5.5 - uTravel * 0.045 + domainWarpA + layerPhase
+    float softSheet = smoothstep(0.26, 0.79, broadField);
+    float foldedField = 0.5 + 0.5 * sin(
+      axialFlow * 1.28 + angle * 3.15 + domainA * 1.55 - domainB * 0.72
     );
-    float rimEnergy = rim * (0.22 + softCloud * 0.36 + vDistortion * 0.18);
-    float bodyEnergy = softCloud * (
-      0.035 + vCompression * 0.085 + surfaceBreath * 0.04
+    float ridge = smoothstep(0.66, 0.94, foldedField)
+      * smoothstep(0.2, 0.82, softSheet);
+    float counterEddy = 0.5 + 0.5 * sin(
+      angle * 2.2 - axialFlow * 0.46 + domainB * 1.2 + uTime * 0.11
     );
-    float energy = rimEnergy + bodyEnergy;
-    float depthFade = smoothstep(0.015, 0.1, depth)
-      * (1.0 - smoothstep(0.92, 0.995, depth));
-    float layerWeight = mix(0.62, 1.0, 1.0 - abs(vLayer));
-    float alpha = energy * layerWeight * depthFade * uOpacity;
-    vec3 deepBubbleBlue = vec3(0.012, 0.06, 0.28);
-    vec3 ionBlue = vec3(0.055, 0.36, 0.86);
-    vec3 rimCyan = vec3(0.42, 0.86, 1.0);
-    vec3 bodyColor = mix(
-      deepBubbleBlue,
-      ionBlue,
-      softCloud * 0.7 + vCompression * 0.2
-    );
-    vec3 color = mix(
-      bodyColor,
-      rimCyan,
-      clamp(rim * 0.55 + vDistortion * 0.18, 0.0, 1.0)
-    );
-    gl_FragColor = vec4(
-      color * (0.52 + rim * 0.68 + softCloud * 0.15),
-      alpha
-    );
+    float eddySheet = smoothstep(0.48, 0.9, counterEddy) * softSheet;
+    float rim = pow(clamp(fresnel, 0.0, 1.0), 0.78);
+
+    float glintCarrier = max(0.0, sin(
+      angle * 8.0 + axialFlow * 2.7 + domainC * 1.4 + layerPhase
+    ));
+    float glintGate = max(0.0, sin(
+      angle * 3.0 - axialFlow * 3.8 - layerPhase
+    ));
+    float glint = pow(glintCarrier, 12.0) * pow(glintGate, 8.0)
+      * ridge * (0.3 + rim * 0.7);
+
+    float shellEnergy = softSheet * 0.13
+      + eddySheet * 0.075
+      + ridge * (0.15 + distortion * 0.04)
+      + rim * (0.065 + softSheet * 0.12)
+      + glint * 0.92;
+    float depthFade = smoothstep(0.018, 0.12, depth)
+      * (1.0 - smoothstep(0.88, 0.995, depth));
+    float layerWeight = mix(0.46, 0.92, 1.0 - abs(layer));
+    float launchEnvelope = 0.34 + uCruise * 0.66 + uRelease * 0.18;
+    float alpha = shellEnergy
+      * layerWeight
+      * depthFade
+      * axialEnvelope
+      * launchEnvelope
+      * uOpacity;
+
+    vec3 deepBubbleBlue = vec3(0.008, 0.035, 0.12);
+    vec3 ionBlue = vec3(0.035, 0.24, 0.62);
+    vec3 rimCyan = vec3(0.32, 0.76, 1.0);
+    vec3 photographicWhite = vec3(0.92, 0.985, 1.0);
+    vec3 warmRefraction = vec3(0.64, 0.44, 0.3);
+    vec3 bodyColor = mix(deepBubbleBlue, ionBlue, softSheet * 0.68 + ridge * 0.2);
+    vec3 color = mix(bodyColor, rimCyan, clamp(rim * 0.5 + ridge * 0.32, 0.0, 1.0));
+    color = mix(color, warmRefraction, ridge * counterEddy * 0.055);
+    color = mix(color, photographicWhite, glint);
+    float pressureLift = 1.0 + uCompression * 0.08 + uRelease * 0.16;
+    gl_FragColor = vec4(color * pressureLift * (0.86 + glint * 2.0), alpha);
   }
 `;
 
@@ -373,6 +398,7 @@ const gravitationalLensShader = {
     uDarkness: { value: 0 },
     uFlash: { value: 0 },
     uTime: { value: 0 },
+    uCruise: { value: 0 },
   },
   vertexShader: `
     varying vec2 vUv;
@@ -394,6 +420,7 @@ const gravitationalLensShader = {
     uniform float uDarkness;
     uniform float uFlash;
     uniform float uTime;
+    uniform float uCruise;
 
     varying vec2 vUv;
 
@@ -411,33 +438,54 @@ const gravitationalLensShader = {
       vec2 tangentUv = vec2(-radial.y / aspect, radial.x);
       float horizon = max(uRadius, 0.025);
       float angle = atan(centered.y, centered.x);
-      float ringUndulation = sin(angle * 7.0 - uTime * 0.72) * 0.024
+      float broadFlow = sin(angle * 2.0 - uTime * 0.34)
+        + sin(angle * 3.0 + uTime * 0.21) * 0.46;
+      float fineFlow = sin(angle * 7.0 - uTime * 0.72) * 0.024
         + sin(angle * 13.0 + uTime * 0.41) * 0.011;
-      float signedDistance = radius - horizon * (1.0 + ringUndulation * uStrength);
+      float ringUndulation = fineFlow + broadFlow * uCruise * 0.018;
+      float shapedHorizon = horizon * (1.0 + ringUndulation * uStrength);
+      float signedDistance = radius - shapedHorizon;
       float ringWidth = max(horizon * 0.26, 0.018);
       float photonRing = exp(-pow(signedDistance / ringWidth, 2.0) * 2.6);
-      float echoDistance = radius - horizon * 1.62;
-      float compressionEcho = exp(-pow(echoDistance / (ringWidth * 1.9), 2.0) * 1.8)
-        * uStrength;
+      float innerDistance = signedDistance + ringWidth * 0.78;
+      float outerDistance = signedDistance - ringWidth * 1.18;
+      float innerSkin = exp(-pow(innerDistance / (ringWidth * 0.72), 2.0) * 2.1);
+      float outerSkin = exp(-pow(outerDistance / (ringWidth * 1.16), 2.0) * 1.85);
+      float shellStack = photonRing + innerSkin * 0.48 + outerSkin * 0.34;
       float outerField = 1.0 - smoothstep(horizon * 1.05, horizon * 4.4, radius);
       float innerGuard = smoothstep(horizon * 0.34, horizon * 0.86, radius);
       float falloff = (horizon * horizon) /
         max(radius * radius + horizon * horizon * 0.3, 0.0001);
-      float deflection = uStrength * outerField * innerGuard * falloff * 0.052;
+      float shellFold = (-signedDistance / max(ringWidth, 0.001)) * photonRing
+        + (-innerDistance / max(ringWidth, 0.001)) * innerSkin * 0.42
+        + (-outerDistance / max(ringWidth, 0.001)) * outerSkin * 0.28;
+      float deflection = uStrength * outerField * innerGuard * falloff * 0.046
+        + shellFold * uStrength * (0.0065 + uCruise * 0.0035);
       vec2 uvMin = vec2(0.001);
       vec2 uvMax = vec2(0.999);
-      float orbitalShear = sin(angle * 3.0 + uTime * 0.34)
-        * outerField * uStrength * 0.00055;
+      float orbitalShear = (
+        sin(angle * 3.0 + uTime * 0.34)
+          + sin(angle * 5.0 - uTime * 0.19) * 0.38
+      ) * shellStack * uStrength * (0.00055 + uCruise * 0.0007);
       vec2 warpedUv = clamp(
         vUv + radialUv * deflection + tangentUv * orbitalShear,
         uvMin,
         uvMax
       );
 
+      vec2 skinSeparation = radialUv
+        * shellStack
+        * uStrength
+        * (0.0018 + uCruise * 0.0016);
+
       float stretchMask = outerField * smoothstep(horizon * 0.55, horizon * 2.8, radius);
       vec2 stretchOffset = radialUv * uStretch * (0.35 + photonRing * 0.65);
       vec3 base = texture2D(tDiffuse, vUv).rgb;
       vec3 warped = texture2D(tDiffuse, warpedUv).rgb;
+      vec3 skinInner = texture2D(tDiffuse, clamp(warpedUv + skinSeparation, uvMin, uvMax)).rgb;
+      vec3 skinOuter = texture2D(tDiffuse, clamp(warpedUv - skinSeparation * 1.35, uvMin, uvMax)).rgb;
+      float skinBlend = clamp(shellStack * (0.14 + uCruise * 0.22), 0.0, 0.48);
+      warped = mix(warped, skinInner * 0.62 + skinOuter * 0.38, skinBlend);
       vec3 streak = warped * 0.34;
       streak += texture2D(tDiffuse, clamp(warpedUv + stretchOffset * 0.3, uvMin, uvMax)).rgb * 0.24;
       streak += texture2D(tDiffuse, clamp(warpedUv + stretchOffset * 0.65, uvMin, uvMax)).rgb * 0.19;
@@ -446,14 +494,14 @@ const gravitationalLensShader = {
       float stretchBlend = clamp(uStretch * 13.0, 0.0, 0.78) * stretchMask;
       vec3 lensed = mix(warped, streak, stretchBlend);
 
-      float chroma = (photonRing * uStrength * 0.0017 + uStretch * 0.0024) * outerField;
+      float chroma = (shellStack * uStrength * 0.00125 + uStretch * 0.0021) * outerField;
       lensed.r = texture2D(tDiffuse, clamp(warpedUv - radialUv * chroma, uvMin, uvMax)).r;
       lensed.b = texture2D(tDiffuse, clamp(warpedUv + radialUv * chroma, uvMin, uvMax)).b;
       float compressedLight = max(sceneLuma(lensed) - sceneLuma(base), 0.0);
       float horizontalFlare = exp(-abs(centered.y) / (0.004 + uFlash * 0.004))
         * exp(-radius * 4.6) * uFlash;
       vec3 ringLight = vec3(0.68, 0.88, 1.0)
-        * (photonRing + compressionEcho * 0.18)
+        * (photonRing + innerSkin * 0.22 + outerSkin * 0.14)
         * (0.024 + compressedLight * 0.42) * uStrength;
       vec3 launchLight = vec3(0.74, 0.9, 1.0)
         * (photonRing * 0.12 + horizontalFlare * 0.075) * uFlash;
@@ -1021,22 +1069,22 @@ function createTunnelDustGeometry(count: number) {
 
 function createWarpBubbleGeometry(isMobile: boolean) {
   const baseGeometry = new THREE.CylinderGeometry(
-    18.2,
-    18.2,
+    19.6,
+    19.6,
     DEPTH,
+    isMobile ? 32 : 56,
     isMobile ? 36 : 64,
-    isMobile ? 40 : 72,
     true,
   );
   baseGeometry.rotateX(Math.PI / 2);
   const geometry = new THREE.InstancedBufferGeometry();
   geometry.copy(baseGeometry);
   baseGeometry.dispose();
-  geometry.setAttribute(
-    "aLayer",
-    new THREE.InstancedBufferAttribute(new Float32Array([-1, 0, 1]), 1),
-  );
-  geometry.instanceCount = 3;
+  const layers = isMobile
+    ? new Float32Array([-0.68, 0.68])
+    : new Float32Array([-1, 0, 1]);
+  geometry.setAttribute("aLayer", new THREE.InstancedBufferAttribute(layers, 1));
+  geometry.instanceCount = layers.length;
   return geometry;
 }
 
@@ -1861,6 +1909,9 @@ export function HyperspaceIntro() {
       uTime: { value: 0 },
       uOpacity: { value: 0 },
       uTravel: { value: 0 },
+      uCompression: { value: 0 },
+      uRelease: { value: 0 },
+      uCruise: { value: 0 },
     };
     const warpBubbleGeometry = createWarpBubbleGeometry(isMobile);
     const warpBubbleMaterial = new THREE.ShaderMaterial({
@@ -1879,7 +1930,7 @@ export function HyperspaceIntro() {
     warpBubble.frustumCulled = false;
     warpBubble.matrixAutoUpdate = false;
     warpBubble.updateMatrix();
-    warpBubble.visible = false;
+    warpBubble.visible = shouldJump;
     scene.add(warpBubble);
 
     const exitWakeUniforms = {
@@ -2090,13 +2141,20 @@ export function HyperspaceIntro() {
         tunnelDustUniforms.uWarpCruise.value = visualLaunch * (1 - braking);
         warpBubbleUniforms.uTime.value = elapsed * 0.001;
         warpBubbleUniforms.uTravel.value = travel;
-        warpBubbleUniforms.uOpacity.value = 0;
+        warpBubbleUniforms.uCompression.value = warpTension;
+        warpBubbleUniforms.uRelease.value = warpRelease;
+        warpBubbleUniforms.uCruise.value = visualLaunch * (1 - braking);
+        warpBubbleUniforms.uOpacity.value = (
+          warpTension * 0.075
+            + warpRelease * 0.62
+            + visualLaunch * 0.96
+        ) * (1 - braking);
         const lensTravelFade = 1 - smoothstep(
           (progress - (LAUNCH_PROGRESS + 0.08)) / 0.14,
         );
         const lensRelease = launchImpulse + warpRelease * lensTravelFade * 0.42;
         const cruiseLens = visualLaunch * (1 - braking);
-        const cruiseBreath = 0.11 + Math.sin(elapsed * 0.00072) * 0.018;
+        const cruiseBreath = 0.17 + Math.sin(elapsed * 0.00072) * 0.022;
         const lensStrength = (
           warpTension * 0.94
           + lensRelease * 0.86
@@ -2104,28 +2162,35 @@ export function HyperspaceIntro() {
         ) * (1 - braking);
         lensPass.enabled = lensStrength > 0.002;
         lensPass.uniforms.uStrength.value = lensStrength;
-        lensPass.uniforms.uRadius.value = 0.045 + charge * 0.125 + launchImpulse * 0.03;
+        lensPass.uniforms.uRadius.value = 0.045
+          + charge * 0.125
+          - cruiseLens * 0.038
+          + launchImpulse * 0.03;
         lensPass.uniforms.uStretch.value = launchImpulse * 0.048
           + warpRelease * lensTravelFade * 0.021
-          + cruiseLens * 0.0022;
+          + cruiseLens * 0.0032;
         lensPass.uniforms.uFlash.value = launchImpulse;
         lensPass.uniforms.uTime.value = elapsed * 0.001;
+        lensPass.uniforms.uCruise.value = cruiseLens;
         lensPass.uniforms.uDarkness.value = Math.min(
           1,
-          warpTension * 0.78 + launchImpulse * 0.28,
+          warpTension * 0.78 + launchImpulse * 0.28 + cruiseLens * 0.07,
         );
         const stretchCharge = Math.pow(lineGrowth, 0.7);
         const staticStretch = THREE.MathUtils.lerp(0.035, 0.52, stretchCharge);
         uniforms.uForwardStretch.value = staticStretch * (1 - braking) + braking * 0.01;
         uniforms.uBackwardStretch.value = (staticStretch + visualLaunch * 0.89) * (1 - braking) + braking * 0.03;
         uniforms.uWidthScale.value = (0.76 + charge * 0.4 + visualLaunch * 0.38) * (1 - braking * 0.35);
-        uniforms.uEnergy.value = (0.24 + charge * 0.88 + visualLaunch * 0.34) * (1 - braking * 0.48);
+        uniforms.uEnergy.value = (0.24 + charge * 0.88 + visualLaunch * 0.18) * (1 - braking * 0.48);
         uniforms.uSymmetry.value = 1 - visualLaunch;
         uniforms.uWarpTension.value = warpTension;
         uniforms.uWarpRelease.value = warpRelease;
         uniforms.uWarpPhase.value = warpPhase;
         uniforms.uWarpCruise.value = visualLaunch * (1 - braking);
-        uniforms.uOpacity.value = smoothstep(progress / 0.015) * (0.24 + charge * 0.76) * (1 - smoothstep((progress - 0.88) / 0.055));
+        uniforms.uOpacity.value = smoothstep(progress / 0.015)
+          * (0.24 + charge * 0.76)
+          * (1 - visualLaunch * 0.14)
+          * (1 - smoothstep((progress - 0.88) / 0.055));
         exitWakeUniforms.uTime.value = Math.max(0, (elapsed - DURATION * 0.825) / 1000);
         exitWakeUniforms.uOpacity.value = smoothstep((progress - 0.828) / 0.045) * 0.34;
         exitCrystalUniforms.uTime.value = Math.max(0, (elapsed - DURATION * 0.872) / 1000);
