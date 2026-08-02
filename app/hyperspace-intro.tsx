@@ -10,6 +10,7 @@ const DURATION = 15000;
 const DEPTH = 132;
 const NEAR = 0.68;
 const SEEN_KEY = "black-vector-jump-seen-3d-v20";
+const BASE_PATH = process.env.NEXT_PUBLIC_BASE_PATH ?? "";
 
 function clamp01(value: number) {
   return Math.max(0, Math.min(1, value));
@@ -232,7 +233,7 @@ function createDeepSpaceWorld(isMobile: boolean) {
   }));
   group.add(new THREE.Points(starGeometry, starMaterial));
 
-  const planetTexture = new THREE.TextureLoader().load("/textures/bv-alien-planet.webp");
+  const planetTexture = new THREE.TextureLoader().load(`${BASE_PATH}/textures/bv-alien-planet.webp`);
   planetTexture.colorSpace = THREE.SRGBColorSpace;
   planetTexture.wrapS = THREE.RepeatWrapping;
   planetTexture.anisotropy = 4;
@@ -354,7 +355,7 @@ function createDeepSpaceWorld(isMobile: boolean) {
   };
 
   new GLTFLoader().load(
-    "/models/Carrier.glb",
+    `${BASE_PATH}/models/Carrier.glb`,
     (gltf) => {
       if (assetLoadCancelled) {
         disposeLoadedScene(gltf.scene);
