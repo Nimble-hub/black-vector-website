@@ -2389,12 +2389,12 @@ export function HyperspaceIntro() {
         const crashZoom = smoothstep(
           (progress - (LAUNCH_PROGRESS + 0.004)) / 0.009,
         ) * (1 - smoothstep(
-          (progress - (LAUNCH_PROGRESS + 0.052)) / 0.032,
+          (progress - (LAUNCH_PROGRESS + 0.024)) / 0.018,
         ));
         const launchRumble = smoothstep(
           (progress - (LAUNCH_PROGRESS - 0.004)) / 0.008,
         ) * (1 - smoothstep(
-          (progress - (LAUNCH_PROGRESS + 0.17)) / 0.12,
+          (progress - (LAUNCH_PROGRESS + 0.078)) / 0.052,
         ));
         const secondaryKick = smoothstep(
           (progress - (LAUNCH_PROGRESS + 0.018)) / 0.009,
@@ -2576,10 +2576,10 @@ export function HyperspaceIntro() {
           * (1 - smoothstep((progress - 0.965) / 0.035));
         const cruiseShake = visualLaunch * (1 - braking) * 0.009;
         const impactDecay = launchShake * (1 - smoothstep(launchLocal));
-        const shakeStrength = impactKick * 0.19
-          + impactDecay * 0.1
-          + launchShake * 0.045
-          + launchRumble * (0.12 + secondaryKick * 0.105)
+        const shakeStrength = impactKick * 0.105
+          + impactDecay * 0.055
+          + launchShake * 0.025
+          + launchRumble * (0.075 + secondaryKick * 0.065)
           + chargePulse * 0.022
           + brakingShake * 0.032
           + cruiseShake;
@@ -2627,49 +2627,55 @@ export function HyperspaceIntro() {
         const cruiseDriftX = cruiseFloatX * cruiseFloatEnvelope * 0.26;
         const cruiseDriftY = cruiseFloatY * cruiseFloatEnvelope * 0.18;
         const cruiseDriftZ = cruiseFloatZ * cruiseFloatEnvelope * 0.28;
-        const chargeLookX = fieldSwayX * charge * (1 - braking) * 0.82;
-        const chargeLookY = fieldSwayY * charge * (1 - braking) * 0.54;
-        const cruiseLookX = cruiseFloatX * cruiseFloatEnvelope * 2.05;
-        const cruiseLookY = cruiseFloatY * cruiseFloatEnvelope * 1.35;
-        camera.position.x = shakeX * shakeStrength
-          + rumbleX * launchRumble * 0.22
-          + Math.sin(elapsed * 0.0018) * pressureDrift
+        const chargeLookX = fieldSwayX * charge * (1 - braking) * 0.24;
+        const chargeLookY = fieldSwayY * charge * (1 - braking) * 0.17;
+        const cruiseLookX = cruiseFloatX * cruiseFloatEnvelope * 0.48;
+        const cruiseLookY = cruiseFloatY * cruiseFloatEnvelope * 0.34;
+        const rigX = Math.sin(elapsed * 0.0018) * pressureDrift
           + cinematicDriftX
           + cruiseDriftX;
-        camera.position.y = shakeY * shakeStrength * 0.7
-          + rumbleY * launchRumble * 0.16
-          - pressureDrift * 0.42
+        const rigY = -pressureDrift * 0.42
           + cinematicDriftY
           + cruiseDriftY;
+        camera.position.x = rigX
+          + shakeX * shakeStrength * 0.38
+          + rumbleX * launchRumble * 0.095;
+        camera.position.y = rigY
+          + shakeY * shakeStrength * 0.3
+          + rumbleY * launchRumble * 0.075;
         camera.position.z = -0.9 * exitArrival
           - charge * (1 - launch) * 1.2
           + launchRecoil
           - recoilSettle * 0.62
           - cameraDive * 3.1
           - crashZoom * 5.4
-          + shakeZ * shakeStrength * 0.34
-          + rumbleZ * launchRumble * 0.18
+          + shakeZ * shakeStrength * 0.16
+          + rumbleZ * launchRumble * 0.085
           + cruiseDriftZ;
         cameraTarget.set(
-          chargeLookX
+          rigX
+            + chargeLookX
             + cruiseLookX
-            + rumbleX * launchRumble * 0.19
-            + shakeX * launchShake * 0.055,
-          chargeLookY
+            + rumbleX * launchRumble * 0.055
+            + shakeX * launchShake * 0.02,
+          rigY
+            + chargeLookY
             + cruiseLookY
-            + rumbleY * launchRumble * 0.14
-            + shakeY * launchShake * 0.04,
+            + recoilEnvelope * 0.72
+            - crashZoom * 0.5
+            + rumbleY * launchRumble * 0.042
+            + shakeY * launchShake * 0.014,
           THREE.MathUtils.lerp(-100, -38, exitArrival)
             + cruiseFloatZ * cruiseFloatEnvelope * 1.15
             - crashZoom * 7.5,
         );
         camera.lookAt(cameraTarget);
-        camera.rotation.z += rumbleX * launchRumble * 0.014
-          + shakeX * shakeStrength * 0.01
+        camera.rotation.z += rumbleX * launchRumble * 0.0065
+          + shakeX * shakeStrength * 0.004
           + impactKick * 0.004
-          + recoilEnvelope * 0.012
+          + recoilEnvelope * 0.008
           + fieldSwayX * fieldSwayEnvelope * 0.0045
-          + cruiseFloatX * cruiseFloatEnvelope * 0.009;
+          + cruiseFloatX * cruiseFloatEnvelope * 0.0065;
         camera.fov = 62
           + charge * 2.5
           - warpTension * 9.5
@@ -2682,6 +2688,7 @@ export function HyperspaceIntro() {
           + cameraDive * 6.5
           + Math.sin(elapsed * 0.00135) * visualLaunch * (1 - braking) * 1.05
           + cruiseFloatZ * cruiseFloatEnvelope * 0.48
+          + rumbleZ * launchRumble * 0.34
           - braking * 23.5;
         camera.updateProjectionMatrix();
 
