@@ -481,8 +481,8 @@ const gravitationalLensShader = {
       float shellFold = (-signedDistance / max(ringWidth, 0.001)) * photonRing
         + (-innerDistance / max(ringWidth, 0.001)) * innerSkin * 0.42
         + (-outerDistance / max(ringWidth, 0.001)) * outerSkin * 0.28;
-      float deflection = uStrength * outerField * innerGuard * falloff * 0.046
-        + shellFold * uStrength * (0.0065 + uCruise * 0.0035);
+      float deflection = uStrength * outerField * innerGuard * falloff * 0.049
+        + shellFold * uStrength * (0.0069 + uCruise * 0.0037);
       vec2 uvMin = vec2(0.001);
       vec2 uvMax = vec2(0.999);
       float orbitalShear = (
@@ -513,7 +513,7 @@ const gravitationalLensShader = {
       streak += texture2D(tDiffuse, clamp(warpedUv + stretchOffset * 0.65, uvMin, uvMax)).rgb * 0.19;
       streak += texture2D(tDiffuse, clamp(warpedUv + stretchOffset, uvMin, uvMax)).rgb * 0.13;
       streak += texture2D(tDiffuse, clamp(warpedUv - stretchOffset * 0.22, uvMin, uvMax)).rgb * 0.1;
-      float stretchBlend = clamp(uStretch * 13.0, 0.0, 0.78) * stretchMask;
+      float stretchBlend = clamp(uStretch * 14.0, 0.0, 0.8) * stretchMask;
       vec3 lensed = mix(warped, streak, stretchBlend);
 
       float chroma = (shellStack * uStrength * 0.00125 + uStretch * 0.0021) * outerField;
@@ -2157,7 +2157,13 @@ export function HyperspaceIntro() {
         travel += speed * delta;
         uniforms.uTravel.value = travel;
         tunnelDustUniforms.uTravel.value = travel;
-        tunnelDustUniforms.uOpacity.value = (0.025 + charge * 0.04 + visualLaunch * 0.42) * (1 - braking);
+        const launchDust = launchImpulse * 0.22 + warpRelease * 0.24;
+        tunnelDustUniforms.uOpacity.value = (
+          0.025
+          + charge * 0.04
+          + launchDust
+          + visualLaunch * 0.42
+        ) * (1 - braking);
         tunnelDustUniforms.uWarpTension.value = warpTension;
         tunnelDustUniforms.uWarpRelease.value = warpRelease;
         tunnelDustUniforms.uWarpPhase.value = warpPhase;
@@ -2182,7 +2188,7 @@ export function HyperspaceIntro() {
         const cruiseBreath = 0.17 + Math.sin(elapsed * 0.00072) * 0.022;
         const lensStrength = (
           warpTension * 0.94
-          + lensRelease * 0.86
+          + lensRelease * 0.91
           + cruiseLens * cruiseBreath
         ) * (1 - braking);
         lensPass.enabled = lensStrength > 0.002;
@@ -2191,9 +2197,9 @@ export function HyperspaceIntro() {
           + charge * 0.125
           - cruiseLens * 0.038
           + launchImpulse * 0.03;
-        lensPass.uniforms.uStretch.value = launchImpulse * 0.048
-          + warpRelease * lensTravelFade * 0.021
-          + cruiseLens * 0.0032;
+        lensPass.uniforms.uStretch.value = launchImpulse * 0.053
+          + warpRelease * lensTravelFade * 0.0235
+          + cruiseLens * 0.0035;
         lensPass.uniforms.uFlash.value = launchImpulse;
         lensPass.uniforms.uTime.value = elapsed * 0.001;
         lensPass.uniforms.uCruise.value = cruiseLens;
