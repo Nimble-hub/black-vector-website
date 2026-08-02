@@ -36,8 +36,8 @@ const vertexShader = `
   uniform float uDepth;
   uniform float uNear;
   uniform float uOpacity;
-  uniform float uStretch;
-  uniform float uCenteredStretch;
+  uniform float uForwardStretch;
+  uniform float uBackwardStretch;
   uniform float uWidthScale;
   uniform vec2 uResolution;
 
@@ -49,9 +49,8 @@ const vertexShader = `
   void main() {
     float travel = mod(aSeedZ + uTravel, uDepth);
     float anchorZ = min(-uDepth + travel, -uNear);
-    float stretchedLength = aLength * uStretch;
-    float headZ = min(anchorZ + stretchedLength * uCenteredStretch, -uNear);
-    float tailZ = anchorZ - stretchedLength;
+    float headZ = min(anchorZ + aLength * uForwardStretch, -uNear);
+    float tailZ = anchorZ - aLength * uBackwardStretch;
     vec2 radial = vec2(cos(aAngle), sin(aAngle)) * aRadius;
 
     vec4 clipTail = projectionMatrix * modelViewMatrix * vec4(radial, tailZ, 1.0);
@@ -859,8 +858,8 @@ export function HyperspaceIntro() {
       uDepth: { value: DEPTH },
       uNear: { value: NEAR },
       uOpacity: { value: shouldJump ? 0.24 : 0 },
-      uStretch: { value: shouldJump ? 0.035 : 1 },
-      uCenteredStretch: { value: shouldJump ? 1 : 0 },
+      uForwardStretch: { value: shouldJump ? 0.035 : 0 },
+      uBackwardStretch: { value: shouldJump ? 0.035 : 1 },
       uWidthScale: { value: shouldJump ? 0.76 : 1 },
       uEnergy: { value: shouldJump ? 0.24 : 1 },
       uResolution: { value: new THREE.Vector2(1, 1) },
@@ -1035,15 +1034,15 @@ export function HyperspaceIntro() {
         const braking = smoothstep((progress - 0.84) / 0.055);
         const exitArrival = smoothstep((progress - 0.89) / 0.11);
         const lineGrowth = smoothstep((progress - 0.04) / 0.31);
-        const preLaunchSpeed = 0.025 + lineGrowth * 0.075;
+        const preLaunchSpeed = 0;
         const hyperspaceSpeed = 92;
         const speed = THREE.MathUtils.lerp(preLaunchSpeed, hyperspaceSpeed, launch) * (1 - braking) + 0.35 * braking;
         travel += speed * delta;
         uniforms.uTravel.value = travel;
         const stretchCharge = Math.pow(lineGrowth, 0.7);
         const staticStretch = THREE.MathUtils.lerp(0.035, 0.43, stretchCharge);
-        uniforms.uStretch.value = (staticStretch + visualLaunch * 1.32) * (1 - braking) + braking * 0.04;
-        uniforms.uCenteredStretch.value = 1 - visualLaunch;
+        uniforms.uForwardStretch.value = staticStretch * (1 - braking) + braking * 0.01;
+        uniforms.uBackwardStretch.value = (staticStretch + visualLaunch * 0.89) * (1 - braking) + braking * 0.03;
         uniforms.uWidthScale.value = (0.76 + charge * 0.4 + visualLaunch * 0.38) * (1 - braking * 0.35);
         uniforms.uEnergy.value = (0.24 + charge * 0.88 + visualLaunch * 0.34) * (1 - braking * 0.48);
         uniforms.uOpacity.value = smoothstep(progress / 0.015) * (0.24 + charge * 0.76) * (1 - smoothstep((progress - 0.88) / 0.055));
@@ -1141,8 +1140,8 @@ export function HyperspaceIntro() {
       const fullResolution = renderer.getDrawingBufferSize(new THREE.Vector2());
       uniforms.uResolution.value.set(64, 36);
       uniforms.uTravel.value = 18;
-      uniforms.uStretch.value = 0.85;
-      uniforms.uCenteredStretch.value = 0;
+      uniforms.uForwardStretch.value = 0;
+      uniforms.uBackwardStretch.value = 0.85;
       uniforms.uWidthScale.value = 1;
       uniforms.uEnergy.value = 1;
       renderer.setRenderTarget(probeTarget);
@@ -1153,8 +1152,8 @@ export function HyperspaceIntro() {
       uniforms.uResolution.value.copy(fullResolution);
       uniforms.uTravel.value = 0;
       uniforms.uOpacity.value = 0.24;
-      uniforms.uStretch.value = 0.035;
-      uniforms.uCenteredStretch.value = 1;
+      uniforms.uForwardStretch.value = 0.035;
+      uniforms.uBackwardStretch.value = 0.035;
       uniforms.uWidthScale.value = 0.76;
       uniforms.uEnergy.value = 0.24;
       const hasLightGeometry = probePixels.some((value, index) => index % 4 !== 3 && value > 6);
