@@ -1599,6 +1599,7 @@ export function HyperspaceIntro() {
         antialias: true,
         alpha: false,
         depth: true,
+        preserveDrawingBuffer: captureMode,
         stencil: false,
         powerPreference: "high-performance",
       });
@@ -1826,7 +1827,12 @@ export function HyperspaceIntro() {
       const width = window.innerWidth;
       const height = window.innerHeight;
       const largeFrame = width * height > 3_000_000;
-      const pixelRatio = Math.min(window.devicePixelRatio || 1, largeFrame ? 1.25 : isMobile ? 1.35 : 1.6);
+      // The capture route uses a fixed 2x backing surface. With the native
+      // 1280x720 viewport this produces a true 2560x1440 canvas that can be
+      // read directly, bypassing browser compositor scaling and tile seams.
+      const pixelRatio = captureMode
+        ? 2
+        : Math.min(window.devicePixelRatio || 1, largeFrame ? 1.25 : isMobile ? 1.35 : 1.6);
       renderer.setPixelRatio(pixelRatio);
       renderer.setSize(width, height, false);
       camera.aspect = width / height;
