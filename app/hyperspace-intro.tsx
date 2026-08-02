@@ -341,10 +341,10 @@ const exitWakeVertexShader = `
       tangentDirection * sin(age * (1.7 + aDrift) + aSeed * 29.0) * (0.2 + age * 0.1)
       + radialDirection * cos(age * (1.15 + aDrift * 0.8) + aSeed * 17.0) * 0.11
     ) * turbulenceOnset * gustPulse * (0.36 + aDrift * 0.68);
-    float forwardTravel = -(4.6 + aLength * 1.35) * retainedTravel;
+    float forwardTravel = -(7.2 + aLength * 1.65) * retainedTravel;
     float depthTurbulence = sin(age * (1.5 + aDrift) + aSeed * 21.0)
       * 0.1 * turbulenceOnset;
-    return vec3(ellipseDirection * radius + gust, -6.2 - aSeed * 4.2 + forwardTravel + depthTurbulence);
+    return vec3(ellipseDirection * radius + gust, 1.4 + aSeed * 5.2 + forwardTravel + depthTurbulence);
   }
 
   void main() {
@@ -356,8 +356,10 @@ const exitWakeVertexShader = `
     float life = clamp(age / lifetime, 0.0, 1.0);
     float isAlive = step(delay, uTime) * (1.0 - step(lifetime, age));
     float trailDuration = 0.13 + aLength * 0.035;
-    vec4 headClip = projectionMatrix * vec4(wakePosition(age), 1.0);
-    vec4 tailClip = projectionMatrix * vec4(wakePosition(max(age - trailDuration, 0.0)), 1.0);
+    vec3 headPosition = wakePosition(age);
+    vec3 tailPosition = wakePosition(max(age - trailDuration, 0.0));
+    vec4 headClip = projectionMatrix * vec4(headPosition, 1.0);
+    vec4 tailClip = projectionMatrix * vec4(tailPosition, 1.0);
     vec2 headNdc = headClip.xy / max(headClip.w, 0.001);
     vec2 tailNdc = tailClip.xy / max(tailClip.w, 0.001);
     vec2 line = headNdc - tailNdc;
@@ -370,6 +372,8 @@ const exitWakeVertexShader = `
     vShardUv = uv;
     vBrightness = aBrightness;
     vLife = isAlive
+      * smoothstep(0.3, 1.15, -headPosition.z)
+      * smoothstep(0.08, 0.72, -tailPosition.z)
       * smoothstep(0.0, 0.055, life)
       * (1.0 - smoothstep(0.7, 1.0, life))
       * uOpacity;
@@ -536,9 +540,12 @@ const exitDustVertexShader = `
     float turnCos = cos(clusterTurn);
     float turnSin = sin(clusterTurn);
     vec2 clusterOrbit = mat2(turnCos, -turnSin, turnSin, turnCos) * aClusterOrigin.xy;
+    float shockRise = smoothstep(0.04, 0.52, age);
+    float shockTravel = (1.0 - exp(-age * (2.1 + aDrag * 0.5)))
+      * (1.15 + aTurbulence * 1.45);
     clusterOrbit *= 1.0
-      + age * (0.12 + aTurbulence * 0.035)
-      + age * age * 0.018;
+      + shockRise * (0.18 + aTurbulence * 0.1)
+      + age * (0.035 + aTurbulence * 0.018);
     vec2 radialDirection = normalize(clusterOrbit + vec2(0.0001));
     vec2 tangentDirection = vec2(-radialDirection.y, radialDirection.x);
 
@@ -561,6 +568,7 @@ const exitDustVertexShader = `
     float forwardInertia = -forwardSpeed * retainedTravel;
     vec3 particlePosition = vec3(clusterOrbit, aClusterOrigin.z)
       + localOffset
+      + vec3(radialDirection * shockTravel, 0.0)
       + vec3(aVelocity.xy * retainedTravel * 0.18, forwardInertia)
       + gust;
     vec4 viewPosition = vec4(particlePosition, 1.0);
@@ -853,47 +861,51 @@ function createExitDustGeometry(count: number) {
   const clusterPhases = new Float32Array(count);
 
   for (let index = 0; index < count; index += 1) {
-    const angle = (index / count) * Math.PI * 2 + (Math.random() - 0.5) * 0.095;
-    const broadLobe = Math.sin(angle * 3 + 0.42) * 0.7;
-    const fineLobe = Math.sin(angle * 7 - 1.15) * 0.22;
-    const ringRadius = 6.35 + broadLobe + fineLobe + (Math.random() - 0.5) * 0.52;
+    const angle = (index / count) * Math.PI * 2 + (Math.random() - 0.5) * 0.56;
+    const broadLobe = Math.sin(angle * 3 + 0.42) * 0.92;
+    const fineLobe = Math.sin(angle * 7 - 1.15) * 0.34;
+    const shellChoice = Math.random();
+    const shellOffset = shellChoice < 0.68
+      ? (Math.random() - 0.5) * 1.1
+      : shellChoice < 0.9
+        ? 0.8 + Math.random() * 1.6
+        : -1.5 + Math.random() * 0.9;
+    const ringRadius = 5.9 + broadLobe + fineLobe + shellOffset;
     const originX = Math.cos(angle) * ringRadius;
     const originY = Math.sin(angle) * ringRadius * 0.72 - 0.16;
-    const originZ = -6.2
-      - (0.5 + 0.5 * Math.sin(angle * 2 - 0.7)) * 2.0
-      - Math.random() * 1.7;
+    const originZ = 1.15
+      + Math.pow(Math.random(), 1.3) * 7.4
+      + (0.5 + 0.5 * Math.sin(angle * 2 - 0.7)) * 0.8;
     const tangentX = -Math.sin(angle);
     const tangentY = Math.cos(angle) * 0.72;
     const radialX = Math.cos(angle);
     const radialY = Math.sin(angle) * 0.72;
-    const along = (Math.random() - 0.5) * (0.48 + Math.pow(Math.random(), 1.8) * 1.1);
-    const across = (Math.random() - 0.5) * (0.22 + Math.random() * 0.5);
-    const radialSpeed = 0.16 + (0.5 + 0.5 * Math.sin(angle * 3 + 1.1)) * 0.22;
-    const tangentialSpeed = Math.sin(angle * 2 + 0.35) * 0.24;
-    const localTurbulence = 0.48 + (0.5 + 0.5 * Math.sin(angle * 3 + 1.1)) * 0.72;
-    const localDrag = 0.54 + (0.5 + 0.5 * Math.sin(angle * 2.5 - 0.4)) * 0.58;
+    const along = (Math.random() - 0.5) * (0.62 + Math.pow(Math.random(), 1.55) * 1.65);
+    const across = (Math.random() - 0.5) * (0.28 + Math.random() * 0.82);
+    const radialSpeed = 0.2 + (0.5 + 0.5 * Math.sin(angle * 3 + 1.1)) * 0.42;
+    const tangentialSpeed = Math.sin(angle * 2 + 0.35) * (0.18 + Math.random() * 0.22);
+    const localTurbulence = 0.42 + (0.5 + 0.5 * Math.sin(angle * 3 + 1.1)) * 1.02;
+    const localDrag = 0.46 + (0.5 + 0.5 * Math.sin(angle * 2.5 - 0.4)) * 0.72;
     const offset = index * 3;
     positions[offset] = originX + tangentX * along + radialX * across;
     positions[offset + 1] = originY + tangentY * along + radialY * across;
-    positions[offset + 2] = originZ + (Math.random() - 0.5) * 0.62;
-    velocities[offset] = radialX * radialSpeed + tangentX * tangentialSpeed + (Math.random() - 0.5) * 0.08;
-    velocities[offset + 1] = radialY * radialSpeed + tangentY * tangentialSpeed + (Math.random() - 0.5) * 0.07;
-    velocities[offset + 2] = 0.82 + (0.5 + 0.5 * Math.sin(angle * 2.0 + 0.8)) * 0.74 + (Math.random() - 0.5) * 0.18;
+    positions[offset + 2] = originZ + (Math.random() - 0.5) * 1.1;
+    velocities[offset] = radialX * radialSpeed + tangentX * tangentialSpeed + (Math.random() - 0.5) * 0.16;
+    velocities[offset + 1] = radialY * radialSpeed + tangentY * tangentialSpeed + (Math.random() - 0.5) * 0.14;
+    velocities[offset + 2] = 1.18 + (0.5 + 0.5 * Math.sin(angle * 2.0 + 0.8)) * 1.05 + (Math.random() - 0.5) * 0.34;
     clusterOrigins[offset] = originX;
     clusterOrigins[offset + 1] = originY;
     clusterOrigins[offset + 2] = originZ;
-    delays[index] = 0.025
-      + (0.5 + 0.5 * Math.sin(angle * 2.0 + 0.8)) * 0.1
-      + Math.random() * 0.13;
-    lifetimes[index] = 4.7 + Math.random() * 2.15;
-    sizes[index] = 0.5 + Math.pow(Math.random(), 1.55) * 1.9;
-    brightness[index] = 0.34 + Math.random() * 0.42;
+    delays[index] = Math.random() * 0.085;
+    lifetimes[index] = 4.1 + Math.random() * 2.2;
+    sizes[index] = 0.44 + Math.pow(Math.random(), 1.48) * 2.16;
+    brightness[index] = 0.28 + Math.pow(Math.random(), 0.72) * 0.53;
     turbulence[index] = localTurbulence * (0.86 + Math.random() * 0.28);
     seeds[index] = Math.random();
     drag[index] = localDrag * (0.9 + Math.random() * 0.2);
-    glints[index] = Math.random() < 0.055 ? 0.48 + Math.random() * 0.52 : 0;
-    swirls[index] = Math.sin(angle * 2 + 0.6) * 0.34 + Math.sin(angle * 5 - 0.8) * 0.11;
-    clusterPhases[index] = angle * 1.65 + Math.sin(angle * 3) * 0.38;
+    glints[index] = Math.random() < 0.036 ? 0.46 + Math.random() * 0.54 : 0;
+    swirls[index] = Math.sin(angle * 2 + 0.6) * 0.48 + Math.sin(angle * 5 - 0.8) * 0.17;
+    clusterPhases[index] = angle * 1.72 + Math.sin(angle * 3) * 0.52;
   }
 
   const geometry = new THREE.BufferGeometry();
@@ -1397,7 +1409,7 @@ export function HyperspaceIntro() {
       uOpacity: { value: 0 },
       uResolution: { value: new THREE.Vector2(1, 1) },
     };
-    const exitWakeGeometry = createExitWakeGeometry(isMobile ? 72 : 144);
+    const exitWakeGeometry = createExitWakeGeometry(isMobile ? 96 : 192);
     const exitWakeMaterial = new THREE.ShaderMaterial({
       uniforms: exitWakeUniforms,
       vertexShader: exitWakeVertexShader,
@@ -1444,7 +1456,7 @@ export function HyperspaceIntro() {
       uTime: { value: 0 },
       uOpacity: { value: 0 },
     };
-    const exitDustGeometry = createExitDustGeometry(isMobile ? 3600 : 8500);
+    const exitDustGeometry = createExitDustGeometry(isMobile ? 5600 : 14500);
     const exitDustMaterial = new THREE.ShaderMaterial({
       uniforms: exitDustUniforms,
       vertexShader: exitDustVertexShader,
@@ -1586,13 +1598,13 @@ export function HyperspaceIntro() {
         uniforms.uEnergy.value = (0.24 + charge * 0.88 + visualLaunch * 0.34) * (1 - braking * 0.48);
         uniforms.uSymmetry.value = 1 - visualLaunch;
         uniforms.uOpacity.value = smoothstep(progress / 0.015) * (0.24 + charge * 0.76) * (1 - smoothstep((progress - 0.88) / 0.055));
-        exitWakeUniforms.uTime.value = Math.max(0, (elapsed - DURATION * 0.855) / 1000);
-        exitWakeUniforms.uOpacity.value = smoothstep((progress - 0.856) / 0.052) * 0.42;
+        exitWakeUniforms.uTime.value = Math.max(0, (elapsed - DURATION * 0.825) / 1000);
+        exitWakeUniforms.uOpacity.value = smoothstep((progress - 0.828) / 0.045) * 0.34;
         exitCrystalUniforms.uTime.value = Math.max(0, (elapsed - DURATION * 0.872) / 1000);
         exitCrystalUniforms.uOpacity.value = 0;
-        exitDustUniforms.uTime.value = Math.max(0, (elapsed - DURATION * 0.855) / 1000);
-        exitDustUniforms.uOpacity.value = smoothstep((progress - 0.856) / 0.052) * 0.74;
-        world.setOpacity(smoothstep((progress - 0.892) / 0.092));
+        exitDustUniforms.uTime.value = Math.max(0, (elapsed - DURATION * 0.825) / 1000);
+        exitDustUniforms.uOpacity.value = smoothstep((progress - 0.828) / 0.045) * 0.82;
+        world.setOpacity(smoothstep((progress - 0.9) / 0.085));
         renderer.toneMappingExposure = 0.94 + charge * 0.1 + launch * 0.06;
 
         const launchShake = smoothstep((progress - 0.285) / 0.012) * (1 - smoothstep((progress - 0.36) / 0.055));
@@ -1630,12 +1642,12 @@ export function HyperspaceIntro() {
         const landingElapsed = landingStartTime === null ? 1600 : Math.max(0, time - landingStartTime);
         const wakeFade = 1 - smoothstep(landingElapsed / 3500);
         const dustFade = 1 - smoothstep(landingElapsed / 4200);
-        exitWakeUniforms.uTime.value = Math.max(0, (elapsed - DURATION * 0.855) / 1000);
-        exitWakeUniforms.uOpacity.value = wakeFade * 0.38;
+        exitWakeUniforms.uTime.value = Math.max(0, (elapsed - DURATION * 0.825) / 1000);
+        exitWakeUniforms.uOpacity.value = wakeFade * 0.34;
         exitCrystalUniforms.uTime.value = Math.max(0, (elapsed - DURATION * 0.872) / 1000);
         exitCrystalUniforms.uOpacity.value = 0;
-        exitDustUniforms.uTime.value = Math.max(0, (elapsed - DURATION * 0.855) / 1000);
-        exitDustUniforms.uOpacity.value = dustFade * 0.7;
+        exitDustUniforms.uTime.value = Math.max(0, (elapsed - DURATION * 0.825) / 1000);
+        exitDustUniforms.uOpacity.value = dustFade * 0.82;
         if (wakeFade <= 0.001) {
           exitWake.visible = false;
           exitCrystals.visible = false;
