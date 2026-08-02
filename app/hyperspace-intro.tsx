@@ -609,6 +609,12 @@ const exitDustFragmentShader = `
   void main() {
     vec2 point = gl_PointCoord - 0.5;
     float distanceFromCenter = length(point);
+    vec2 metalSurface = point * 2.0;
+    float normalZ = sqrt(max(1.0 - dot(metalSurface, metalSurface), 0.0));
+    vec3 microNormal = normalize(vec3(metalSurface.x * 0.82, -metalSurface.y * 0.82, normalZ));
+    vec3 reflectionDirection = normalize(vec3(-0.42, 0.58, 0.92));
+    float metallicSpecular = pow(max(dot(microNormal, reflectionDirection), 0.0), 28.0);
+    float metalRim = pow(1.0 - normalZ, 2.4);
     float dust = 1.0 - smoothstep(0.16, 0.5, distanceFromCenter);
     float core = 1.0 - smoothstep(0.0, 0.16, distanceFromCenter);
     float horizontalDiffraction = 1.0 - smoothstep(0.006, 0.04, abs(point.y));
@@ -617,12 +623,18 @@ const exitDustFragmentShader = `
     float diffraction = max(horizontalDiffraction, verticalDiffraction * 0.46)
       * diffractionFalloff * vGlint;
     float opticalHalo = (1.0 - smoothstep(0.06, 0.34, distanceFromCenter)) * vGlint;
-    vec3 coolDust = vec3(0.46, 0.7, 0.94);
-    vec3 paleDust = vec3(0.94, 0.985, 1.0);
-    vec3 color = mix(coolDust, paleDust, core * 0.72 + diffraction * 0.42);
-    float alpha = max(dust * (0.56 + core * 0.4), max(diffraction * 0.9, opticalHalo * 0.2))
+    vec3 chromeShadow = vec3(0.16, 0.34, 0.52);
+    vec3 chromeBlue = vec3(0.5, 0.76, 0.96);
+    vec3 reflectedWhite = vec3(0.975, 0.995, 1.0);
+    vec3 metalBody = mix(chromeShadow, chromeBlue, 0.42 + normalZ * 0.36);
+    float reflection = clamp(metallicSpecular * 1.2 + core * 0.3 + diffraction * 0.72, 0.0, 1.0);
+    vec3 color = mix(metalBody, reflectedWhite, reflection);
+    float alpha = max(dust * (0.48 + core * 0.34 + metallicSpecular * 0.42), max(diffraction * 0.92, opticalHalo * 0.18))
       * vLife * vBrightness;
-    gl_FragColor = vec4(color * (0.82 + core * 0.64 + diffraction * 1.06), alpha);
+    gl_FragColor = vec4(
+      color * (0.66 + metallicSpecular * 1.85 + metalRim * 0.24 + diffraction * 1.08),
+      alpha
+    );
   }
 `;
 
