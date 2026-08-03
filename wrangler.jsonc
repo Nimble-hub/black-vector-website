@@ -1,0 +1,27 @@
+{
+  "$schema": "./node_modules/wrangler/config-schema.json",
+  "name": "black-vector-website",
+  "main": "./dist/server/index.js",
+  "compatibility_date": "2026-05-15",
+  "compatibility_flags": ["nodejs_compat"],
+  "workers_dev": true,
+  "preview_urls": true,
+  "vars": {
+    "BETTER_AUTH_URL": "https://black-vector-website.curtisl-conrad.workers.dev",
+    "BETTER_AUTH_TRUSTED_ORIGINS": "https://black-vector-website.curtisl-conrad.workers.dev"
+  },
+  "assets": {
+    "directory": "./dist/client"
+  },
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "black-vector-production",
+      "database_id": "8cf48774-8b89-47ca-95d3-bb748f438c58",
+      "migrations_dir": "./drizzle"
+    }
+  ],
+  "observability": {
+    "enabled": true
+  }
+}

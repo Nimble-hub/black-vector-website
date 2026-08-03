@@ -1,6 +1,6 @@
 import { headers } from "next/headers";
 import { z } from "zod";
-import { auth } from "@/lib/auth";
+import { getAuth } from "@/lib/auth";
 import { isSameOriginRequest } from "@/lib/request-security";
 import { getDb } from "@/db";
 import { playtestProfile } from "@/db/schema";
@@ -19,7 +19,7 @@ export async function POST(request: Request) {
   if (!isSameOriginRequest(request)) {
     return Response.json({ error: "Invalid request origin." }, { status: 403 });
   }
-  const session = await auth.api.getSession({ headers: await headers() });
+  const session = await getAuth().api.getSession({ headers: await headers() });
   if (!session) return Response.json({ error: "Unauthorized" }, { status: 401 });
 
   const parsed = profileInput.safeParse(await request.json().catch(() => null));

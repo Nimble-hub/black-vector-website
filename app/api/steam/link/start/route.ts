@@ -1,6 +1,6 @@
 import { headers } from "next/headers";
 import { eq } from "drizzle-orm";
-import { auth } from "@/lib/auth";
+import { getAuth } from "@/lib/auth";
 import { getAuthEnvironment } from "@/lib/auth-environment";
 import { createSteamLoginURL } from "@/lib/steam-openid";
 import { getDb } from "@/db";
@@ -14,7 +14,7 @@ export async function GET() {
     return Response.redirect(`${environment.baseURL}/account?error=steam-unavailable`, 302);
   }
 
-  const session = await auth.api.getSession({ headers: await headers() });
+  const session = await getAuth().api.getSession({ headers: await headers() });
   if (!session) return Response.redirect(`${environment.baseURL}/login?returnTo=/account`, 302);
 
   const state = crypto.randomUUID().replaceAll("-", "");

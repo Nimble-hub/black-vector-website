@@ -3,7 +3,7 @@ import Link from "next/link";
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { eq } from "drizzle-orm";
-import { auth } from "@/lib/auth";
+import { getAuth } from "@/lib/auth";
 import { getAuthEnvironment } from "@/lib/auth-environment";
 import { getDb } from "@/db";
 import { playtestProfile } from "@/db/schema";
@@ -30,6 +30,7 @@ export default async function AccountPage({
   if (!environment.coreConfigured) redirect("/login?returnTo=/account");
 
   const requestHeaders = await headers();
+  const auth = getAuth();
   const session = await auth.api.getSession({ headers: requestHeaders });
   if (!session) redirect("/login?returnTo=/account");
 

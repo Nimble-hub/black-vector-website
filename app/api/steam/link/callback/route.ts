@@ -1,6 +1,6 @@
 import { headers } from "next/headers";
 import { and, eq } from "drizzle-orm";
-import { auth } from "@/lib/auth";
+import { getAuth } from "@/lib/auth";
 import { getAuthEnvironment } from "@/lib/auth-environment";
 import { verifySteamAssertion } from "@/lib/steam-openid";
 import { getDb } from "@/db";
@@ -14,7 +14,7 @@ function accountRedirect(baseURL: string, status: string) {
 
 export async function GET(request: Request) {
   const environment = getAuthEnvironment();
-  const session = await auth.api.getSession({ headers: await headers() });
+  const session = await getAuth().api.getSession({ headers: await headers() });
   if (!session) return Response.redirect(`${environment.baseURL}/login?returnTo=/account`, 302);
 
   const state = new URL(request.url).searchParams.get("state") || "";

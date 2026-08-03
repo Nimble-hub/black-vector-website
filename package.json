@@ -11,7 +11,10 @@
     "start": "vinext start",
     "test": "npm run build && node --test tests/rendered-html.test.mjs",
     "lint": "eslint . --ignore-pattern dist --ignore-pattern .next",
-    "db:generate": "drizzle-kit generate"
+    "db:generate": "drizzle-kit generate",
+    "db:migrate:local": "wrangler d1 migrations apply black-vector-production --local",
+    "db:migrate:remote": "wrangler d1 migrations apply black-vector-production --remote",
+    "deploy:cloudflare": "npm run build && wrangler deploy"
   },
   "dependencies": {
     "@better-auth/drizzle-adapter": "^1.6.25",

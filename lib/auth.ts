@@ -8,24 +8,24 @@ import * as schema from "@/db/schema";
 import { getAuthEnvironment } from "./auth-environment";
 import { sendAuthEmail } from "./auth-email";
 
-const authEnvironment = getAuthEnvironment();
-const { runtime, providers } = authEnvironment;
+function createAuth() {
+  const authEnvironment = getAuthEnvironment();
+  const { runtime, providers } = authEnvironment;
+  const socialProviders: NonNullable<BetterAuthOptions["socialProviders"]> = {};
+  if (providers.google) {
+    socialProviders.google = {
+      clientId: runtime.GOOGLE_CLIENT_ID!,
+      clientSecret: runtime.GOOGLE_CLIENT_SECRET!,
+    };
+  }
+  if (providers.discord) {
+    socialProviders.discord = {
+      clientId: runtime.DISCORD_CLIENT_ID!,
+      clientSecret: runtime.DISCORD_CLIENT_SECRET!,
+    };
+  }
 
-const socialProviders: NonNullable<BetterAuthOptions["socialProviders"]> = {};
-if (providers.google) {
-  socialProviders.google = {
-    clientId: runtime.GOOGLE_CLIENT_ID!,
-    clientSecret: runtime.GOOGLE_CLIENT_SECRET!,
-  };
-}
-if (providers.discord) {
-  socialProviders.discord = {
-    clientId: runtime.DISCORD_CLIENT_ID!,
-    clientSecret: runtime.DISCORD_CLIENT_SECRET!,
-  };
-}
-
-export const auth = betterAuth({
+  return betterAuth({
   appName: "Black Vector",
   baseURL: authEnvironment.baseURL,
   secret: authEnvironment.secret,
@@ -106,6 +106,14 @@ export const auth = betterAuth({
     useSecureCookies: authEnvironment.baseURL.startsWith("https://"),
     database: { generateId: "uuid" },
   },
-});
+  });
+}
 
-export type BlackVectorSession = typeof auth.$Infer.Session;
+let authInstance: ReturnType<typeof createAuth> | undefined;
+
+export function getAuth() {
+  authInstance ??= createAuth();
+  return authInstance;
+}
+
+export type BlackVectorSession = ReturnType<typeof createAuth>["$Infer"]["Session"];

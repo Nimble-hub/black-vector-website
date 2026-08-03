@@ -1,10 +1,8 @@
 import { toNextJsHandler } from "better-auth/next-js";
-import { auth } from "@/lib/auth";
+import { getAuth } from "@/lib/auth";
 import { getAuthEnvironment } from "@/lib/auth-environment";
 
 export const dynamic = "force-dynamic";
-
-const handlers = toNextJsHandler(auth);
 
 function unavailable() {
   return Response.json(
@@ -15,10 +13,10 @@ function unavailable() {
 
 export async function GET(request: Request) {
   if (!getAuthEnvironment().coreConfigured) return unavailable();
-  return handlers.GET(request);
+  return toNextJsHandler(getAuth()).GET(request);
 }
 
 export async function POST(request: Request) {
   if (!getAuthEnvironment().coreConfigured) return unavailable();
-  return handlers.POST(request);
+  return toNextJsHandler(getAuth()).POST(request);
 }

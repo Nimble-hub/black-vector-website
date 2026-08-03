@@ -1,6 +1,6 @@
 import { headers } from "next/headers";
 import { z } from "zod";
-import { auth } from "@/lib/auth";
+import { getAuth } from "@/lib/auth";
 import { getAuthEnvironment } from "@/lib/auth-environment";
 import { isSameOriginRequest } from "@/lib/request-security";
 
@@ -19,6 +19,7 @@ export async function POST(request: Request) {
   }
 
   const requestHeaders = await headers();
+  const auth = getAuth();
   const session = await auth.api.getSession({ headers: requestHeaders });
   if (!session) return Response.json({ error: "Unauthorized" }, { status: 401 });
   if (!session.user.emailVerified || session.user.email.endsWith(".invalid")) {
