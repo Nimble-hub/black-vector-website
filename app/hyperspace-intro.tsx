@@ -2622,16 +2622,13 @@ export function HyperspaceIntro() {
           + dustSuction * warpTension * 0.18;
         const preLaunchDust = dustReveal * 0.26
           + dustSuction * (0.08 + warpTension * 0.14);
-        // Clear axial tunnel grains before the perimeter dust ignites. Their
-        // inherited cool tint was the remaining source of colored exit lines.
-        const exitStreakFade = 1 - smoothstep((progress - 0.802) / 0.044);
         tunnelDustUniforms.uOpacity.value = (
           0.1
           + charge * 0.06
           + preLaunchDust
           + launchDust
           + visualLaunch * 0.55
-        ) * (1 - braking) * exitStreakFade;
+        ) * (1 - braking);
         tunnelDustUniforms.uWarpTension.value = warpTension;
         tunnelDustUniforms.uWarpRelease.value = warpRelease;
         tunnelDustUniforms.uWarpPhase.value = warpPhase;
@@ -2754,7 +2751,7 @@ export function HyperspaceIntro() {
         uniforms.uOpacity.value = smoothstep(progress / 0.015)
           * (0.3 + charge * 0.7)
           * (1 - visualLaunch * 0.14)
-          * (1 - smoothstep((progress - 0.805) / 0.052));
+          * (1 - smoothstep((progress - 0.88) / 0.055));
         const exitDustIgnition = smoothstep((progress - 0.822) / 0.022);
         const exitDustWhiteout = exitDustIgnition
           * (1 - smoothstep((progress - 0.912) / 0.06));
