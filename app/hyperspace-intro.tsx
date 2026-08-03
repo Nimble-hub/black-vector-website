@@ -16,7 +16,7 @@ const NEAR = 0.68;
 const SCENE_EXPOSURE = 1.18;
 const SCENE_RIM_BASE = 48;
 const EXIT_RIM_BOOST = 86;
-const SEEN_KEY = "black-vector-jump-seen-3d-v21";
+const SEEN_KEY = "black-vector-jump-seen-3d-v22";
 const BASE_PATH = process.env.NEXT_PUBLIC_BASE_PATH ?? "";
 const CRUISE_PULSE_STARTS = [0.47, 0.62, 0.75] as const;
 
@@ -1186,35 +1186,34 @@ const exitDustFragmentShader = `
     float facetSeam = 1.0 - smoothstep(0.008, 0.035, abs(facetAxis));
     float crystalEdge = smoothstep(0.28, 0.47, diamondDistance) * crystalBody;
 
-    float horizontalGlint = 1.0 - smoothstep(0.01, 0.06, abs(point.y));
-    float verticalGlint = 1.0 - smoothstep(0.01, 0.06, abs(point.x));
-    float glintFalloff = 1.0 - smoothstep(0.06, 0.49, diamondDistance);
-    float diffraction = max(horizontalGlint, verticalGlint * 0.72)
-      * glintFalloff * max(vGlint, vFacetFlash);
+    // Keep the sparkle compact and faceted. Long diffraction rays created
+    // repeated blue streaks when thousands of particles crossed the frame.
+    float compactSpark = (1.0 - smoothstep(0.035, 0.19, diamondDistance))
+      * max(vGlint, vFacetFlash);
     float pinFire = 1.0 - smoothstep(0.0, 0.075, diamondDistance);
 
-    vec3 iceShadow = vec3(0.62, 0.78, 0.9);
-    vec3 iceFacet = vec3(0.88, 0.965, 1.0);
-    vec3 reflectedWhite = vec3(0.985, 0.998, 1.0);
+    vec3 iceShadow = vec3(0.8, 0.84, 0.89);
+    vec3 iceFacet = vec3(0.945, 0.97, 0.995);
+    vec3 reflectedWhite = vec3(0.998, 0.998, 0.995);
     vec3 color = mix(iceShadow, iceFacet, 0.66 + facetLight * 0.3);
     color = mix(color, reflectedWhite, innerDiamond * 0.58 + facetSeam * 0.24);
 
     float bodyAlpha = crystalBody * (0.19 + innerDiamond * 0.15)
       * (1.0 - vFacetFlash * 0.78);
-    float sparkleAlpha = max(diffraction * 1.24, pinFire * vFacetFlash * 1.02);
+    float sparkleAlpha = max(compactSpark * 0.92, pinFire * vFacetFlash * 1.08);
     float alpha = max(
       bodyAlpha,
       sparkleAlpha
     ) * vLife * vBrightness;
-    vec3 spectralIce = mix(
-      vec3(0.58, 0.88, 1.0),
-      vec3(1.0, 0.91, 0.76),
+    vec3 facetFire = mix(
+      vec3(0.965, 0.982, 1.0),
+      vec3(1.0, 0.975, 0.93),
       smoothstep(-0.32, 0.32, point.x)
     );
-    vec3 flashColor = mix(reflectedWhite, spectralIce, vFacetFlash * 0.12);
+    vec3 flashColor = mix(reflectedWhite, facetFire, vFacetFlash * 0.08);
     vec3 emittedLight = flashColor * (
       pinFire * (1.85 + vFacetFlash * 10.2)
-        + diffraction * 6.2
+        + compactSpark * 4.4
         + crystalEdge * vGlint * 0.58
     );
     gl_FragColor = vec4(color * (1.12 + facetLight * 0.52) + emittedLight, alpha);
@@ -1615,9 +1614,8 @@ function createExitDustGeometry(count: number) {
   const clusterPhases = new Float32Array(count);
 
   for (let index = 0; index < count; index += 1) {
-    const angle = (index / count) * Math.PI * 2 + (Math.random() - 0.5) * 0.56;
-    const broadLobe = Math.sin(angle * 3 + 0.42) * 0.92;
-    const fineLobe = Math.sin(angle * 7 - 1.15) * 0.34;
+    const angle = Math.random() * Math.PI * 2;
+    const shellNoise = (Math.random() - 0.5) * 1.55;
     const isVeilDust = Math.random() < 0.34;
     const shellChoice = Math.random();
     const shellOffset = shellChoice < 0.6
@@ -1627,31 +1625,29 @@ function createExitDustGeometry(count: number) {
         : -3.1 + Math.random() * 2.25;
     const ringRadius = isVeilDust
       ? 0.42 + Math.pow(Math.random(), 0.74) * 5.35
-      : 6.1 + broadLobe + fineLobe + shellOffset;
+      : 6.1 + shellNoise + shellOffset;
     const originX = Math.cos(angle) * ringRadius;
     const originY = Math.sin(angle) * ringRadius * 0.72 - 0.16;
     const originZ = isVeilDust
       ? 0.3 + Math.pow(Math.random(), 1.2) * 4.9
-      : 0.9
-        + Math.pow(Math.random(), 1.3) * 7.0
-        + (0.5 + 0.5 * Math.sin(angle * 2 - 0.7)) * 0.8;
+      : 0.9 + Math.pow(Math.random(), 1.3) * 7.8;
     const tangentX = -Math.sin(angle);
     const tangentY = Math.cos(angle) * 0.72;
     const radialX = Math.cos(angle);
     const radialY = Math.sin(angle) * 0.72;
     const along = (Math.random() - 0.5) * (0.72 + Math.pow(Math.random(), 1.55) * 1.9);
     const across = (Math.random() - 0.5) * (0.34 + Math.random() * 1.02);
-    const radialSpeed = 0.2 + (0.5 + 0.5 * Math.sin(angle * 3 + 1.1)) * 0.42;
-    const tangentialSpeed = Math.sin(angle * 2 + 0.35) * (0.18 + Math.random() * 0.22);
-    const localTurbulence = 0.42 + (0.5 + 0.5 * Math.sin(angle * 3 + 1.1)) * 1.02;
-    const localDrag = 0.46 + (0.5 + 0.5 * Math.sin(angle * 2.5 - 0.4)) * 0.72;
+    const radialSpeed = 0.18 + Math.random() * 0.48;
+    const tangentialSpeed = (Math.random() - 0.5) * 0.44;
+    const localTurbulence = 0.42 + Math.random() * 1.02;
+    const localDrag = 0.46 + Math.random() * 0.72;
     const offset = index * 3;
     positions[offset] = originX + tangentX * along + radialX * across;
     positions[offset + 1] = originY + tangentY * along + radialY * across;
     positions[offset + 2] = originZ + (Math.random() - 0.5) * 1.1;
     velocities[offset] = radialX * radialSpeed + tangentX * tangentialSpeed + (Math.random() - 0.5) * 0.16;
     velocities[offset + 1] = radialY * radialSpeed + tangentY * tangentialSpeed + (Math.random() - 0.5) * 0.14;
-    velocities[offset + 2] = 1.18 + (0.5 + 0.5 * Math.sin(angle * 2.0 + 0.8)) * 1.05 + (Math.random() - 0.5) * 0.34;
+    velocities[offset + 2] = 1.18 + Math.random() * 1.05 + (Math.random() - 0.5) * 0.34;
     clusterOrigins[offset] = originX;
     clusterOrigins[offset + 1] = originY;
     clusterOrigins[offset + 2] = originZ;
@@ -1664,8 +1660,8 @@ function createExitDustGeometry(count: number) {
     seeds[index] = Math.random();
     drag[index] = localDrag * (0.9 + Math.random() * 0.2);
     glints[index] = Math.random() < 0.3 ? 0.68 + Math.random() * 0.32 : 0;
-    swirls[index] = Math.sin(angle * 2 + 0.6) * 0.48 + Math.sin(angle * 5 - 0.8) * 0.17;
-    clusterPhases[index] = angle * 1.72 + Math.sin(angle * 3) * 0.52;
+    swirls[index] = (Math.random() - 0.5) * 1.18;
+    clusterPhases[index] = Math.random() * Math.PI * 2;
   }
 
   const geometry = new THREE.BufferGeometry();
