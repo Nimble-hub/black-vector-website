@@ -16,7 +16,7 @@ const NEAR = 0.68;
 const SCENE_EXPOSURE = 1.18;
 const SCENE_RIM_BASE = 48;
 const EXIT_RIM_BOOST = 86;
-const SEEN_KEY = "black-vector-jump-seen-3d-v22";
+const SEEN_KEY = "black-vector-jump-seen-3d-v23";
 const BASE_PATH = process.env.NEXT_PUBLIC_BASE_PATH ?? "";
 const CRUISE_PULSE_STARTS = [0.47, 0.62, 0.75] as const;
 
@@ -1265,15 +1265,15 @@ const environmentStarFragmentShader = `
     float radius = length(point);
     float core = 1.0 - smoothstep(0.025, 0.14, radius);
     float halo = 1.0 - smoothstep(0.08, 0.5, radius);
-    float horizontalRay = 1.0 - smoothstep(0.008, 0.026, abs(point.y));
-    float verticalRay = 1.0 - smoothstep(0.008, 0.026, abs(point.x));
-    float rayFalloff = 1.0 - smoothstep(0.08, 0.49, radius);
-    float diffraction = max(horizontalRay, verticalRay * 0.55) * rayFalloff * vGlint;
+    // Hero stars used to draw identical cyan cross-rays. Against the exit
+    // dust those repeated sprites read as patterned blue streaks, so keep the
+    // glint photographic and radial instead.
+    float compactGlint = (1.0 - smoothstep(0.025, 0.22, radius)) * vGlint;
     float haloWeight = mix(0.12, 0.27, vGlint);
-    float alpha = max(core, halo * haloWeight + diffraction * 0.72) * vStarAlpha;
+    float alpha = max(core, halo * haloWeight + compactGlint * 0.18) * vStarAlpha;
     vec3 whiteCore = vec3(0.985, 0.997, 1.0);
-    vec3 color = mix(vStarColor, whiteCore, core * 0.62 + diffraction * 0.32);
-    gl_FragColor = vec4(color * (0.72 + core * 1.65 + diffraction * 1.28), alpha);
+    vec3 color = mix(vStarColor, whiteCore, core * 0.68 + compactGlint * 0.42);
+    gl_FragColor = vec4(color * (0.72 + core * 1.65 + compactGlint * 0.74), alpha);
   }
 `;
 
