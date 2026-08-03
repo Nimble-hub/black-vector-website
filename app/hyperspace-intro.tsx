@@ -16,7 +16,7 @@ const NEAR = 0.68;
 const SCENE_EXPOSURE = 1.18;
 const SCENE_RIM_BASE = 48;
 const EXIT_RIM_BOOST = 86;
-const SEEN_KEY = "black-vector-jump-seen-3d-v20";
+const SEEN_KEY = "black-vector-jump-seen-3d-v21";
 const BASE_PATH = process.env.NEXT_PUBLIC_BASE_PATH ?? "";
 const CRUISE_PULSE_STARTS = [0.47, 0.62, 0.75] as const;
 
@@ -1147,15 +1147,15 @@ const exitDustVertexShader = `
     float diamondFire = max(facetFlash, seededFlash);
     float effectiveGlint = max(diamondFire, headlightResponse * 0.42);
     gl_PointSize = clamp(
-      aSize * (18.0 / max(-viewPosition.z, 1.0))
-        * (1.0 + diamondFire * 2.5 + headlightResponse * 0.16),
-      0.58,
-      6.4
+      aSize * (20.5 / max(-viewPosition.z, 1.0))
+        * (1.0 + diamondFire * 2.9 + headlightResponse * 0.22),
+      0.62,
+      8.8
     );
 
     vLife = isAlive * fade * uOpacity;
     vBrightness = aBrightness * (
-      0.78 + headlightResponse * 2.8 + diamondFire * 3.25
+      0.9 + headlightResponse * 3.35 + diamondFire * 3.8
     );
     vGlint = effectiveGlint;
     vFacetRotation = aSeed * 6.2831853 + age * (0.32 + aTurbulence * 0.23);
@@ -1199,9 +1199,9 @@ const exitDustFragmentShader = `
     vec3 color = mix(iceShadow, iceFacet, 0.66 + facetLight * 0.3);
     color = mix(color, reflectedWhite, innerDiamond * 0.58 + facetSeam * 0.24);
 
-    float bodyAlpha = crystalBody * (0.13 + innerDiamond * 0.1)
-      * (1.0 - vFacetFlash * 0.84);
-    float sparkleAlpha = max(diffraction * 1.08, pinFire * vFacetFlash * 0.88);
+    float bodyAlpha = crystalBody * (0.19 + innerDiamond * 0.15)
+      * (1.0 - vFacetFlash * 0.78);
+    float sparkleAlpha = max(diffraction * 1.24, pinFire * vFacetFlash * 1.02);
     float alpha = max(
       bodyAlpha,
       sparkleAlpha
@@ -1213,9 +1213,9 @@ const exitDustFragmentShader = `
     );
     vec3 flashColor = mix(reflectedWhite, spectralIce, vFacetFlash * 0.12);
     vec3 emittedLight = flashColor * (
-      pinFire * (1.6 + vFacetFlash * 8.6)
-        + diffraction * 5.0
-        + crystalEdge * vGlint * 0.42
+      pinFire * (1.85 + vFacetFlash * 10.2)
+        + diffraction * 6.2
+        + crystalEdge * vGlint * 0.58
     );
     gl_FragColor = vec4(color * (1.12 + facetLight * 0.52) + emittedLight, alpha);
   }
@@ -1618,18 +1618,23 @@ function createExitDustGeometry(count: number) {
     const angle = (index / count) * Math.PI * 2 + (Math.random() - 0.5) * 0.56;
     const broadLobe = Math.sin(angle * 3 + 0.42) * 0.92;
     const fineLobe = Math.sin(angle * 7 - 1.15) * 0.34;
+    const isVeilDust = Math.random() < 0.34;
     const shellChoice = Math.random();
     const shellOffset = shellChoice < 0.6
       ? (Math.random() - 0.5) * 1.4
       : shellChoice < 0.82
         ? 0.8 + Math.random() * 2.25
         : -3.1 + Math.random() * 2.25;
-    const ringRadius = 6.1 + broadLobe + fineLobe + shellOffset;
+    const ringRadius = isVeilDust
+      ? 0.42 + Math.pow(Math.random(), 0.74) * 5.35
+      : 6.1 + broadLobe + fineLobe + shellOffset;
     const originX = Math.cos(angle) * ringRadius;
     const originY = Math.sin(angle) * ringRadius * 0.72 - 0.16;
-    const originZ = 1.15
-      + Math.pow(Math.random(), 1.3) * 7.4
-      + (0.5 + 0.5 * Math.sin(angle * 2 - 0.7)) * 0.8;
+    const originZ = isVeilDust
+      ? 0.3 + Math.pow(Math.random(), 1.2) * 4.9
+      : 0.9
+        + Math.pow(Math.random(), 1.3) * 7.0
+        + (0.5 + 0.5 * Math.sin(angle * 2 - 0.7)) * 0.8;
     const tangentX = -Math.sin(angle);
     const tangentY = Math.cos(angle) * 0.72;
     const radialX = Math.cos(angle);
@@ -1650,14 +1655,15 @@ function createExitDustGeometry(count: number) {
     clusterOrigins[offset] = originX;
     clusterOrigins[offset + 1] = originY;
     clusterOrigins[offset + 2] = originZ;
-    delays[index] = Math.random() * 0.085;
+    delays[index] = Math.random() * (isVeilDust ? 0.055 : 0.11);
     lifetimes[index] = 4.1 + Math.random() * 2.2;
-    sizes[index] = 0.14 + Math.pow(Math.random(), 1.82) * 0.62;
-    brightness[index] = 0.58 + Math.pow(Math.random(), 0.62) * 0.62;
+    sizes[index] = (isVeilDust ? 0.17 : 0.14)
+      + Math.pow(Math.random(), 1.82) * (isVeilDust ? 0.74 : 0.66);
+    brightness[index] = 0.7 + Math.pow(Math.random(), 0.62) * 0.72;
     turbulence[index] = localTurbulence * (0.86 + Math.random() * 0.28);
     seeds[index] = Math.random();
     drag[index] = localDrag * (0.9 + Math.random() * 0.2);
-    glints[index] = Math.random() < 0.18 ? 0.62 + Math.random() * 0.38 : 0;
+    glints[index] = Math.random() < 0.3 ? 0.68 + Math.random() * 0.32 : 0;
     swirls[index] = Math.sin(angle * 2 + 0.6) * 0.48 + Math.sin(angle * 5 - 0.8) * 0.17;
     clusterPhases[index] = angle * 1.72 + Math.sin(angle * 3) * 0.52;
   }
@@ -2368,7 +2374,7 @@ export function HyperspaceIntro() {
       uTime: { value: 0 },
       uOpacity: { value: 0 },
     };
-    const exitDustGeometry = createExitDustGeometry(isMobile ? 16000 : 46000);
+    const exitDustGeometry = createExitDustGeometry(isMobile ? 24000 : 64000);
     const exitDustMaterial = new THREE.ShaderMaterial({
       uniforms: exitDustUniforms,
       vertexShader: exitDustVertexShader,
@@ -2501,9 +2507,9 @@ export function HyperspaceIntro() {
           (progress - 0.018) / (LAUNCH_PROGRESS - 0.018),
         );
         const charge = sequencePressure;
-        const launchProgress = clamp01((progress - LAUNCH_PROGRESS) / 0.009);
-        const launch = 1 - Math.pow(1 - launchProgress, 5);
-        const visualLaunch = smoothstep((progress - LAUNCH_PROGRESS) / 0.018);
+        const launchProgress = clamp01((progress - LAUNCH_PROGRESS) / 0.0065);
+        const launch = 1 - Math.pow(1 - launchProgress, 6);
+        const visualLaunch = smoothstep((progress - LAUNCH_PROGRESS) / 0.013);
         const tensionAttack = smoothstep((sequencePressure - 0.08) / 0.72);
         const tensionRelease = 1 - smoothstep((progress - LAUNCH_PROGRESS) / 0.028);
         const warpTension = tensionAttack * tensionRelease;
@@ -2512,12 +2518,17 @@ export function HyperspaceIntro() {
         const warpRelease = warpReleaseAttack * warpReleaseFade;
         const launchImpulse = smoothstep((progress - (LAUNCH_PROGRESS - 0.002)) / 0.005)
           * (1 - smoothstep((progress - (LAUNCH_PROGRESS + 0.025)) / 0.018));
+        const launchSnap = smoothstep(
+          (progress - (LAUNCH_PROGRESS + 0.001)) / 0.0035,
+        ) * (1 - smoothstep(
+          (progress - (LAUNCH_PROGRESS + 0.018)) / 0.014,
+        ));
         // Recoil lands first, then the lens rapidly collapses toward the mouth
         // of the tunnel. This stagger is what makes the launch feel as though
         // the ship is being grabbed and pulled forward instead of merely cut
         // to a wider field of view.
         const crashZoom = smoothstep(
-          (progress - (LAUNCH_PROGRESS + 0.004)) / 0.009,
+          (progress - (LAUNCH_PROGRESS + 0.002)) / 0.0065,
         ) * (1 - smoothstep(
           (progress - (LAUNCH_PROGRESS + 0.024)) / 0.018,
         ));
@@ -2578,7 +2589,7 @@ export function HyperspaceIntro() {
           + Math.cos(elapsed * 0.00017 + 0.2) * 0.36;
         const lineGrowth = sequencePressure;
         const preLaunchSpeed = sequencePressure * 7.5;
-        const hyperspaceSpeed = 188;
+        const hyperspaceSpeed = 212;
         const speed = THREE.MathUtils.lerp(
           preLaunchSpeed,
           hyperspaceSpeed,
@@ -2595,14 +2606,16 @@ export function HyperspaceIntro() {
           sequencePressure * 2.2
           + sequencePressure * sequencePressure * 7
           + Math.pow(dustSuction, 3) * 30
-          + streakStretch * 64
-          + speed * 1.35
+          + streakStretch * 82
+          + launchSnap * 92
+          + speed * 1.48
         ) * (1 - braking) + braking * 0.5;
         dustTravel += dustSpeed * delta;
         uniforms.uTravel.value = travel;
         tunnelDustUniforms.uTravel.value = dustTravel;
         const launchDust = launchImpulse * 0.22
           + streakStretch * 0.18
+          + launchSnap * 0.46
           + warpRelease * 0.24
           + dustSuction * warpTension * 0.18;
         const preLaunchDust = dustReveal * 0.26
@@ -2627,6 +2640,7 @@ export function HyperspaceIntro() {
             + dustSuction * (0.18 + warpTension * 0.46)
             + streakStretch * 0.72
             + launchImpulse * 0.95
+            + launchSnap * 1.1
             + warpRelease * 0.78,
         );
         warpBubbleUniforms.uTime.value = elapsed * 0.001;
@@ -2636,6 +2650,7 @@ export function HyperspaceIntro() {
         warpBubbleUniforms.uCruise.value = visualLaunch * (1 - braking);
         warpBubbleUniforms.uImpact.value = Math.max(
           launchImpulse,
+          launchSnap,
           streakStretch,
           pressurePulse * 0.34,
         );
@@ -2644,6 +2659,7 @@ export function HyperspaceIntro() {
             + warpRelease * 0.62
             + visualLaunch * 0.96
             + launchImpulse * 0.13
+            + launchSnap * 0.22
             + pressurePulse * 0.1
         ) * (1 - braking);
         const lensTravelFade = 1 - smoothstep(
@@ -2657,6 +2673,7 @@ export function HyperspaceIntro() {
           + lensRelease * 2.05
           + streakStretch * 0.95
           + crashZoom * 3.35
+          + launchSnap * 3.1
           + cruiseLens * cruiseBreath
         ) * (1 - braking);
         const sceneWarp = Math.min(1, (
@@ -2664,6 +2681,7 @@ export function HyperspaceIntro() {
             + streakStretch * 0.4
             + crashZoom * 0.3
             + launchImpulse * 0.2
+            + launchSnap * 0.46
             + pressurePulse * 0.06
             + cruiseLens * 0.08
         ) * (1 - braking));
@@ -2680,22 +2698,25 @@ export function HyperspaceIntro() {
           + charge * 0.145
           - cruiseLens * 0.04
           + launchImpulse * 0.02
+          + launchSnap * 0.055
           + crashZoom * 0.135;
         lensPass.uniforms.uStretch.value = warpTension * 0.052
           + streakStretch * 0.34
           + launchImpulse * 0.27
+          + launchSnap * 0.62
           + crashZoom * 0.43
           + warpRelease * lensTravelFade * 0.125
           + cruiseLens * 0.006;
         lensPass.uniforms.uFlash.value = Math.min(
           1,
-          launchImpulse + crashZoom * 0.42,
+          launchImpulse + crashZoom * 0.54 + launchSnap * 0.88,
         );
         lensPass.uniforms.uMotionBlur.value = Math.min(
           1,
           crashZoom * 0.78
             + streakStretch * 0.92
             + launchImpulse * 0.36
+            + launchSnap * 0.74
             + launchRumble * 0.16,
         );
         lensPass.uniforms.uTime.value = elapsed * 0.001;
@@ -2706,10 +2727,10 @@ export function HyperspaceIntro() {
         );
         const staticStretch = THREE.MathUtils.lerp(0.028, 0.74, lineGrowth);
         uniforms.uForwardStretch.value = (
-          staticStretch + streakStretch * 1.35
+          staticStretch + streakStretch * 1.62 + launchSnap * 0.58
         ) * (1 - braking) + braking * 0.01;
         uniforms.uBackwardStretch.value = (
-          staticStretch + streakStretch * 1.9 + visualLaunch * 0.96
+          staticStretch + streakStretch * 2.32 + launchSnap * 0.92 + visualLaunch * 1.04
         ) * (1 - braking) + braking * 0.03;
         uniforms.uWidthScale.value = (
           0.72 + charge * 0.46 + visualLaunch * 0.4
@@ -2729,18 +2750,22 @@ export function HyperspaceIntro() {
           * (0.3 + charge * 0.7)
           * (1 - visualLaunch * 0.14)
           * (1 - smoothstep((progress - 0.88) / 0.055));
-        exitWakeUniforms.uTime.value = Math.max(0, (elapsed - DURATION * 0.825) / 1000);
-        exitWakeUniforms.uOpacity.value = smoothstep((progress - 0.828) / 0.045) * 0.34;
+        const exitDustIgnition = smoothstep((progress - 0.822) / 0.022);
+        const exitDustWhiteout = exitDustIgnition
+          * (1 - smoothstep((progress - 0.912) / 0.06));
+        exitWakeUniforms.uTime.value = Math.max(0, (elapsed - DURATION * 0.818) / 1000);
+        exitWakeUniforms.uOpacity.value = smoothstep((progress - 0.824) / 0.04) * 0.34;
         exitCrystalUniforms.uTime.value = Math.max(0, (elapsed - DURATION * 0.872) / 1000);
         exitCrystalUniforms.uOpacity.value = 0;
-        exitDustUniforms.uTime.value = Math.max(0, (elapsed - DURATION * 0.825) / 1000);
-        exitDustUniforms.uOpacity.value = smoothstep((progress - 0.828) / 0.045);
+        exitDustUniforms.uTime.value = Math.max(0, (elapsed - DURATION * 0.818) / 1000);
+        exitDustUniforms.uOpacity.value = exitDustIgnition
+          * (1.15 + exitDustWhiteout * 1.35);
         // Let the destination exist behind the collapsing tunnel before the
         // exit completes. The early power curve keeps it subliminal at first,
         // then turns the final tunnel fade into a continuous reveal.
         const destinationForeshadow = Math.pow(
-          smoothstep((progress - 0.835) / 0.145),
-          1.55,
+          smoothstep((progress - 0.86) / 0.14),
+          1.65,
         );
         world.setOpacity(captureMode ? 0 : destinationForeshadow);
         const exitIllumination = smoothstep((progress - 0.842) / 0.042)
@@ -2755,7 +2780,9 @@ export function HyperspaceIntro() {
         ) * (1 - smoothstep(
           (progress - (LAUNCH_PROGRESS + 0.04)) / 0.022,
         ));
-        world.rimLight.intensity = SCENE_RIM_BASE + exitIllumination * EXIT_RIM_BOOST;
+        world.rimLight.intensity = SCENE_RIM_BASE
+          + exitIllumination * EXIT_RIM_BOOST
+          + exitDustWhiteout * 34;
         renderer.toneMappingExposure = 1.0
           + charge * 0.17
           + launch * 0.08
@@ -2764,7 +2791,8 @@ export function HyperspaceIntro() {
           + exposureSpike * 0.34
           - exposureSettle * 0.1
           + pressurePulse * 0.025
-          + exitIllumination * 0.13;
+          + exitIllumination * 0.18
+          + exitDustWhiteout * 0.42;
 
         const launchLocal = clamp01((progress - LAUNCH_PROGRESS) / 0.11);
         const pressureDrift = warpTension * (1 - launch) * 0.07;
@@ -2779,13 +2807,17 @@ export function HyperspaceIntro() {
           * (1 - smoothstep((progress - (LAUNCH_PROGRESS + 0.07)) / 0.06));
         const brakingShake = smoothstep((progress - 0.82) / 0.05)
           * (1 - smoothstep((progress - 0.965) / 0.035));
+        const exitStopKick = smoothstep((progress - 0.835) / 0.018)
+          * (1 - smoothstep((progress - 0.905) / 0.05));
         const impactDecay = launchShake * (1 - smoothstep(launchLocal));
         const shakeStrength = impactKick * 0.105
           + impactDecay * 0.055
           + launchShake * 0.025
+          + launchSnap * 0.16
           + launchRumble * (0.022 + secondaryKick * 0.025)
-          + brakingShake * 0.032;
-        const cameraDive = smoothstep((progress - (LAUNCH_PROGRESS + 0.008)) / 0.012)
+          + brakingShake * 0.032
+          + exitStopKick * 0.06;
+        const cameraDive = smoothstep((progress - (LAUNCH_PROGRESS + 0.004)) / 0.008)
           * (1 - smoothstep((progress - (LAUNCH_PROGRESS + 0.1)) / 0.07));
         // Keep the physical recoil almost imperceptible. A large backward
         // translation followed by the crash zoom reads as a rubber-band camera
@@ -2798,7 +2830,7 @@ export function HyperspaceIntro() {
           (progress - (LAUNCH_PROGRESS + 0.025)) / 0.02,
         );
         const recoilEnvelope = recoilAttack * recoilRelease;
-        const launchRecoil = recoilEnvelope * 0.18;
+        const launchRecoil = recoilEnvelope * 0.28;
         const shakeX = Math.sin(elapsed * 0.043)
           + Math.sin(elapsed * 0.071 + 1.7) * 0.38;
         const shakeY = Math.cos(elapsed * 0.037 + 0.6)
@@ -2842,14 +2874,15 @@ export function HyperspaceIntro() {
           + shakeX * shakeStrength * 0.16
           + hullVibrationX * hullEnvelope * 0.018;
         camera.position.y = rigY
-          + shakeY * shakeStrength * 0.18
+          + shakeY * shakeStrength * 0.22
           + hullVibrationY * hullEnvelope * 0.055;
         camera.position.z = -0.9 * exitArrival
           - charge * (1 - launch) * 1.2
           + launchRecoil
-          - cameraDive * 3.1
-          - crashZoom * 5.4
-          + shakeZ * shakeStrength * 0.1
+          - cameraDive * 4.25
+          - crashZoom * 6.8
+          + shakeZ * shakeStrength * 0.18
+          + exitStopKick * 0.34
           + hullVibrationZ * hullEnvelope * 0.035
           + cruiseDriftZ;
         cameraTarget.set(
@@ -2867,22 +2900,24 @@ export function HyperspaceIntro() {
             + shakeY * launchShake * 0.014,
           THREE.MathUtils.lerp(-100, -38, exitArrival)
             + cruiseFloatZ * cruiseFloatEnvelope * 1.15
-            - crashZoom * 7.5,
+            - crashZoom * 9.4,
         );
         camera.lookAt(cameraTarget);
         camera.rotation.z += hullVibrationX * hullEnvelope * 0.0015
           + shakeX * shakeStrength * 0.0018
           + impactKick * 0.0018
+          + launchSnap * 0.0014
           + recoilEnvelope * 0.001;
         camera.fov = 62
           + charge * 2.5
           - warpTension * 9.5
           - preLaunchZoom * 10.5
-          - crashZoom * 28
-          + visualLaunch * 24.5
-          + impactKick * 5
+          - crashZoom * 33
+          + visualLaunch * 27
+          + impactKick * 6.2
           + recoilEnvelope * 1.1
-          + cameraDive * 6.5
+          + cameraDive * 8
+          + exitStopKick * 3.6
           + cruiseFloatZ * cruiseFloatEnvelope * 0.12
           + hullVibrationZ * hullEnvelope * 0.12
           - braking * 23.5;
@@ -2906,14 +2941,16 @@ export function HyperspaceIntro() {
         const landingElapsed = landingStartTime === null ? 1600 : Math.max(0, time - landingStartTime);
         const wakeFade = 1 - smoothstep(landingElapsed / 3500);
         const dustFade = 1 - smoothstep(landingElapsed / 4200);
-        exitWakeUniforms.uTime.value = Math.max(0, (elapsed - DURATION * 0.825) / 1000);
+        exitWakeUniforms.uTime.value = Math.max(0, (elapsed - DURATION * 0.818) / 1000);
         exitWakeUniforms.uOpacity.value = wakeFade * 0.34;
         exitCrystalUniforms.uTime.value = Math.max(0, (elapsed - DURATION * 0.872) / 1000);
         exitCrystalUniforms.uOpacity.value = 0;
-        exitDustUniforms.uTime.value = Math.max(0, (elapsed - DURATION * 0.825) / 1000);
-        exitDustUniforms.uOpacity.value = dustFade;
+        exitDustUniforms.uTime.value = Math.max(0, (elapsed - DURATION * 0.818) / 1000);
+        // Preserve the veil's brightness across the jump-complete boundary so
+        // the destination emerges from one continuous diamond-dust curtain.
+        exitDustUniforms.uOpacity.value = dustFade * 1.15;
         world.rimLight.intensity = SCENE_RIM_BASE
-          + (exitDust.visible ? dustFade * EXIT_RIM_BOOST * 0.46 : 0);
+          + (exitDust.visible ? dustFade * EXIT_RIM_BOOST * 0.62 : 0);
         if (wakeFade <= 0.001) {
           exitWake.visible = false;
           exitCrystals.visible = false;
