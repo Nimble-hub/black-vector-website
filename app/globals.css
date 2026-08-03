@@ -100,6 +100,14 @@ a:focus-visible {
   z-index: 100;
 }
 
+/* Once the destination begins resolving, keep the WebGL world behind the
+   editorial interface. The canvas continues rendering the exit veil, but the
+   header and projected UI can now perform their arrival instead of completing
+   invisibly beneath the jump layer and appearing all at once afterward. */
+.experience-arriving .space-experience.is-jumping {
+  z-index: 0;
+}
+
 .space-experience canvas {
   display: block;
   width: 100%;

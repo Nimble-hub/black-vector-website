@@ -263,10 +263,10 @@ test("ships authenticated social connections, direct comms, and clan operations"
 });
 
 test("resolves the hyperspace camera, FOV, and interface on one handoff curve", async () => {
-  const intro = await readFile(
-    new URL("app/hyperspace-intro.tsx", root),
-    "utf8",
-  );
+  const [intro, styles] = await Promise.all([
+    readFile(new URL("app/hyperspace-intro.tsx", root), "utf8"),
+    readFile(new URL("app/globals.css", root), "utf8"),
+  ]);
   assert.match(intro, /const handoffBlend = smoothstep/);
   assert.match(intro, /camera\.position\.set\([\s\S]*handoffBlend/);
   assert.match(
@@ -280,6 +280,10 @@ test("resolves the hyperspace camera, FOV, and interface on one handoff curve", 
   assert.match(intro, /const EXIT_SETTLE_DURATION = 3000/);
   assert.match(intro, /landingElapsed >= EXIT_SETTLE_DURATION/);
   assert.match(intro, /finish\(0\.7\)/);
+  assert.match(
+    styles,
+    /\.experience-arriving \.space-experience\.is-jumping\s*\{\s*z-index:\s*0/,
+  );
 });
 
 test("exposes a persistent cinematic master volume beside the audio toggle", async () => {
