@@ -190,9 +190,9 @@ export default function Home() {
         <div className="game-art">
           <Image
             src={`${BASE_PATH}/art/hero-carrier.png`}
-            alt="A human carrier group crossing the atmosphere of a storm-covered planet"
-            width={1672}
-            height={939}
+            alt="A colossal Black Vector fleet passing above an orbital city"
+            width={1935}
+            height={813}
             loading="lazy"
             sizes="(max-width: 700px) 100vw, 88vw"
             unoptimized
