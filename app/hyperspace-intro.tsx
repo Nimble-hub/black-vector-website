@@ -1101,22 +1101,27 @@ const exitDustVertexShader = `
     vec2 radialDirection = normalize(clusterOrbit + vec2(0.0001));
     vec2 tangentDirection = vec2(-radialDirection.y, radialDirection.x);
 
-    float gustPulse = 0.32 + 0.68 * (
-      0.5 + 0.5 * sin(age * 1.12 + aClusterPhase * 2.1)
-    );
-    float gustStrength = aTurbulence * turbulenceOnset * gustPulse * (0.2 + age * 0.12);
-    float sharedCurl = sin(age * 1.72 + aClusterPhase);
-    float sharedRoll = cos(age * 1.06 + aClusterPhase * 1.27);
-    float microCurl = sin(age * (2.1 + aSeed * 0.8) + aSeed * 18.0) * 0.18;
+    // A few broad, continuous wind fields carry the perimeter veil as one
+    // sheet. The seed only adds fine breakup, so grains curl in wisps instead
+    // of vibrating as unrelated clumps.
+    float curlEnvelope = smoothstep(0.06, 0.72, age)
+      * (1.0 - smoothstep(3.2, 5.4, age));
+    float flowPhase = aClusterPhase * 0.72;
+    float sharedCurl = sin(flowPhase + age * 1.34);
+    float sharedRoll = cos(flowPhase * 0.61 - age * 0.86 + 0.9);
+    float wakeFold = sin(flowPhase * 1.87 + age * 2.05) * 0.22;
+    float microCurl = sin(age * (1.8 + aSeed * 0.64) + aSeed * 18.0) * 0.075;
+    float gustPulse = 0.68 + 0.32 * sin(age * 0.9 + flowPhase * 0.55);
+    float gustStrength = aTurbulence * curlEnvelope * gustPulse * (0.16 + age * 0.15);
     vec3 gust = vec3(
-      tangentDirection * ((sharedCurl + microCurl) * 0.72 + sin(age * 0.63 + aClusterPhase) * age * 0.1)
-        + radialDirection * sharedRoll * 0.26,
-      (sharedCurl * sharedRoll + microCurl) * 0.16
+      tangentDirection * (sharedCurl * 0.78 + wakeFold * 0.24 + microCurl)
+        + radialDirection * (sharedRoll * 0.18 + sharedCurl * sharedRoll * 0.07),
+      (sharedCurl * sharedRoll + wakeFold * 0.35) * 0.14
     ) * gustStrength;
 
     float dragRate = aDrag;
     float retainedTravel = (1.0 - exp(-age * dragRate)) / dragRate;
-    float forwardSpeed = 3.8 + aVelocity.z * 6.8;
+    float forwardSpeed = 4.25 + aVelocity.z * 6.55;
     float forwardInertia = -forwardSpeed * retainedTravel;
     vec3 particlePosition = vec3(clusterOrbit, aClusterOrigin.z)
       + localOffset
@@ -1650,7 +1655,8 @@ function createExitDustGeometry(count: number) {
     clusterOrigins[offset] = originX;
     clusterOrigins[offset + 1] = originY;
     clusterOrigins[offset + 2] = originZ;
-    delays[index] = Math.random() * 0.085;
+    const releaseWave = (0.5 + 0.5 * Math.sin(angle * 3.0 - 0.4)) * 0.018;
+    delays[index] = 0.006 + Math.pow(Math.random(), 1.45) * 0.12 + releaseWave;
     lifetimes[index] = 4.1 + Math.random() * 2.2;
     sizes[index] = 0.14 + Math.pow(Math.random(), 1.82) * 0.62;
     brightness[index] = 0.58 + Math.pow(Math.random(), 0.62) * 0.62;

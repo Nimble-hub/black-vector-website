@@ -16,6 +16,9 @@ $chargePulse = Get-ChildItem -LiteralPath $audioRoot -File | Where-Object Name -
 $growlyImpact = Get-ChildItem -LiteralPath $audioRoot -File | Where-Object Name -Like "*Big, Powerful, Growly, Reverberant*"
 $metallicSub = Get-ChildItem -LiteralPath $audioRoot -File | Where-Object Name -Like "*Metallic Impact, Heavily Distorted Sub 01*"
 $travelEngine = Get-ChildItem -LiteralPath $audioRoot -File | Where-Object Name -Like "*Engine, Gritty Swirl*"
+$cruiseIdle = Get-ChildItem -LiteralPath $audioRoot -File | Where-Object Name -Like "*Vehicle, Engine Idle*"
+$cruiseField = Get-ChildItem -LiteralPath $audioRoot -File | Where-Object Name -Like "*Energy, Dome, Force Field*"
+$cruisePropeller = Get-ChildItem -LiteralPath $audioRoot -File | Where-Object Name -Like "*Propeller, Engine, Futuristic, Medium 06*"
 $growlyRiser = Get-ChildItem -LiteralPath $audioRoot -File | Where-Object Name -Like "*Musical, Electronic, Growly, Intense 01*"
 $electronicRiser = Get-ChildItem -LiteralPath $audioRoot -File | Where-Object Name -Like "*Musical, Electronic, Intense 01*"
 $bigHit = Get-ChildItem -LiteralPath $audioRoot -File | Where-Object Name -Like "*Boom, Big Hit 01*"
@@ -23,7 +26,7 @@ $deepGrowl = Get-ChildItem -LiteralPath $audioRoot -File | Where-Object Name -Li
 $muffledGrowl = Get-ChildItem -LiteralPath $audioRoot -File | Where-Object Name -Like "*Deep, Growl, Frightening, Muffled*"
 $score = Join-Path $musicRoot "BVRTS Soundtrack (2).wav"
 
-foreach ($source in @($drop, $impact, $riser, $stinger, $rumble, $machinery, $chargePulse, $growlyImpact, $metallicSub, $travelEngine, $growlyRiser, $electronicRiser, $bigHit, $deepGrowl, $muffledGrowl)) {
+foreach ($source in @($drop, $impact, $riser, $stinger, $rumble, $machinery, $chargePulse, $growlyImpact, $metallicSub, $travelEngine, $cruiseIdle, $cruiseField, $cruisePropeller, $growlyRiser, $electronicRiser, $bigHit, $deepGrowl, $muffledGrowl)) {
   if ($null -eq $source -or -not (Test-Path -LiteralPath $source.FullName)) {
     throw "A required cinematic source is missing."
   }
@@ -59,7 +62,10 @@ $jumpFilter = @"
 [newAttackCrackSource]atrim=start=0:end=0.42,asetpts=PTS-STARTPTS,highpass=f=260,lowpass=f=9200,volume=0.20,equalizer=f=1450:t=q:w=0.84:g=4.8,equalizer=f=3200:t=q:w=0.76:g=6.4,equalizer=f=6100:t=q:w=0.70:g=4.2,acompressor=threshold=0.11:ratio=2.8:attack=24:release=95:makeup=1.02,afade=t=out:st=0.10:d=0.28,volume=3.0,adelay=5770|5770[newCrack];
 [13:a]atrim=start=0:end=4.9,asetpts=PTS-STARTPTS,highpass=f=22,lowpass=f=6800,volume=0.22,equalizer=f=46:t=q:w=0.74:g=5.2,equalizer=f=86:t=q:w=0.86:g=4.0,equalizer=f=285:t=q:w=1.0:g=-3.8,equalizer=f=980:t=q:w=0.84:g=3.2,equalizer=f=2450:t=q:w=0.82:g=2.0,acompressor=threshold=0.14:ratio=2.0:attack=12:release=235:makeup=1.12,afade=t=out:st=1.50:d=2.20,volume=2.85,adelay=5775|5775[newGrowl];
 [14:a]atrim=start=0.10:end=5.8,asetpts=PTS-STARTPTS,highpass=f=20,lowpass=f=540,volume=0.22,equalizer=f=38:t=q:w=0.72:g=6.2,equalizer=f=66:t=q:w=0.84:g=5.0,equalizer=f=145:t=q:w=0.92:g=2.6,equalizer=f=285:t=q:w=1.0:g=-3.8,acompressor=threshold=0.12:ratio=2.4:attack=24:release=285:makeup=1.14,afade=t=out:st=1.65:d=2.55,volume=2.55,adelay=5755|5755[newPressure];
-[growlyBuild][electronicBuild][machineryMid][chargeAir][buildA][buildB][launchImpact][launchPunch][growlyHit][metalSub][newAttack][newCrack][newGrowl][newPressure][travelRumble][travelEngine][travelEngineSub][travelEnginePresence][exitSuction][exitCrystal][exitDrop]amix=inputs=21:normalize=0:dropout_transition=0,highpass=f=20,equalizer=f=55:t=q:w=0.8:g=2.0,equalizer=f=125:t=q:w=0.9:g=1.0,equalizer=f=340:t=q:w=1.0:g=-2.0,equalizer=f=1800:t=q:w=0.8:g=1.0,equalizer=f=4800:t=q:w=0.75:g=1.3,acompressor=threshold=0.26:ratio=1.25:attack=32:release=260:makeup=1.0:knee=3.5,loudnorm=I=-12.5:TP=-1.0:LRA=8,atrim=end=21.3[master]
+[15:a]atrim=start=0.12:end=8.48,asetpts=PTS-STARTPTS,highpass=f=105,lowpass=f=3600,equalizer=f=175:t=q:w=0.9:g=-3.2,equalizer=f=420:t=q:w=0.95:g=-2.6,equalizer=f=1180:t=q:w=0.82:g=2.4,equalizer=f=2650:t=q:w=0.78:g=1.5,acompressor=threshold=0.19:ratio=2.1:attack=28:release=180:makeup=1.02,afade=t=in:st=0:d=0.38,afade=t=out:st=7.22:d=1.14,volume=0.16,adelay=5920|5920[cruiseIdle];
+[16:a]atrim=start=1.25:end=9.75,asetpts=PTS-STARTPTS,highpass=f=32,lowpass=f=820,equalizer=f=54:t=q:w=0.78:g=1.8,equalizer=f=118:t=q:w=0.88:g=1.2,equalizer=f=310:t=q:w=1.0:g=-2.4,tremolo=f=2.25:d=0.12,acompressor=threshold=0.18:ratio=1.65:attack=42:release=260:makeup=1.06,afade=t=in:st=0:d=0.52,afade=t=out:st=7.28:d=1.18,volume=0.34,adelay=5900|5900[cruiseField];
+[17:a]atrim=start=3.35:end=11.85,asetpts=PTS-STARTPTS,highpass=f=145,lowpass=f=6800,equalizer=f=235:t=q:w=0.95:g=-2.4,equalizer=f=720:t=q:w=0.88:g=2.1,equalizer=f=1850:t=q:w=0.82:g=2.8,equalizer=f=4600:t=q:w=0.75:g=1.6,acompressor=threshold=0.16:ratio=1.85:attack=24:release=165:makeup=1.10,afade=t=in:st=0:d=0.34,afade=t=out:st=7.34:d=1.04,volume=0.72,adelay=5940|5940[cruisePropeller];
+[growlyBuild][electronicBuild][machineryMid][chargeAir][buildA][buildB][launchImpact][launchPunch][growlyHit][metalSub][newAttack][newCrack][newGrowl][newPressure][travelRumble][travelEngine][travelEngineSub][travelEnginePresence][cruiseIdle][cruiseField][cruisePropeller][exitSuction][exitCrystal][exitDrop]amix=inputs=24:normalize=0:dropout_transition=0,highpass=f=20,equalizer=f=55:t=q:w=0.8:g=2.0,equalizer=f=125:t=q:w=0.9:g=1.0,equalizer=f=340:t=q:w=1.0:g=-2.0,equalizer=f=1800:t=q:w=0.8:g=1.0,equalizer=f=4800:t=q:w=0.75:g=1.3,acompressor=threshold=0.26:ratio=1.25:attack=32:release=260:makeup=1.0:knee=3.5,loudnorm=I=-12.5:TP=-1.0:LRA=8,atrim=end=21.3[master]
 "@ -replace "`r?`n", ""
 
 $jumpOutput = Join-Path $publicAudio "hyperspace-jump.mp3"
@@ -79,9 +85,12 @@ $jumpOutput = Join-Path $publicAudio "hyperspace-jump.mp3"
   -i $bigHit.FullName `
   -i $deepGrowl.FullName `
   -i $muffledGrowl.FullName `
+  -i $cruiseIdle.FullName `
+  -i $cruiseField.FullName `
+  -i $cruisePropeller.FullName `
   -filter_complex $jumpFilter `
   -map "[master]" -ar 48000 -ac 2 -c:a libmp3lame -b:a 256k `
-  -metadata title="Black Vector Hyperspace Theater Mix 18" `
+  -metadata title="Black Vector Hyperspace Theater Mix 19" `
   -metadata comment="Licensed source masters preserved locally" `
   $jumpOutput
 if ($LASTEXITCODE -ne 0) { throw "Hyperspace soundtrack build failed." }
