@@ -113,3 +113,25 @@ test("ships the realtime community hub and account profile media controls", asyn
     access(new URL("drizzle/0001_woozy_swarm.sql", root)),
   ]);
 });
+
+test("presents the production game pitch and cleanly hands transit audio to the site", async () => {
+  const [home, layout, intro, audio, styles] = await Promise.all([
+    readFile(new URL("app/page.tsx", root), "utf8"),
+    readFile(new URL("app/layout.tsx", root), "utf8"),
+    readFile(new URL("app/hyperspace-intro.tsx", root), "utf8"),
+    readFile(new URL("app/hyperspace-audio.ts", root), "utf8"),
+    readFile(new URL("app/globals.css", root), "utf8"),
+  ]);
+
+  assert.match(home, /large-scale space RTS/);
+  assert.match(home, /Build the war machine/);
+  assert.match(home, /Control the system/);
+  assert.doesNotMatch(home, /Fight the delay/);
+  assert.doesNotMatch(home, /LIVE THEATER|PROCEDURAL 3D/);
+  assert.match(layout, /https:\/\/blackvector\.win/);
+  assert.match(intro, /audioRef\.current\?\.finishTransit\(\)/);
+  assert.match(intro, /void audio\.startMusic\(\)/);
+  assert.match(audio, /playbackEpoch/);
+  assert.match(audio, /finishTransit/);
+  assert.match(styles, /\.site-header\s*\{[\s\S]*position:\s*fixed/);
+});

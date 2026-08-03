@@ -6,9 +6,9 @@ import { HyperspaceIntro } from "./hyperspace-intro";
 const BASE_PATH = process.env.NEXT_PUBLIC_BASE_PATH ?? "";
 
 export const metadata: Metadata = {
-  title: "Black Vector | Cinematic Fleet-Command RTS",
+  title: "Black Vector | Large-Scale Fleet-Command RTS",
   description:
-    "Command surviving fleets through delayed intelligence, fractured human space, and the aftermath of the 27-Day Skirmish.",
+    "Build fleets, capture strategic territory, grow a wartime economy, and command massive real-time battles across human space.",
 };
 
 const accessOptions = [
@@ -50,18 +50,18 @@ const accessOptions = [
 const gamePillars = [
   {
     index: "01",
-    title: "Command the fleet",
-    copy: "Read the battlespace, organize surviving ships, and commit forces across distances that make every order matter.",
+    title: "Build the war machine",
+    copy: "Secure resources, expand production, and turn a foothold into an armada of fighters, warships, and capital vessels.",
   },
   {
     index: "02",
-    title: "Fight the delay",
-    copy: "Intelligence arrives late. The battlefield continues moving while your signals travel, forcing decisions under uncertainty.",
+    title: "Control the system",
+    copy: "Capture strategic positions, defend critical infrastructure, and pressure the enemy across multiple fronts.",
   },
   {
     index: "03",
-    title: "Live with the order",
-    copy: "A command does not wait for reassurance. Consequences keep unfolding between intent, transmission, and impact.",
+    title: "Command at scale",
+    copy: "Coordinate formations from strike craft to carrier groups as skirmishes escalate into battles for entire sectors.",
   },
 ] as const;
 
@@ -93,32 +93,33 @@ export default function Home() {
     <main>
       <HyperspaceIntro />
 
-      <section className="hero" aria-labelledby="hero-title">
-        <header className="site-header">
-          <a className="wordmark" href="#top" aria-label="Black Vector home">
-            <span className="wordmark-mark" aria-hidden="true">BV</span>
-            <span>BLACK VECTOR</span>
-          </a>
+      <header className="site-header">
+        <a className="wordmark" href="#top" aria-label="Black Vector home">
+          <span className="wordmark-mark" aria-hidden="true">BV</span>
+          <span>BLACK VECTOR</span>
+        </a>
 
-          <nav className="site-nav" aria-label="Primary navigation">
-            <a href="#game">THE GAME</a>
-            <a href="#universe">UNIVERSE</a>
-            <a href="#development">DEVELOPMENT</a>
-            <a href="#access">ACCESS</a>
-            <a href={`${BASE_PATH}/community`}>COMMUNITY</a>
-            <a href={`${BASE_PATH}/account`}>ACCOUNT</a>
-          </nav>
+        <nav className="site-nav" aria-label="Primary navigation">
+          <a href="#game">THE GAME</a>
+          <a href="#universe">UNIVERSE</a>
+          <a href="#development">DEVELOPMENT</a>
+          <a href="#access">ACCESS</a>
+          <a href={`${BASE_PATH}/community`}>COMMUNITY</a>
+          <a href={`${BASE_PATH}/account`}>ACCOUNT</a>
+        </nav>
 
-          <div className="header-status">
-            <button className="audio-toggle" type="button" data-audio-toggle aria-pressed="true">
-              AUDIO // ON
-            </button>
-            <div className="signal-state">
-              <span aria-hidden="true" />
-              V.A.L.O.R. UPLINK // ACTIVE
-            </div>
+        <div className="header-status">
+          <button className="audio-toggle" type="button" data-audio-toggle aria-pressed="true">
+            AUDIO // ON
+          </button>
+          <div className="signal-state">
+            <span aria-hidden="true" />
+            V.A.L.O.R. UPLINK // ACTIVE
           </div>
-        </header>
+        </div>
+      </header>
+
+      <section className="hero" id="top" aria-labelledby="hero-title">
 
         <div className="world-label world-label-planet" data-world-anchor="planet" aria-hidden="true">
           <span>CELESTIAL CONTACT // PRIMARY</span>
@@ -132,15 +133,15 @@ export default function Home() {
           <small>FORMATION HOLDING</small>
         </div>
 
-        <div className="hero-content" id="top" data-world-ui="hero">
+        <div className="hero-content" data-world-ui="hero">
           <p className="eyebrow">THE 27-DAY SKIRMISH // AFTER-ACTION ARCHIVE</p>
           <h1 id="hero-title">
             THE MACHINES LEFT.
             <span>THE WAR BEGAN.</span>
           </h1>
           <p className="hero-copy">
-            Command surviving fleets at the edge of known space, where every
-            signal carries a threat&mdash;and every victory changes what remains human.
+            Build an economy, assemble massive fleets, and fight for control of
+            human space in real-time battles where every front can become a war.
           </p>
           <div className="hero-actions">
             <a className="primary-action" href="#game">
@@ -153,11 +154,6 @@ export default function Home() {
               REPLAY JUMP
             </button>
           </div>
-        </div>
-
-        <div className="hero-meta" aria-label="Live theater details">
-          <span>LIVE THEATER // PROCEDURAL 3D</span>
-          <span>FLEET CAMERA / SECTOR BV-01</span>
         </div>
 
         <a className="hero-playtest-cta" href={`${BASE_PATH}/playtest`}>
@@ -183,8 +179,8 @@ export default function Home() {
           <p className="eyebrow">ARCHIVE NODE 01 // STRATEGIC OVERVIEW</p>
           <h2 id="game-title">COMMAND THE FRACTURE.</h2>
           <p className="section-lede">
-            Black Vector is a cinematic fleet-command RTS about distance,
-            incomplete intelligence, and decisions that continue moving after you make them.
+            Black Vector is a large-scale space RTS built around territorial
+            expansion, fleet production, and real-time battles for control of entire star systems.
           </p>
         </div>
 
@@ -257,19 +253,19 @@ export default function Home() {
 
       <section className="site-section signal-section" aria-labelledby="signal-title">
         <div className="signal-copy">
-          <p className="eyebrow">ARCHIVE NODE 03 // SIGNAL WARFARE</p>
-          <h2 id="signal-title">NOTHING ARRIVES IN REAL TIME.</h2>
+          <p className="eyebrow">ARCHIVE NODE 03 // STRATEGIC ESCALATION</p>
+          <h2 id="signal-title">FROM FOOTHOLD TO ARMADA.</h2>
           <p className="section-lede">
-            Read a battlefield through delayed transmissions. Commit the fleet.
-            Live with the uncertainty between the order and its consequence.
+            Every skirmish begins with limited reach. Claim territory, grow your
+            industrial base, and field the fleet that will decide control of the system.
           </p>
         </div>
-        <div className="signal-diagram" aria-label="Command signal sequence">
-          <div><span>01</span><strong>OBSERVE</strong><small>DELAYED INTELLIGENCE</small></div>
+        <div className="signal-diagram" aria-label="Strategic escalation sequence">
+          <div><span>01</span><strong>EXPAND</strong><small>SECURE TERRITORY</small></div>
           <i aria-hidden="true" />
-          <div><span>02</span><strong>COMMIT</strong><small>ORDERS IN TRANSIT</small></div>
+          <div><span>02</span><strong>PRODUCE</strong><small>BUILD THE FLEET</small></div>
           <i aria-hidden="true" />
-          <div><span>03</span><strong>ENDURE</strong><small>CONSEQUENCE ARRIVES</small></div>
+          <div><span>03</span><strong>CONQUER</strong><small>CONTROL THE SYSTEM</small></div>
         </div>
       </section>
 
@@ -343,7 +339,7 @@ export default function Home() {
           <span className="wordmark-mark" aria-hidden="true">BV</span>
           <span>BLACK VECTOR</span>
         </a>
-        <p>A cinematic fleet-command RTS from Nimble Games Studio.</p>
+        <p>A large-scale fleet-command RTS from Nimble Games Studio.</p>
         <div>
           <a href="#game">GAME</a>
           <a href="#universe">UNIVERSE</a>

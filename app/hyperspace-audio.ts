@@ -23,6 +23,7 @@ export class HyperspaceAudio {
   private structuralSources: AudioScheduledSourceNode[] = [];
   private structuralGain: GainNode | null = null;
   private structuralNoiseBuffer: AudioBuffer | null = null;
+  private playbackEpoch = 0;
   private muted = false;
 
   constructor(muted = false) {
@@ -43,12 +44,14 @@ export class HyperspaceAudio {
 
   async start() {
     if (this.muted) return;
+    const playbackEpoch = ++this.playbackEpoch;
     const context = this.getContext();
     if (!context) return;
     this.prepare();
     await context.resume();
+    if (playbackEpoch !== this.playbackEpoch) return;
     const jumpBuffer = await this.jumpBufferPromise;
-    if (!jumpBuffer || this.muted || !this.master) return;
+    if (!jumpBuffer || this.muted || !this.master || playbackEpoch !== this.playbackEpoch) return;
 
     this.stopJump(0.018);
     this.stopMusic(0.08);
@@ -73,7 +76,12 @@ export class HyperspaceAudio {
     this.createStructuralResonance(start);
 
     const musicBuffer = await this.musicBufferPromise;
-    if (musicBuffer && !this.muted && this.jumpSource === jumpSource) {
+    if (
+      musicBuffer
+      && !this.muted
+      && this.jumpSource === jumpSource
+      && playbackEpoch === this.playbackEpoch
+    ) {
       this.createMusicSource(
         musicBuffer,
         Math.max(start + MUSIC_ENTRY_SECONDS, context.currentTime + 0.04),
@@ -83,15 +91,29 @@ export class HyperspaceAudio {
   }
 
   async startMusic() {
-    if (this.muted) return;
+    if (this.muted || this.musicSource) return;
+    const playbackEpoch = this.playbackEpoch;
     const context = this.getContext();
     if (!context) return;
     this.prepare();
     await context.resume();
     const musicBuffer = await this.musicBufferPromise;
-    if (!musicBuffer || this.muted || !this.master) return;
+    if (
+      !musicBuffer
+      || this.muted
+      || !this.master
+      || this.musicSource
+      || playbackEpoch !== this.playbackEpoch
+    ) return;
     this.stopMusic(0.08);
     this.createMusicSource(musicBuffer, context.currentTime + 0.04, 2.2);
+  }
+
+  finishTransit(fadeSeconds = 0.1) {
+    this.playbackEpoch += 1;
+    this.stopJump(fadeSeconds);
+    this.stopStructural(fadeSeconds);
+    if (!this.muted) void this.startMusic();
   }
 
   setMuted(muted: boolean) {
@@ -105,6 +127,7 @@ export class HyperspaceAudio {
   }
 
   stop(fadeSeconds = 0.08) {
+    this.playbackEpoch += 1;
     this.stopJump(fadeSeconds);
     this.stopMusic(fadeSeconds);
     this.stopStructural(fadeSeconds);

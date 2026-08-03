@@ -1,20 +1,20 @@
 import type { Metadata, Viewport } from "next";
 import "./globals.css";
 
-const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? "https://nimble-hub.github.io/black-vector-website";
+const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? "https://blackvector.win";
 const SITE_ROOT = SITE_URL.endsWith("/") ? SITE_URL : `${SITE_URL}/`;
 const SOCIAL_IMAGE = new URL("og.png", SITE_ROOT).toString();
 
 export const metadata: Metadata = {
   metadataBase: new URL(SITE_ROOT),
   title: {
-    default: "Black Vector | Cinematic Fleet-Command RTS",
+    default: "Black Vector | Large-Scale Fleet-Command RTS",
     template: "%s | Black Vector",
   },
   description:
-    "Command surviving fleets through delayed intelligence, fractured human space, and the aftermath of the 27-Day Skirmish.",
+    "Build fleets, capture strategic territory, grow a wartime economy, and command massive real-time battles across human space.",
   applicationName: "Black Vector",
-  keywords: ["Black Vector", "fleet-command RTS", "strategy game", "science fiction game"],
+  keywords: ["Black Vector", "fleet-command RTS", "large-scale RTS", "space strategy game", "science fiction game"],
   openGraph: {
     type: "website",
     title: "Black Vector",

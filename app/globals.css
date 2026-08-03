@@ -157,7 +157,6 @@ a:focus-visible {
 
 .eyebrow,
 .signal-state,
-.hero-meta,
 .scroll-cue {
   font-family: Consolas, "Cascadia Mono", monospace;
   letter-spacing: 0.13em;
@@ -475,26 +474,6 @@ h1 span {
 .text-action:hover { color: var(--cyan); border-color: rgba(68, 202, 209, 0.72); }
 .replay-action { opacity: 0.62; }
 
-.hero-meta {
-  position: absolute;
-  right: clamp(24px, 5vw, 78px);
-  bottom: clamp(26px, 4vw, 58px);
-  z-index: 3;
-  display: flex;
-  flex-direction: column;
-  align-items: flex-end;
-  gap: 7px;
-  color: rgba(231, 226, 214, 0.44);
-  font-size: 8px;
-  opacity: 0;
-  transform: translate3d(24px, 0, 90px);
-  transition: opacity 700ms 440ms ease, transform 1100ms 300ms cubic-bezier(.16,.72,.26,1);
-}
-
-.hero-meta span:first-child {
-  color: var(--amber);
-}
-
 .hero-playtest-cta {
   position: absolute;
   right: clamp(28px, 6vw, 112px);
@@ -592,12 +571,10 @@ h1 span {
 }
 
 .experience-arriving .site-header,
-.experience-arriving .hero-meta,
 .experience-arriving .hero-playtest-cta,
 .experience-arriving .scroll-cue,
 .experience-arriving .world-label,
 .experience-landed .site-header,
-.experience-landed .hero-meta,
 .experience-landed .hero-playtest-cta,
 .experience-landed .scroll-cue,
 .experience-landed .world-label {
@@ -673,6 +650,7 @@ h1 span {
 }
 
 .site-section {
+  scroll-margin-top: 78px;
   position: relative;
   z-index: 1;
   min-height: 100svh;
@@ -1490,13 +1468,10 @@ h1 span {
 @media (max-width: 700px) {
   .signal-state { display: none; }
   .header-status { gap: 0; }
-  .site-header { padding-right: 20px; padding-left: 20px; }
-  .experience-arriving .site-header,
-  .experience-landed .site-header { padding-top: 12px; padding-bottom: 12px; }
+  .site-header { padding: 12px 20px; }
   .wordmark { font-size: 11px; }
   .wordmark-mark { width: 30px; height: 30px; }
   .hero-actions { align-items: flex-start; flex-direction: column; gap: 4px; }
-  .hero-meta { display: none; }
   .scroll-cue { display: none; }
   .hero-playtest-cta {
     right: 20px;

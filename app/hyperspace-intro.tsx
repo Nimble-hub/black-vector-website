@@ -2597,6 +2597,7 @@ export function HyperspaceIntro() {
 
   const finish = useCallback(() => {
     skipJumpRef.current = true;
+    audioRef.current?.finishTransit();
     window.sessionStorage.setItem(SEEN_KEY, "true");
     document.documentElement.classList.add("experience-arriving");
     if (interfaceTimerRef.current) window.clearTimeout(interfaceTimerRef.current);
@@ -2655,6 +2656,7 @@ export function HyperspaceIntro() {
     updateButton();
     button?.addEventListener("click", toggleAudio);
     if ((hasSeenJump || reducedMotion) && !storedMuted) {
+      void audio.startMusic();
       window.addEventListener("pointerdown", startScoreOnGesture, { once: true });
       window.addEventListener("keydown", startScoreOnGesture, { once: true });
     }
@@ -3741,22 +3743,22 @@ export function HyperspaceIntro() {
     <>
       {needsEngagement && (
         <div className="cinema-gate">
-          <span>BLACK VECTOR // CINEMATIC EXPERIENCE</span>
+          <span>BLACK VECTOR // SECURE TRANSIT</span>
           <strong>INITIATE TRANSIT</strong>
           {mobileVisitor ? (
             <div className="cinema-gate-options">
               <button type="button" onClick={() => engage(false)}>CONTINUE SILENT</button>
-              <button type="button" onClick={() => engage(true)}>ENABLE CINEMATIC AUDIO</button>
+              <button type="button" onClick={() => engage(true)}>ENABLE AUDIO</button>
             </div>
           ) : (
-            <button className="cinema-gate-primary" type="button" onClick={() => engage(true)}>ENTER WITH CINEMATIC AUDIO</button>
+            <button className="cinema-gate-primary" type="button" onClick={() => engage(true)}>ENTER WITH AUDIO</button>
           )}
-          <small>{mobileVisitor ? "AUDIO IS OFF BY DEFAULT ON MOBILE" : "HEADPHONES OR THEATER SPEAKERS RECOMMENDED"}</small>
+          <small>{mobileVisitor ? "AUDIO IS OFF BY DEFAULT ON MOBILE" : "HEADPHONES RECOMMENDED"}</small>
         </div>
       )}
       <div
         className={`space-experience${jumping ? " is-jumping" : " is-landed"}`}
-        aria-label={jumping ? "Three-dimensional hyperspace transit sequence" : "Three-dimensional Black Vector fleet theater"}
+        aria-label={jumping ? "Hyperspace transit sequence" : "Black Vector fleet command environment"}
       >
         <canvas ref={canvasRef} aria-hidden="true" />
       </div>
