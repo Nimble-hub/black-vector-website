@@ -159,6 +159,13 @@ export default function Home() {
           <span>FLEET CAMERA / SECTOR BV-01</span>
         </div>
 
+        <a className="hero-playtest-cta" href={`${BASE_PATH}/playtest`}>
+          <span>PLAYTEST INTAKE // OPEN</span>
+          <strong>JOIN THE PLAYTEST</strong>
+          <small>CREATE PROFILE OR CONTINUE TO BUILD ACCESS</small>
+          <i aria-hidden="true">&#8594;</i>
+        </a>
+
         <a className="scroll-cue" href="#game">
           <span>SCROLL TO DECRYPT</span>
           <i aria-hidden="true" />
@@ -301,7 +308,7 @@ export default function Home() {
 
         <div className="access-grid">
           {accessOptions.map((option) => (
-            <article className="access-card" key={option.id}>
+            <article className="access-card" id={option.id} key={option.id}>
               <div className="access-card-top">
                 <span>{option.index}</span>
                 <small>{option.status}</small>

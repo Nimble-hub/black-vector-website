@@ -498,6 +498,86 @@ h1 span {
   color: var(--amber);
 }
 
+.hero-playtest-cta {
+  position: absolute;
+  right: clamp(28px, 6vw, 112px);
+  bottom: clamp(116px, 16vh, 190px);
+  z-index: 4;
+  display: grid;
+  grid-template-columns: 1fr auto;
+  width: clamp(310px, 25vw, 410px);
+  min-height: 122px;
+  padding: 22px 24px 20px 26px;
+  border: 1px solid rgba(68, 202, 209, 0.76);
+  border-left-width: 4px;
+  background: rgba(3, 10, 15, 0.9);
+  box-shadow: 0 20px 70px rgba(0, 0, 0, 0.44), inset 0 0 34px rgba(68, 202, 209, 0.06);
+  clip-path: polygon(0 0, calc(100% - 20px) 0, 100% 20px, 100% 100%, 20px 100%, 0 calc(100% - 20px));
+  color: var(--ivory);
+  font-family: Consolas, "Cascadia Mono", monospace;
+  text-decoration: none;
+  opacity: 0;
+  transform: translate3d(32px, 24px, 90px) scale(0.94);
+  transform-origin: right center;
+  transition: opacity 700ms 660ms ease, transform 1100ms 520ms cubic-bezier(.16,.72,.26,1), border-color 180ms ease, background 180ms ease, box-shadow 180ms ease;
+}
+
+.hero-playtest-cta > span {
+  grid-column: 1;
+  align-self: start;
+  color: var(--cyan);
+  font-size: 8px;
+  letter-spacing: 0.16em;
+}
+
+.hero-playtest-cta strong {
+  grid-column: 1;
+  align-self: end;
+  margin-top: 13px;
+  font-family: Bahnschrift, "Arial Narrow", sans-serif;
+  font-size: clamp(25px, 2vw, 34px);
+  line-height: 0.95;
+  letter-spacing: -0.025em;
+}
+
+.hero-playtest-cta small {
+  grid-column: 1;
+  margin-top: 9px;
+  color: rgba(231, 226, 214, 0.48);
+  font-size: 7px;
+  letter-spacing: 0.11em;
+}
+
+.hero-playtest-cta i {
+  grid-column: 2;
+  grid-row: 1 / 4;
+  align-self: center;
+  display: grid;
+  width: 48px;
+  height: 48px;
+  margin-left: 18px;
+  border: 1px solid rgba(68, 202, 209, 0.58);
+  place-items: center;
+  color: var(--cyan);
+  font-size: 22px;
+  font-style: normal;
+  transition: color 180ms ease, border-color 180ms ease, transform 180ms ease;
+}
+
+.hero-playtest-cta:hover,
+.hero-playtest-cta:focus-visible {
+  border-color: var(--cyan);
+  background: rgba(5, 20, 25, 0.96);
+  box-shadow: 0 22px 76px rgba(0, 0, 0, 0.5), 0 0 34px rgba(68, 202, 209, 0.16);
+}
+
+.hero-playtest-cta:hover i,
+.hero-playtest-cta:focus-visible i {
+  border-color: var(--cyan);
+  color: var(--ivory);
+  transform: translateX(4px);
+}
+
 .scroll-cue {
   position: absolute;
   left: clamp(24px, 5vw, 78px);
@@ -516,10 +596,12 @@ h1 span {
 
 .experience-arriving .site-header,
 .experience-arriving .hero-meta,
+.experience-arriving .hero-playtest-cta,
 .experience-arriving .scroll-cue,
 .experience-arriving .world-label,
 .experience-landed .site-header,
 .experience-landed .hero-meta,
+.experience-landed .hero-playtest-cta,
 .experience-landed .scroll-cue,
 .experience-landed .world-label {
   opacity: 1;
@@ -1407,7 +1489,16 @@ h1 span {
   .wordmark-mark { width: 30px; height: 30px; }
   .hero-actions { align-items: flex-start; flex-direction: column; gap: 4px; }
   .hero-meta { display: none; }
-  .scroll-cue { bottom: 24px; }
+  .scroll-cue { display: none; }
+  .hero-playtest-cta {
+    right: 20px;
+    bottom: 22px;
+    width: calc(100% - 40px);
+    min-height: 96px;
+    padding: 17px 18px 16px 20px;
+  }
+  .hero-playtest-cta strong { font-size: clamp(23px, 7vw, 30px); }
+  .hero-playtest-cta i { width: 40px; height: 40px; margin-left: 12px; }
   h1 { font-size: clamp(46px, 15vw, 72px); }
   .archive-secondary { padding-left: 24px; }
   .world-label { display: none; }

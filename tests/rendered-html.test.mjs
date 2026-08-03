@@ -65,3 +65,17 @@ test("secures and exposes manual-account password recovery", async () => {
   assert.match(resetPassword, /INVALID_TOKEN/);
   assert.match(resetPassword, /REQUEST NEW RESET LINK/);
 });
+
+test("routes the hero playtest call-to-action by authentication state", async () => {
+  const [home, playtestRoute] = await Promise.all([
+    readFile(new URL("app/page.tsx", root), "utf8"),
+    readFile(new URL("app/playtest/route.ts", root), "utf8"),
+  ]);
+
+  assert.match(home, /hero-playtest-cta/);
+  assert.match(home, /JOIN THE PLAYTEST/);
+  assert.match(home, /id=\{option\.id\}/);
+  assert.match(playtestRoute, /getSession/);
+  assert.match(playtestRoute, /\/#download/);
+  assert.match(playtestRoute, /\/register\?returnTo=/);
+});
