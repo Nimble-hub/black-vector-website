@@ -32,6 +32,12 @@ interface MessageRow extends Record<string, string | number | null> {
   updated_at: number | null;
 }
 
+interface ProfileRow {
+  id: string;
+  name: string;
+  image: string | null;
+}
+
 function toMessage(row: MessageRow): CommunityChatMessage {
   return {
     id: row.id,
@@ -107,6 +113,30 @@ export class ChatRoom extends DurableObject<Env> {
         id,
       ),
     ][0];
+  }
+
+  private async refreshProfiles(): Promise<void> {
+    const userIds = [
+      ...this.ctx.storage.sql.exec<{ user_id: string }>(
+        "SELECT DISTINCT user_id FROM messages",
+      ),
+    ].map((row) => row.user_id);
+    if (!userIds.length) return;
+
+    const placeholders = userIds.map(() => "?").join(", ");
+    const profiles = await this.env.DB.prepare(
+      `SELECT id, name, image FROM user WHERE id IN (${placeholders})`,
+    )
+      .bind(...userIds)
+      .all<ProfileRow>();
+    for (const profile of profiles.results) {
+      this.ctx.storage.sql.exec(
+        "UPDATE messages SET display_name = ?, avatar_url = ? WHERE user_id = ?",
+        profile.name,
+        profile.image,
+        profile.id,
+      );
+    }
   }
 
   getRecent(limit = 80): CommunityChatMessage[] {
@@ -266,6 +296,7 @@ export class ChatRoom extends DurableObject<Env> {
     }
 
     if (request.method === "GET" && url.pathname === "/recent") {
+      await this.refreshProfiles();
       return Response.json({ messages: this.getRecent() });
     }
 
@@ -273,6 +304,7 @@ export class ChatRoom extends DurableObject<Env> {
       return new Response("WebSocket upgrade required", { status: 426 });
     }
 
+    await this.refreshProfiles();
     const pair = new WebSocketPair();
     const [client, server] = Object.values(pair);
     this.ctx.acceptWebSocket(server);

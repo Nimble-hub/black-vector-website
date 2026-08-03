@@ -294,6 +294,8 @@ test("ships authenticated social connections, direct comms, and clan operations"
   assert.match(memberUi, /if \(submitChatOnEnter\(event\)\) void transmit\(\)/);
   assert.match(clanUi, /if \(submitChatOnEnter\(event\)\) void transmit\(\)/);
   assert.match(chatRoom, /type: "avatar-updated"/);
+  assert.match(chatRoom, /refreshProfiles/);
+  assert.match(chatRoom, /SELECT id, name, image FROM user/);
 });
 
 test("resolves the hyperspace camera, FOV, and interface on one handoff curve", async () => {
