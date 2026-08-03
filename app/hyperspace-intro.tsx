@@ -1060,12 +1060,9 @@ const exitDustVertexShader = `
   attribute vec3 aClusterOrigin;
   attribute float aSwirl;
   attribute float aClusterPhase;
-  attribute float aVapor;
 
   uniform float uTime;
   uniform float uOpacity;
-  uniform float uRelease;
-  uniform float uAspect;
 
   varying float vLife;
   varying float vBrightness;
@@ -1073,54 +1070,63 @@ const exitDustVertexShader = `
   varying float vFacetRotation;
   varying float vFacetFlash;
   varying float vChromatic;
-  varying float vVapor;
 
   void main() {
-    float detachAge = max(uTime - aDelay, 0.0);
-    float life = clamp(detachAge / aLifetime, 0.0, 1.0);
-    float isAlive = 1.0 - step(aLifetime, detachAge);
-    float fade = 1.0 - smoothstep(0.66, 1.0, life);
-    float releaseGate = smoothstep(0.0, 1.0, uRelease);
-    float detachReady = step(aDelay, uTime);
-    float peel = detachReady * releaseGate;
-    float motionAge = detachAge * peel;
+    float age = max(uTime - aDelay, 0.0);
+    float life = clamp(age / aLifetime, 0.0, 1.0);
+    float isAlive = step(aDelay, uTime) * (1.0 - step(aLifetime, age));
+    float fade = smoothstep(0.0, 0.045, life) * (1.0 - smoothstep(0.7, 1.0, life));
+
     vec3 localOffset = position - aClusterOrigin;
-    vec2 radialDirection = normalize(aClusterOrigin.xy + vec2(0.0001));
-    vec2 tangentDirection = vec2(-radialDirection.y, radialDirection.x);
-    float turbulenceOnset = smoothstep(0.04, 0.78, motionAge);
-    float rollA = sin(motionAge * (0.72 + aSeed * 0.48) + aClusterPhase * 2.1);
-    float rollB = sin(motionAge * (1.63 + aSeed * 0.71) - aClusterPhase * 0.83 + 1.7);
-    float rollC = cos(motionAge * (0.31 + aSeed * 0.26) + aSeed * 47.0);
-    float spin = motionAge * aSwirl * (0.12 + aSeed * 0.16)
-      + (rollA * 0.13 + rollB * 0.055) * turbulenceOnset;
+    float turbulenceOnset = smoothstep(0.08, 0.72, age);
+    float spin = age * aSwirl * (0.22 + aSeed * 0.24)
+      + sin(age * (0.53 + aSeed * 0.31) + aClusterPhase) * 0.16 * turbulenceOnset
+      + sin(age * (1.31 + aSeed * 0.47) + aSeed * 29.0) * 0.045 * turbulenceOnset;
     float spinCos = cos(spin);
     float spinSin = sin(spin);
     localOffset.xy = mat2(spinCos, -spinSin, spinSin, spinCos) * localOffset.xy;
-    localOffset.xy *= 1.0 + motionAge * (0.014 + aTurbulence * 0.034 + aVapor * 0.026);
-    localOffset.z *= 1.0 + motionAge * (0.04 + aSeed * 0.035);
+    localOffset.xy *= 1.0 + age * (0.016 + aTurbulence * 0.027);
+    localOffset.z *= 1.0 + age * (0.055 + aSeed * 0.045);
 
-    float rollPulse = 0.28 + 0.72 * smoothstep(-0.68, 0.86, rollA * 0.58 + rollB * 0.27 + rollC * 0.15);
-    float rollStrength = aTurbulence * turbulenceOnset * rollPulse
-      * (0.08 + motionAge * (0.12 + aVapor * 0.12));
-    vec2 rollMotion = tangentDirection * (rollA * 0.72 + rollB * 0.3)
-      + radialDirection * (rollC * 0.24 - abs(rollB) * 0.08);
-    vec3 dryIceRoll = vec3(
-      rollMotion * rollStrength,
-      (rollA * rollC + rollB * 0.32) * rollStrength * (0.17 + aVapor * 0.2)
-    );
+    float clusterTurn = age * aSwirl * (0.038 + aSeed * 0.036)
+      + sin(age * (0.41 + aSeed * 0.24) + aClusterPhase) * turbulenceOnset * 0.11
+      + sin(age * (1.27 + aSeed * 0.52) + aClusterPhase * 1.37) * turbulenceOnset * 0.034;
+    float turnCos = cos(clusterTurn);
+    float turnSin = sin(clusterTurn);
+    vec2 clusterOrbit = mat2(turnCos, -turnSin, turnSin, turnCos) * aClusterOrigin.xy;
+    float shockRise = smoothstep(0.025 + aSeed * 0.055, 0.38 + aSeed * 0.42, age);
+    float shockVariation = 0.78 + 0.22 * sin(aClusterPhase * 2.3 + aSeed * 41.0);
+    float shockTravel = (1.0 - exp(-age * (1.65 + aDrag * 0.82)))
+      * (0.72 + aTurbulence * 2.08) * shockVariation;
+    clusterOrbit *= 1.0
+      + shockRise * (0.1 + aTurbulence * 0.15)
+      + age * (0.018 + aTurbulence * 0.025);
+    vec2 radialDirection = normalize(clusterOrbit + vec2(0.0001));
+    vec2 tangentDirection = vec2(-radialDirection.y, radialDirection.x);
+
+    float gustCarrierA = sin(age * (0.73 + aSeed * 0.37) + aClusterPhase * 1.7);
+    float gustCarrierB = sin(age * (1.91 + aSeed * 0.61) + aClusterPhase * 0.63 + 1.4);
+    float gustCarrierC = cos(age * (0.31 + aSeed * 0.19) + aClusterPhase * 2.41);
+    float gustPulse = 0.22 + 0.78 * smoothstep(-0.72, 0.82, gustCarrierA * 0.58 + gustCarrierB * 0.27 + gustCarrierC * 0.15);
+    float gustStrength = aTurbulence * turbulenceOnset * gustPulse * (0.13 + age * 0.17);
+    float sharedCurl = gustCarrierA * 0.68 + gustCarrierB * 0.32;
+    float sharedRoll = gustCarrierC * 0.74 + gustCarrierB * 0.26;
+    float microCurl = sin(age * (2.37 + aSeed * 1.43) + aSeed * 53.0) * 0.24;
+    vec3 gust = vec3(
+      tangentDirection * ((sharedCurl + microCurl) * 0.83 + gustCarrierC * age * 0.08)
+        + radialDirection * sharedRoll * 0.34,
+      (sharedCurl * sharedRoll + microCurl) * 0.24
+    ) * gustStrength;
 
     float dragRate = aDrag;
-    float retainedTravel = (1.0 - exp(-motionAge * dragRate)) / dragRate;
-    float forwardSpeed = 4.4 + aVelocity.z * 7.6;
+    float retainedTravel = (1.0 - exp(-age * dragRate)) / dragRate;
+    float forwardSpeed = 3.8 + aVelocity.z * 6.8;
     float forwardInertia = -forwardSpeed * retainedTravel;
-    float hullLift = (1.0 - exp(-motionAge * (1.9 + aSeed * 1.4)))
-      * (0.04 + aTurbulence * 0.24) * peel;
-    vec3 particlePosition = aClusterOrigin
+    vec3 particlePosition = vec3(clusterOrbit, aClusterOrigin.z)
       + localOffset
-      + vec3(radialDirection * hullLift, 0.0)
-      + vec3(aVelocity.xy * retainedTravel * 0.16, forwardInertia)
-      + dryIceRoll;
-    particlePosition.x *= uAspect / 1.7777778;
+      + vec3(radialDirection * shockTravel, 0.0)
+      + vec3(aVelocity.xy * retainedTravel * 0.18, forwardInertia)
+      + gust;
     vec4 viewPosition = vec4(particlePosition, 1.0);
     gl_Position = projectionMatrix * viewPosition;
 
@@ -1134,30 +1140,29 @@ const exitDustVertexShader = `
     float headlightResponse = headlightProximity
       * headlightCone
       * step(0.18, forwardDepth);
-    float flashCarrier = max(sin(uTime * (2.35 + aSeed * 4.65) + aSeed * 71.0), 0.0);
-    float flashGate = smoothstep(0.22, 0.9, sin(uTime * (0.39 + aSeed * 0.83) + aSeed * 23.0));
+    float flashCarrier = max(sin(age * (2.35 + aSeed * 4.65) + aSeed * 71.0), 0.0);
+    float flashGate = smoothstep(0.22, 0.9, sin(age * (0.39 + aSeed * 0.83) + aSeed * 23.0));
     float facetFlash = pow(flashCarrier, 23.0) * flashGate * step(0.43, aSeed);
-    float seededCarrier = max(sin(uTime * (1.17 + aSeed * 2.17) + aSeed * 103.0), 0.0);
-    float seededGate = smoothstep(-0.18, 0.72, cos(uTime * (0.27 + aSeed * 0.54) + aSeed * 31.0));
+    float seededCarrier = max(sin(age * (1.17 + aSeed * 2.17) + aSeed * 103.0), 0.0);
+    float seededGate = smoothstep(-0.18, 0.72, cos(age * (0.27 + aSeed * 0.54) + aSeed * 31.0));
     float seededFlash = aGlint * pow(seededCarrier, 27.0) * seededGate;
-    float diamondFire = max(facetFlash, seededFlash) * (1.0 - aVapor);
+    float diamondFire = max(facetFlash, seededFlash);
     float effectiveGlint = max(diamondFire, headlightResponse * 0.42);
     gl_PointSize = clamp(
       aSize * (20.5 / max(-viewPosition.z, 1.0))
-        * (1.0 + diamondFire * 2.9 + headlightResponse * 0.22 + aVapor * 1.25),
+        * (1.0 + diamondFire * 2.9 + headlightResponse * 0.22),
       0.62,
-      10.5
+      8.8
     );
 
     vLife = isAlive * fade * uOpacity;
     vBrightness = aBrightness * (
-      0.82 + headlightResponse * (3.35 - aVapor * 1.65) + diamondFire * 3.8
+      0.9 + headlightResponse * 3.35 + diamondFire * 3.8
     );
     vGlint = effectiveGlint;
-    vFacetRotation = aSeed * 6.2831853 + motionAge * (0.24 + aTurbulence * 0.29);
+    vFacetRotation = aSeed * 6.2831853 + age * (0.32 + aTurbulence * 0.23);
     vFacetFlash = diamondFire;
     vChromatic = aSeed;
-    vVapor = aVapor;
   }
 `;
 
@@ -1170,7 +1175,6 @@ const exitDustFragmentShader = `
   varying float vFacetRotation;
   varying float vFacetFlash;
   varying float vChromatic;
-  varying float vVapor;
 
   void main() {
     vec2 point = gl_PointCoord - 0.5;
@@ -1191,12 +1195,6 @@ const exitDustFragmentShader = `
     float compactSpark = (1.0 - smoothstep(0.035, 0.19, diamondDistance))
       * max(vGlint, vFacetFlash);
     float pinFire = 1.0 - smoothstep(0.0, 0.075, diamondDistance);
-    float vaporWarp = sin(point.x * 11.0 + vChromatic * 19.0) * 0.025
-      + sin(point.y * 17.0 - vChromatic * 31.0) * 0.016;
-    float vaporDistance = length(point * vec2(0.72, 1.12)) + vaporWarp;
-    float vaporBody = pow(1.0 - smoothstep(0.04, 0.5, vaporDistance), 2.2);
-    float vaporEdge = (1.0 - smoothstep(0.22, 0.5, vaporDistance))
-      * smoothstep(0.08, 0.32, vaporDistance);
 
     vec3 coldShadow = vec3(0.78, 0.845, 0.91);
     vec3 neutralShadow = vec3(0.87, 0.865, 0.84);
@@ -1209,13 +1207,10 @@ const exitDustFragmentShader = `
     float bodyAlpha = crystalBody * (0.19 + innerDiamond * 0.15)
       * (1.0 - vFacetFlash * 0.78);
     float sparkleAlpha = max(compactSpark * 0.92, pinFire * vFacetFlash * 1.08);
-    float crystalAlpha = max(
+    float alpha = max(
       bodyAlpha,
       sparkleAlpha
-    );
-    float vaporAlpha = (vaporBody * 0.105 + vaporEdge * 0.035)
-      * (0.7 + vGlint * 0.18);
-    float alpha = mix(crystalAlpha, vaporAlpha, vVapor) * vLife * vBrightness;
+    ) * vLife * vBrightness;
     vec3 facetFire = mix(
       vec3(0.94, 0.98, 1.0),
       vec3(1.0, 0.955, 0.86),
@@ -1226,18 +1221,8 @@ const exitDustFragmentShader = `
       pinFire * (1.85 + vFacetFlash * 10.2)
         + compactSpark * 4.4
         + crystalEdge * vGlint * 0.58
-    ) * (1.0 - vVapor);
-    vec3 vaporColor = mix(
-      vec3(0.72, 0.84, 0.93),
-      vec3(0.94, 0.965, 0.98),
-      vaporBody
-    ) * (0.42 + vaporBody * 0.38);
-    vec3 finalColor = mix(
-      color * (1.12 + facetLight * 0.52) + emittedLight,
-      vaporColor,
-      vVapor
     );
-    gl_FragColor = vec4(finalColor, alpha);
+    gl_FragColor = vec4(color * (1.12 + facetLight * 0.52) + emittedLight, alpha);
   }
 `;
 
@@ -1633,83 +1618,101 @@ function createExitDustGeometry(count: number) {
   const clusterOrigins = new Float32Array(count * 3);
   const swirls = new Float32Array(count);
   const clusterPhases = new Float32Array(count);
-  const vapor = new Float32Array(count);
-  const referenceAspect = 16 / 9;
-  const halfFovTangent = Math.tan(THREE.MathUtils.degToRad(31));
+
+  // Broad, overlapping flow cells give nearby grains a shared wind field
+  // without stamping identical clumps around the frame. Stratified angles
+  // prevent a visible radial pattern while the irrational radius/depth offsets
+  // keep neighboring cells from marching in lockstep.
+  const flowCellCount = count > 30000 ? 89 : 43;
+  const goldenOffset = 0.61803398875;
+  const flowCells = Array.from({ length: flowCellCount }, (_, cellIndex) => {
+    const isVeil = Math.random() < 0.32;
+    const angle = (
+      (cellIndex + Math.random() * 0.84) / flowCellCount
+      + (cellIndex * goldenOffset) % (1 / flowCellCount)
+    ) * Math.PI * 2;
+    const radius = isVeil
+      ? 0.65 + Math.pow(Math.random(), 0.68) * 5.15
+      : 4.9 + Math.pow(Math.random(), 0.82) * 3.85;
+    const ellipseY = 0.66 + Math.random() * 0.13;
+    const origin = new THREE.Vector3(
+      Math.cos(angle) * radius,
+      Math.sin(angle) * radius * ellipseY - 0.16,
+      (isVeil ? 0.35 : 1.05) + Math.pow(Math.random(), 1.16) * (isVeil ? 5.4 : 7.4),
+    );
+    return {
+      angle,
+      delay: Math.pow(Math.random(), 1.45) * 0.17,
+      drag: 0.38 + Math.random() * 0.92,
+      ellipseY,
+      isVeil,
+      origin,
+      phase: Math.random() * Math.PI * 2,
+      radialSpeed: 0.12 + Math.random() * 0.66,
+      scatter: 0.42 + Math.random() * 1.08,
+      swirl: (Math.random() < 0.5 ? -1 : 1) * (0.28 + Math.pow(Math.random(), 0.72) * 1.72),
+      tangentSpeed: (Math.random() - 0.5) * 0.72,
+      turbulence: 0.34 + Math.random() * 1.28,
+      zSpeed: 0.88 + Math.random() * 1.52,
+    };
+  });
 
   for (let index = 0; index < count; index += 1) {
-    // Begin as a continuous frost skin around the bridge/hull perimeter. The
-    // stratified angle keeps coverage even while small low-frequency offsets
-    // prevent the ring from reading as a perfect graphic ellipse.
-    const normalizedIndex = (index + Math.random() * 0.94) / count;
-    const angle = normalizedIndex * Math.PI * 2
-      + Math.sin(normalizedIndex * Math.PI * 6 + 0.73) * 0.024
-      + Math.sin(normalizedIndex * Math.PI * 14 + 2.1) * 0.011;
-    const particleDepth = 1.05 + Math.pow(Math.random(), 1.22) * 3.85;
-    const halfHeight = halfFovTangent * particleDepth;
-    const halfWidth = halfHeight * referenceAspect;
-    const perimeterScale = 0.92 + Math.pow(Math.random(), 0.76) * 0.34;
-    const anchorX = Math.cos(angle) * halfWidth * perimeterScale;
-    const anchorY = Math.sin(angle) * halfHeight * perimeterScale;
-    const tangentX = -Math.sin(angle);
-    const tangentY = Math.cos(angle);
-    const radialX = Math.cos(angle);
-    const radialY = Math.sin(angle);
-    const isVapor = Math.random() < 0.17;
-    const isHeroCrystal = !isVapor && Math.random() < 0.032;
+    const cell = flowCells[Math.floor(Math.random() * flowCellCount)];
     const localAngle = Math.random() * Math.PI * 2;
-    const localRadius = Math.pow(Math.random(), 1.78)
-      * particleDepth * (isVapor ? 0.115 : 0.068);
-    const sheetLength = (Math.random() - 0.5)
-      * particleDepth * (isVapor ? 0.34 : 0.19);
-    const crustDepth = (Math.random() - 0.5)
-      * particleDepth * (isVapor ? 0.06 : 0.032);
-    const localX = tangentX * sheetLength
-      + Math.cos(localAngle) * localRadius
-      + radialX * crustDepth;
-    const localY = tangentY * sheetLength
-      + Math.sin(localAngle) * localRadius * (0.62 + Math.random() * 0.28)
-      + radialY * crustDepth;
+    const localRadius = Math.pow(Math.random(), 1.62) * cell.scatter;
+    const tailDistance = (Math.random() - 0.5)
+      * (0.22 + Math.pow(Math.random(), 1.35) * 1.55);
+    const radialJitter = (Math.random() - 0.5) * (0.18 + Math.random() * 0.62);
+    const tangentX = -Math.sin(cell.angle);
+    const tangentY = Math.cos(cell.angle) * cell.ellipseY;
+    const radialX = Math.cos(cell.angle);
+    const radialY = Math.sin(cell.angle) * cell.ellipseY;
+    const localX = Math.cos(localAngle) * localRadius
+      + tangentX * tailDistance
+      + radialX * radialJitter;
+    const localY = Math.sin(localAngle) * localRadius * (0.54 + Math.random() * 0.35)
+      + tangentY * tailDistance
+      + radialY * radialJitter;
     const particleSeed = Math.random();
-    const localTurbulence = (isVapor ? 0.78 : 0.34) + Math.random() * (isVapor ? 1.18 : 0.84);
-    const localDrag = (isVapor ? 0.38 : 0.56) + Math.random() * (isVapor ? 0.78 : 0.94);
+    const localTurbulence = cell.turbulence * (0.62 + Math.random() * 0.76);
+    const localDrag = cell.drag * (0.72 + Math.random() * 0.58);
     const offset = index * 3;
-    positions[offset] = anchorX + localX;
-    positions[offset + 1] = anchorY + localY;
-    positions[offset + 2] = -particleDepth
-      + (Math.random() - 0.5) * particleDepth * (isVapor ? 0.12 : 0.055);
-    velocities[offset] = tangentX * ((Math.random() - 0.5) * (isVapor ? 0.48 : 0.24))
-      + radialX * (0.02 + Math.random() * (isVapor ? 0.16 : 0.09));
-    velocities[offset + 1] = tangentY * ((Math.random() - 0.5) * (isVapor ? 0.48 : 0.24))
-      + radialY * (0.02 + Math.random() * (isVapor ? 0.16 : 0.09));
-    velocities[offset + 2] = (isVapor ? 0.62 : 0.82) + Math.random() * (isVapor ? 0.78 : 1.08);
-    clusterOrigins[offset] = anchorX;
-    clusterOrigins[offset + 1] = anchorY;
-    clusterOrigins[offset + 2] = -particleDepth;
-    const rollingRelease = (0.5 + 0.5 * Math.sin(angle * 2.0 + 0.8)) * 0.13
-      + (0.5 + 0.5 * Math.sin(angle * 5.0 - 1.4)) * 0.055;
-    delays[index] = 0.06 + rollingRelease + Math.pow(Math.random(), 1.7) * (isVapor ? 0.31 : 0.22);
-    lifetimes[index] = (isVapor ? 4.6 : 3.8) + Math.pow(Math.random(), 0.82) * (isVapor ? 2.7 : 2.2);
+    positions[offset] = cell.origin.x + localX;
+    positions[offset + 1] = cell.origin.y + localY;
+    positions[offset + 2] = cell.origin.z
+      + (Math.random() - 0.5) * (0.42 + cell.scatter * 0.62)
+      + tailDistance * 0.13;
+    velocities[offset] = radialX * cell.radialSpeed
+      + tangentX * cell.tangentSpeed
+      + (Math.random() - 0.5) * 0.24;
+    velocities[offset + 1] = radialY * cell.radialSpeed
+      + tangentY * cell.tangentSpeed
+      + (Math.random() - 0.5) * 0.21;
+    velocities[offset + 2] = cell.zSpeed + (Math.random() - 0.5) * 0.72;
+    clusterOrigins[offset] = cell.origin.x;
+    clusterOrigins[offset + 1] = cell.origin.y;
+    clusterOrigins[offset + 2] = cell.origin.z;
+    delays[index] = cell.delay
+      + Math.pow(Math.random(), 1.45) * (cell.isVeil ? 0.07 : 0.15)
+      + Math.abs(tailDistance) * 0.012;
+    lifetimes[index] = 3.45 + Math.pow(Math.random(), 0.8) * 3.05;
+    const isHeroCrystal = Math.random() < 0.026;
     sizes[index] = isHeroCrystal
-      ? 0.42 + Math.pow(Math.random(), 1.28) * 0.62
-      : isVapor
-        ? 0.16 + Math.pow(Math.random(), 1.55) * 0.42
-        : 0.075 + Math.pow(Math.random(), 2.18) * 0.4;
+      ? 0.5 + Math.pow(Math.random(), 1.25) * 0.72
+      : (cell.isVeil ? 0.115 : 0.095) + Math.pow(Math.random(), 2.05) * 0.49;
     brightness[index] = isHeroCrystal
-      ? 1.04 + Math.random() * 0.38
-      : isVapor
-        ? 0.24 + Math.random() * 0.22
-        : 0.58 + Math.pow(Math.random(), 0.72) * 0.68;
-    turbulence[index] = localTurbulence;
+      ? 1.0 + Math.random() * 0.42
+      : 0.58 + Math.pow(Math.random(), 0.7) * 0.74;
+    turbulence[index] = localTurbulence * (0.86 + Math.random() * 0.28);
     seeds[index] = particleSeed;
-    drag[index] = localDrag;
+    drag[index] = localDrag * (0.9 + Math.random() * 0.2);
     glints[index] = Math.random() < (isHeroCrystal ? 0.88 : 0.21)
       ? 0.52 + Math.random() * 0.48
       : 0;
-    swirls[index] = (Math.random() < 0.5 ? -1 : 1)
-      * ((isVapor ? 0.72 : 0.28) + Math.pow(Math.random(), 0.8) * (isVapor ? 1.5 : 0.82));
-    clusterPhases[index] = angle + (Math.random() - 0.5) * 0.58;
-    vapor[index] = isVapor ? 1 : 0;
+    swirls[index] = cell.swirl * (0.76 + Math.random() * 0.5)
+      + (Math.random() - 0.5) * 0.24;
+    clusterPhases[index] = cell.phase + (Math.random() - 0.5) * 0.94;
   }
 
   const geometry = new THREE.BufferGeometry();
@@ -1726,7 +1729,6 @@ function createExitDustGeometry(count: number) {
   geometry.setAttribute("aClusterOrigin", new THREE.BufferAttribute(clusterOrigins, 3));
   geometry.setAttribute("aSwirl", new THREE.BufferAttribute(swirls, 1));
   geometry.setAttribute("aClusterPhase", new THREE.BufferAttribute(clusterPhases, 1));
-  geometry.setAttribute("aVapor", new THREE.BufferAttribute(vapor, 1));
   return geometry;
 }
 
@@ -2418,10 +2420,8 @@ export function HyperspaceIntro() {
     const exitDustUniforms = {
       uTime: { value: 0 },
       uOpacity: { value: 0 },
-      uRelease: { value: 0 },
-      uAspect: { value: window.innerWidth / Math.max(window.innerHeight, 1) },
     };
-    const exitDustGeometry = createExitDustGeometry(isMobile ? 18000 : 52000);
+    const exitDustGeometry = createExitDustGeometry(isMobile ? 24000 : 64000);
     const exitDustMaterial = new THREE.ShaderMaterial({
       uniforms: exitDustUniforms,
       vertexShader: exitDustVertexShader,
@@ -2512,7 +2512,6 @@ export function HyperspaceIntro() {
       uniforms.uResolution.value.set(width * pixelRatio, height * pixelRatio);
       lensPass.uniforms.uResolution.value.set(width * pixelRatio, height * pixelRatio);
       exitWakeUniforms.uResolution.value.set(width * pixelRatio, height * pixelRatio);
-      exitDustUniforms.uAspect.value = width / Math.max(height, 1);
     };
 
     const onContextLost = (event: Event) => {
@@ -2802,18 +2801,16 @@ export function HyperspaceIntro() {
           * (0.3 + charge * 0.7)
           * (1 - visualLaunch * 0.14)
           * (1 - smoothstep((progress - 0.805) / 0.052));
-        const exitFrostFormation = smoothstep((progress - 0.797) / 0.028);
-        const exitHullRelease = smoothstep((progress - 0.827) / 0.035);
-        const exitDustWhiteout = exitHullRelease
+        const exitDustIgnition = smoothstep((progress - 0.822) / 0.022);
+        const exitDustWhiteout = exitDustIgnition
           * (1 - smoothstep((progress - 0.912) / 0.06));
         exitWakeUniforms.uTime.value = Math.max(0, (elapsed - DURATION * 0.818) / 1000);
         exitWakeUniforms.uOpacity.value = smoothstep((progress - 0.824) / 0.04) * 0.34;
         exitCrystalUniforms.uTime.value = Math.max(0, (elapsed - DURATION * 0.872) / 1000);
         exitCrystalUniforms.uOpacity.value = 0;
-        exitDustUniforms.uTime.value = Math.max(0, (elapsed - DURATION * 0.797) / 1000);
-        exitDustUniforms.uRelease.value = exitHullRelease;
-        exitDustUniforms.uOpacity.value = exitFrostFormation
-          * (0.72 + exitHullRelease * 0.62 + exitDustWhiteout * 0.56);
+        exitDustUniforms.uTime.value = Math.max(0, (elapsed - DURATION * 0.818) / 1000);
+        exitDustUniforms.uOpacity.value = exitDustIgnition
+          * (1.15 + exitDustWhiteout * 1.35);
         // Let the destination exist behind the collapsing tunnel before the
         // exit completes. The early power curve keeps it subliminal at first,
         // then turns the final tunnel fade into a continuous reveal.
@@ -2999,11 +2996,10 @@ export function HyperspaceIntro() {
         exitWakeUniforms.uOpacity.value = wakeFade * 0.34;
         exitCrystalUniforms.uTime.value = Math.max(0, (elapsed - DURATION * 0.872) / 1000);
         exitCrystalUniforms.uOpacity.value = 0;
-        exitDustUniforms.uTime.value = Math.max(0, (elapsed - DURATION * 0.797) / 1000);
-        exitDustUniforms.uRelease.value = 1;
-        // Preserve the shed hull frost across the jump-complete boundary so
-        // its forward inertia continues through the destination reveal.
-        exitDustUniforms.uOpacity.value = dustFade * 1.18;
+        exitDustUniforms.uTime.value = Math.max(0, (elapsed - DURATION * 0.818) / 1000);
+        // Preserve the veil's brightness across the jump-complete boundary so
+        // the destination emerges from one continuous diamond-dust curtain.
+        exitDustUniforms.uOpacity.value = dustFade * 1.15;
         world.rimLight.intensity = SCENE_RIM_BASE
           + (exitDust.visible ? dustFade * EXIT_RIM_BOOST * 0.62 : 0);
         if (wakeFade <= 0.001) {
