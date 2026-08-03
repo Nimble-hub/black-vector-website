@@ -1,6 +1,10 @@
 import { z } from "zod";
 import { getD1 } from "@/db";
-import { getCommunitySession, orderedPair } from "@/lib/community-social";
+import {
+  COMMUNITY_ONLINE_WINDOW_MS,
+  getCommunitySession,
+  orderedPair,
+} from "@/lib/community-social";
 import { isSameOriginRequest } from "@/lib/request-security";
 
 export const dynamic = "force-dynamic";
@@ -27,7 +31,7 @@ export async function GET() {
       { error: "Sign in to view friends." },
       { status: 401 },
     );
-  const threshold = Date.now() - 60_000;
+  const threshold = Date.now() - COMMUNITY_ONLINE_WINDOW_MS;
   const result = await getD1()
     .prepare(
       `
@@ -102,18 +106,19 @@ export async function POST(request: Request) {
       { error: "You are already friends." },
       { status: 409 },
     );
-  if (existing?.requested_by_id === parsed.data.targetUserId) {
-    await getD1()
-      .prepare(
-        `
-      UPDATE community_friendship SET status = 'accepted', updated_at = ?
-      WHERE user_low_id = ? AND user_high_id = ?
-    `,
-      )
-      .bind(Date.now(), low, high)
-      .run();
-    return Response.json({ status: "accepted" });
-  }
+  if (existing?.requested_by_id === parsed.data.targetUserId)
+    return Response.json(
+      {
+        error:
+          "This member already sent you a request. Accept it from Friends.",
+      },
+      { status: 409 },
+    );
+  if (existing?.requested_by_id === session.user.id)
+    return Response.json(
+      { error: "Friend request already sent." },
+      { status: 409 },
+    );
   await getD1()
     .prepare(
       `

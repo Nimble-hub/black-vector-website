@@ -212,6 +212,7 @@ test("ships authenticated social connections, direct comms, and clan operations"
     memberUi,
     clanUi,
     migration,
+    chatRoom,
   ] = await Promise.all([
     readFile(new URL("db/schema.ts", root), "utf8"),
     readFile(new URL("app/api/community/members/route.ts", root), "utf8"),
@@ -237,6 +238,7 @@ test("ships authenticated social connections, direct comms, and clan operations"
     ),
     readFile(new URL("app/community/clan-console.tsx", root), "utf8"),
     readFile(new URL("drizzle/0003_pretty_gabe_jones.sql", root), "utf8"),
+    readFile(new URL("worker/chat-room.ts", root), "utf8"),
   ]);
 
   assert.match(schema, /communityPresence/);
@@ -244,7 +246,14 @@ test("ships authenticated social connections, direct comms, and clan operations"
   assert.match(schema, /directConversation/);
   assert.match(schema, /clanForumThread/);
   assert.match(members, /getCommunitySession/);
+  assert.match(members, /export async function DELETE/);
+  assert.match(members, /COMMUNITY_ONLINE_WINDOW_MS/);
   assert.match(friends, /orderedPair/);
+  assert.match(friends, /already sent you a request\. Accept it from Friends/);
+  assert.doesNotMatch(
+    friends,
+    /existing\?\.requested_by_id === parsed\.data\.targetUserId\) \{[\s\S]*status = 'accepted'/,
+  );
   assert.match(
     conversations,
     /uidx_direct_conversation_pair|direct_conversation/,
@@ -255,11 +264,16 @@ test("ships authenticated social connections, direct comms, and clan operations"
   assert.match(clanForum, /Clan access required/);
   assert.match(consoleUi, /CLAN NETWORK/);
   assert.match(memberUi, /ONLINE/);
+  assert.match(memberUi, /Friend request sent\. Waiting for acceptance/);
+  assert.match(memberUi, /pagehide/);
   assert.match(memberUi, /DIRECT/);
   assert.match(clanUi, /OPERATIONS BOARD/);
   assert.match(migration, /CREATE TABLE `community_friendship`/);
   assert.match(migration, /CREATE TABLE `direct_conversation`/);
   assert.match(migration, /CREATE TABLE `clan`/);
+  assert.match(chatRoom, /setWebSocketAutoResponse/);
+  assert.match(consoleUi, /Heartbeat timed out/);
+  assert.match(consoleUi, /socket !== candidate/);
 });
 
 test("resolves the hyperspace camera, FOV, and interface on one handoff curve", async () => {

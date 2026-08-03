@@ -50,6 +50,9 @@ function responseStatus(error: string) {
 export class ChatRoom extends DurableObject<Env> {
   constructor(ctx: DurableObjectState, env: Env) {
     super(ctx, env);
+    this.ctx.setWebSocketAutoResponse(
+      new WebSocketRequestResponsePair("ping", "pong"),
+    );
     ctx.blockConcurrencyWhile(async () => {
       this.ctx.storage.sql.exec(`
         CREATE TABLE IF NOT EXISTS messages (
@@ -255,7 +258,14 @@ export class ChatRoom extends DurableObject<Env> {
     return new Response(null, { status: 101, webSocket: client });
   }
 
-  webSocketMessage(socket: WebSocket): void {
+  webSocketMessage(socket: WebSocket, message: string | ArrayBuffer): void {
+    // The production runtime answers this through setWebSocketAutoResponse
+    // without waking a hibernating room. Keep the explicit response for local
+    // runtimes that do not implement automatic WebSocket responses.
+    if (message === "ping") {
+      socket.send("pong");
+      return;
+    }
     socket.send(
       JSON.stringify({
         type: "error",

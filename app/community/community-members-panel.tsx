@@ -138,17 +138,33 @@ export function CommunityMembersPanel({
       await fetch("/api/community/members", { method: "POST" }).catch(
         () => undefined,
       );
-      if (!stopped) void loadMembers();
+      if (!stopped) {
+        await Promise.all([loadMembers(), loadFriends(), loadConversations()]);
+      }
     };
     queueMicrotask(() => {
       void pulse();
-      void loadFriends();
-      void loadConversations();
     });
-    const timer = window.setInterval(pulse, 25_000);
+    const timer = window.setInterval(pulse, 15_000);
+    const resume = () => {
+      if (document.visibilityState === "visible" && navigator.onLine)
+        void pulse();
+    };
+    const leave = () => {
+      void fetch("/api/community/members", {
+        method: "DELETE",
+        keepalive: true,
+      }).catch(() => undefined);
+    };
+    document.addEventListener("visibilitychange", resume);
+    window.addEventListener("online", resume);
+    window.addEventListener("pagehide", leave);
     return () => {
       stopped = true;
       window.clearInterval(timer);
+      document.removeEventListener("visibilitychange", resume);
+      window.removeEventListener("online", resume);
+      window.removeEventListener("pagehide", leave);
     };
   }, [currentUser, loadConversations, loadFriends, loadMembers]);
 
@@ -177,6 +193,10 @@ export function CommunityMembersPanel({
     () => new Set(outgoing.map((item) => item.id)),
     [outgoing],
   );
+  const incomingIds = useMemo(
+    () => new Set(incoming.map((item) => item.id)),
+    [incoming],
+  );
 
   async function requestFriend(targetUserId: string) {
     setBusy(`friend:${targetUserId}`);
@@ -189,6 +209,7 @@ export function CommunityMembersPanel({
     setBusy(null);
     if (!response.ok) return onNotice(data.error ?? "Friend request failed.");
     await loadFriends();
+    onNotice("Friend request sent. Waiting for acceptance.");
   }
 
   async function changeFriend(
@@ -327,36 +348,51 @@ export function CommunityMembersPanel({
         </div>
       ) : tab === "online" ? (
         <div className={social.memberList}>
-          {members.map((member) => (
-            <article key={member.id}>
-              <Avatar member={member} />
-              <span>
-                <b>{member.name}</b>
-                <small className={member.online ? social.online : ""}>
-                  {member.online ? "ONLINE" : "OFFLINE"}
-                  {member.role !== "member"
-                    ? ` · ${member.role.toUpperCase()}`
-                    : ""}
-                </small>
-              </span>
-              <div>
-                <button
-                  disabled={busy !== null}
-                  onClick={() => void openDirect(member)}
-                >
-                  DM
-                </button>
-                {!friendIds.has(member.id) && !outgoingIds.has(member.id) && (
+          {members
+            .filter((member) => member.online)
+            .map((member) => (
+              <article key={member.id}>
+                <Avatar member={member} />
+                <span>
+                  <b>{member.name}</b>
+                  <small className={member.online ? social.online : ""}>
+                    {member.online ? "ONLINE" : "OFFLINE"}
+                    {member.role !== "member"
+                      ? ` · ${member.role.toUpperCase()}`
+                      : ""}
+                  </small>
+                </span>
+                <div>
                   <button
                     disabled={busy !== null}
-                    onClick={() => void requestFriend(member.id)}
+                    onClick={() => void openDirect(member)}
                   >
-                    +
+                    DM
                   </button>
-                )}
-              </div>
-            </article>
-          ))}
+                  {incomingIds.has(member.id) && (
+                    <button
+                      disabled={busy !== null}
+                      onClick={() => void changeFriend(member.id, "accept")}
+                    >
+                      ACCEPT
+                    </button>
+                  )}
+                  {!friendIds.has(member.id) &&
+                    !outgoingIds.has(member.id) &&
+                    !incomingIds.has(member.id) && (
+                      <button
+                        disabled={busy !== null}
+                        onClick={() => void requestFriend(member.id)}
+                      >
+                        +
+                      </button>
+                    )}
+                </div>
+              </article>
+            ))}
+          {!members.some((member) => member.online) && (
+            <p className={social.emptySocial}>NO OTHER CREW ONLINE.</p>
+          )}
         </div>
       ) : tab === "friends" ? (
         <div className={social.memberList}>

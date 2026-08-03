@@ -1,6 +1,10 @@
 import { z } from "zod";
 import { getD1 } from "@/db";
-import { getCommunitySession, orderedPair } from "@/lib/community-social";
+import {
+  COMMUNITY_ONLINE_WINDOW_MS,
+  getCommunitySession,
+  orderedPair,
+} from "@/lib/community-social";
 import { isSameOriginRequest } from "@/lib/request-security";
 
 export const dynamic = "force-dynamic";
@@ -23,7 +27,7 @@ export async function GET() {
       { error: "Sign in to view direct comms." },
       { status: 401 },
     );
-  const onlineThreshold = Date.now() - 60_000;
+  const onlineThreshold = Date.now() - COMMUNITY_ONLINE_WINDOW_MS;
   const rows = await getD1()
     .prepare(
       `

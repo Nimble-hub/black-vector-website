@@ -151,24 +151,87 @@ export function CommunityConsole({
 
   useEffect(() => {
     let socket: WebSocket | undefined;
-    let timer: ReturnType<typeof setTimeout> | undefined;
+    let reconnectTimer: ReturnType<typeof setTimeout> | undefined;
+    let heartbeatTimer: ReturnType<typeof setInterval> | undefined;
+    let watchdogTimer: ReturnType<typeof setTimeout> | undefined;
+    let reconnectAttempt = 0;
+    let healthy = false;
     let stopped = false;
 
+    const clearSocketTimers = () => {
+      if (heartbeatTimer) clearInterval(heartbeatTimer);
+      if (watchdogTimer) clearTimeout(watchdogTimer);
+      heartbeatTimer = undefined;
+      watchdogTimer = undefined;
+    };
+
+    const confirmHealthy = (candidate: WebSocket) => {
+      if (stopped || socket !== candidate) return;
+      reconnectAttempt = 0;
+      healthy = true;
+      setConnection("live");
+      if (watchdogTimer) clearTimeout(watchdogTimer);
+      watchdogTimer = setTimeout(() => {
+        if (socket === candidate) candidate.close(4000, "Heartbeat timed out");
+      }, 42_000);
+    };
+
+    const scheduleReconnect = () => {
+      if (stopped || !navigator.onLine || reconnectTimer) return;
+      const baseDelay = Math.min(10_000, 650 * 2 ** reconnectAttempt);
+      const delay = baseDelay + Math.random() * Math.min(500, baseDelay / 3);
+      reconnectAttempt += 1;
+      reconnectTimer = setTimeout(() => {
+        reconnectTimer = undefined;
+        connect();
+      }, delay);
+    };
+
     const connect = () => {
+      if (stopped || !navigator.onLine) {
+        setConnection("offline");
+        return;
+      }
+      if (
+        socket?.readyState === WebSocket.OPEN ||
+        socket?.readyState === WebSocket.CONNECTING
+      )
+        return;
       setConnection("connecting");
       const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
-      socket = new WebSocket(
+      const candidate = new WebSocket(
         `${protocol}//${window.location.host}/api/community/chat/${channel}/socket`,
       );
-      socket.addEventListener("open", () => setConnection("live"));
-      socket.addEventListener("message", (event) => {
-        const payload = JSON.parse(String(event.data)) as
+      socket = candidate;
+      candidate.addEventListener("open", () => {
+        if (socket !== candidate || stopped) return;
+        // A successful protocol upgrade alone is not enough to call the
+        // channel live. The room snapshot or heartbeat confirms end-to-end
+        // application health.
+        heartbeatTimer = setInterval(() => {
+          if (candidate.readyState === WebSocket.OPEN) candidate.send("ping");
+        }, 15_000);
+        candidate.send("ping");
+      });
+      candidate.addEventListener("message", (event) => {
+        if (socket !== candidate || stopped) return;
+        if (String(event.data) === "pong") {
+          confirmHealthy(candidate);
+          return;
+        }
+        let payload:
           | { type: "snapshot"; messages: CommunityChatMessage[] }
           | {
               type: "message" | "message-updated";
               message: CommunityChatMessage;
             }
           | { type: "message-deleted"; id: string };
+        try {
+          payload = JSON.parse(String(event.data)) as typeof payload;
+        } catch {
+          return;
+        }
+        confirmHealthy(candidate);
         if (payload.type === "snapshot") setMessages(payload.messages);
         if (payload.type === "message") {
           setMessages((current) =>
@@ -191,16 +254,61 @@ export function CommunityConsole({
           );
         }
       });
-      socket.addEventListener("close", () => {
+      candidate.addEventListener("close", () => {
+        if (socket !== candidate || stopped) return;
+        socket = undefined;
+        healthy = false;
+        clearSocketTimers();
         setConnection("offline");
-        if (!stopped) timer = setTimeout(connect, 1800);
+        scheduleReconnect();
       });
-      socket.addEventListener("error", () => socket?.close());
+      candidate.addEventListener("error", () => {
+        if (socket === candidate) candidate.close();
+      });
     };
+
+    const loadFallback = async () => {
+      if (stopped || healthy) return;
+      const response = await fetch(`/api/community/chat/${channel}`, {
+        cache: "no-store",
+      }).catch(() => null);
+      if (!response?.ok || stopped) return;
+      const data = (await response.json()) as {
+        messages?: CommunityChatMessage[];
+      };
+      if (data.messages) setMessages(data.messages);
+    };
+
+    const handleOnline = () => {
+      reconnectAttempt = 0;
+      connect();
+    };
+    const handleOffline = () => {
+      if (reconnectTimer) clearTimeout(reconnectTimer);
+      reconnectTimer = undefined;
+      socket?.close();
+      setConnection("offline");
+    };
+    const handleVisibility = () => {
+      if (document.visibilityState !== "visible") return;
+      if (socket?.readyState === WebSocket.OPEN) socket.send("ping");
+      else connect();
+      void loadFallback();
+    };
+
     connect();
+    const fallbackTimer = setInterval(() => void loadFallback(), 7_500);
+    window.addEventListener("online", handleOnline);
+    window.addEventListener("offline", handleOffline);
+    document.addEventListener("visibilitychange", handleVisibility);
     return () => {
       stopped = true;
-      if (timer) clearTimeout(timer);
+      if (reconnectTimer) clearTimeout(reconnectTimer);
+      clearInterval(fallbackTimer);
+      clearSocketTimers();
+      window.removeEventListener("online", handleOnline);
+      window.removeEventListener("offline", handleOffline);
+      document.removeEventListener("visibilitychange", handleVisibility);
       socket?.close();
     };
   }, [channel]);
@@ -287,10 +395,22 @@ export function CommunityConsole({
       headers: { "content-type": "application/json" },
       body: JSON.stringify({ content }),
     });
+    const data = (await response.json()) as {
+      message?: CommunityChatMessage;
+      error?: string;
+    };
     if (!response.ok) {
-      const data = (await response.json()) as { error?: string };
       setNotice(data.error ?? "Transmission failed.");
       setChatText(content);
+      return;
+    }
+    if (data.message) {
+      setMessages((current) =>
+        [
+          ...current.filter((item) => item.id !== data.message!.id),
+          data.message!,
+        ].slice(-100),
+      );
     }
   }
 

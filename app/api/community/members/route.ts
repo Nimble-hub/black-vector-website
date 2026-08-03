@@ -1,5 +1,8 @@
 import { getD1 } from "@/db";
-import { getCommunitySession } from "@/lib/community-social";
+import {
+  COMMUNITY_ONLINE_WINDOW_MS,
+  getCommunitySession,
+} from "@/lib/community-social";
 import { isSameOriginRequest } from "@/lib/request-security";
 
 export const dynamic = "force-dynamic";
@@ -20,7 +23,7 @@ export async function GET() {
       { status: 401 },
     );
 
-  const onlineThreshold = Date.now() - 60_000;
+  const onlineThreshold = Date.now() - COMMUNITY_ONLINE_WINDOW_MS;
   const result = await getD1()
     .prepare(
       `
@@ -77,4 +80,20 @@ export async function POST(request: Request) {
     .bind(session.user.id, now)
     .run();
   return Response.json({ online: true, lastSeenAt: now });
+}
+
+export async function DELETE(request: Request) {
+  if (!isSameOriginRequest(request))
+    return Response.json({ error: "Invalid request origin." }, { status: 403 });
+  const session = await getCommunitySession();
+  if (!session)
+    return Response.json(
+      { error: "Sign in to leave the roster." },
+      { status: 401 },
+    );
+  await getD1()
+    .prepare("UPDATE community_presence SET last_seen_at = 0 WHERE user_id = ?")
+    .bind(session.user.id)
+    .run();
+  return Response.json({ online: false });
 }

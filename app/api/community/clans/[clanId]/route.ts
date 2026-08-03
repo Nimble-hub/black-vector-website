@@ -1,5 +1,6 @@
 import { getD1 } from "@/db";
 import {
+  COMMUNITY_ONLINE_WINDOW_MS,
   getCommunitySession,
   requireClanMembership,
 } from "@/lib/community-social";
@@ -58,7 +59,7 @@ export async function GET(
     )
     .bind(clanId)
     .all<ClanMemberRow>();
-  const threshold = Date.now() - 60_000;
+  const threshold = Date.now() - COMMUNITY_ONLINE_WINDOW_MS;
   return Response.json({
     clan: {
       id: clan.id,

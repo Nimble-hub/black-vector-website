@@ -4,6 +4,8 @@ import { headers } from "next/headers";
 import { getD1 } from "@/db";
 import { getAuth } from "@/lib/auth";
 
+export const COMMUNITY_ONLINE_WINDOW_MS = 40_000;
+
 export async function getCommunitySession() {
   return getAuth().api.getSession({ headers: await headers() });
 }
