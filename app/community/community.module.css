@@ -967,6 +967,10 @@
   background: rgba(2, 7, 10, 0.7);
 }
 
+.workspace.withMembers {
+  grid-template-columns: 250px minmax(0, 1fr) 286px;
+}
+
 .channelRail > button {
   grid-template-columns: 28px 1fr;
   padding: 18px 20px;
@@ -1196,6 +1200,14 @@
   .workspace {
     grid-template-columns: 232px minmax(0, 1fr);
   }
+
+  .workspace.withMembers {
+    grid-template-columns: 232px minmax(0, 1fr);
+  }
+
+  .workspace.withMembers > :last-child {
+    grid-column: 1 / -1;
+  }
 }
 
 @media (max-width: 720px) {
@@ -1254,6 +1266,10 @@
   }
 
   .workspace {
+    grid-template-columns: 1fr;
+  }
+
+  .workspace.withMembers {
     grid-template-columns: 1fr;
   }
 

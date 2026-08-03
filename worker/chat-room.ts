@@ -1,8 +1,8 @@
 import { DurableObject } from "cloudflare:workers";
-import type { ChatChannelId, CommunityChatMessage } from "../lib/community";
+import type { CommunityChatMessage } from "../lib/community";
 
 interface PublishInput {
-  channel: ChatChannelId;
+  channel: string;
   userId: string;
   displayName: string;
   avatarUrl: string | null;
@@ -18,7 +18,7 @@ interface MutationInput {
 
 interface MessageRow extends Record<string, string | number | null> {
   id: string;
-  channel: ChatChannelId;
+  channel: string;
   user_id: string;
   display_name: string;
   avatar_url: string | null;
@@ -64,9 +64,15 @@ export class ChatRoom extends DurableObject<Env> {
         CREATE INDEX IF NOT EXISTS idx_messages_created_at ON messages(created_at);
         CREATE INDEX IF NOT EXISTS idx_messages_user_created ON messages(user_id, created_at);
       `);
-      const columns = [...this.ctx.storage.sql.exec<{ name: string }>("PRAGMA table_info(messages)")];
+      const columns = [
+        ...this.ctx.storage.sql.exec<{ name: string }>(
+          "PRAGMA table_info(messages)",
+        ),
+      ];
       if (!columns.some((column) => column.name === "updated_at")) {
-        this.ctx.storage.sql.exec("ALTER TABLE messages ADD COLUMN updated_at INTEGER");
+        this.ctx.storage.sql.exec(
+          "ALTER TABLE messages ADD COLUMN updated_at INTEGER",
+        );
       }
     });
   }
@@ -84,20 +90,30 @@ export class ChatRoom extends DurableObject<Env> {
   }
 
   private findMessage(id: string) {
-    return [...this.ctx.storage.sql.exec<MessageRow>(`
+    return [
+      ...this.ctx.storage.sql.exec<MessageRow>(
+        `
       SELECT id, channel, user_id, display_name, avatar_url, content, created_at, updated_at
       FROM messages WHERE id = ? LIMIT 1
-    `, id)][0];
+    `,
+        id,
+      ),
+    ][0];
   }
 
   getRecent(limit = 80): CommunityChatMessage[] {
     const safeLimit = Math.max(1, Math.min(100, Math.trunc(limit)));
-    const rows = [...this.ctx.storage.sql.exec<MessageRow>(`
+    const rows = [
+      ...this.ctx.storage.sql.exec<MessageRow>(
+        `
       SELECT id, channel, user_id, display_name, avatar_url, content, created_at, updated_at
       FROM messages
       ORDER BY created_at DESC
       LIMIT ?
-    `, safeLimit)];
+    `,
+        safeLimit,
+      ),
+    ];
     return rows.reverse().map(toMessage);
   }
 
@@ -107,10 +123,16 @@ export class ChatRoom extends DurableObject<Env> {
     if (!content || content.length > 500) throw new Error("INVALID_MESSAGE");
 
     const now = Date.now();
-    const recent = [...this.ctx.storage.sql.exec<{ created_at: number }>(`
+    const recent = [
+      ...this.ctx.storage.sql.exec<{ created_at: number }>(
+        `
       SELECT created_at FROM messages WHERE user_id = ? ORDER BY created_at DESC LIMIT 1
-    `, input.userId)];
-    if (recent[0] && now - recent[0].created_at < 1500) throw new Error("RATE_LIMITED");
+    `,
+        input.userId,
+      ),
+    ];
+    if (recent[0] && now - recent[0].created_at < 1500)
+      throw new Error("RATE_LIMITED");
 
     const message: CommunityChatMessage = {
       id: crypto.randomUUID(),
@@ -165,7 +187,8 @@ export class ChatRoom extends DurableObject<Env> {
   remove(input: MutationInput): string {
     const existing = this.findMessage(input.id);
     if (!existing) throw new Error("MESSAGE_NOT_FOUND");
-    if (existing.user_id !== input.actorUserId && !input.canModerate) throw new Error("FORBIDDEN");
+    if (existing.user_id !== input.actorUserId && !input.canModerate)
+      throw new Error("FORBIDDEN");
     this.ctx.storage.sql.exec("DELETE FROM messages WHERE id = ?", input.id);
     this.broadcast({ type: "message-deleted", id: input.id });
     return input.id;
@@ -178,8 +201,12 @@ export class ChatRoom extends DurableObject<Env> {
       try {
         return Response.json({ message: this.publish(input) });
       } catch (error) {
-        const message = error instanceof Error ? error.message : "INVALID_MESSAGE";
-        return Response.json({ error: message }, { status: responseStatus(message) });
+        const message =
+          error instanceof Error ? error.message : "INVALID_MESSAGE";
+        return Response.json(
+          { error: message },
+          { status: responseStatus(message) },
+        );
       }
     }
 
@@ -188,8 +215,12 @@ export class ChatRoom extends DurableObject<Env> {
       try {
         return Response.json({ message: this.edit(input) });
       } catch (error) {
-        const message = error instanceof Error ? error.message : "INVALID_MESSAGE";
-        return Response.json({ error: message }, { status: responseStatus(message) });
+        const message =
+          error instanceof Error ? error.message : "INVALID_MESSAGE";
+        return Response.json(
+          { error: message },
+          { status: responseStatus(message) },
+        );
       }
     }
 
@@ -198,8 +229,12 @@ export class ChatRoom extends DurableObject<Env> {
       try {
         return Response.json({ deletedId: this.remove(input) });
       } catch (error) {
-        const message = error instanceof Error ? error.message : "INVALID_MESSAGE";
-        return Response.json({ error: message }, { status: responseStatus(message) });
+        const message =
+          error instanceof Error ? error.message : "INVALID_MESSAGE";
+        return Response.json(
+          { error: message },
+          { status: responseStatus(message) },
+        );
       }
     }
 
@@ -214,12 +249,19 @@ export class ChatRoom extends DurableObject<Env> {
     const pair = new WebSocketPair();
     const [client, server] = Object.values(pair);
     this.ctx.acceptWebSocket(server);
-    server.send(JSON.stringify({ type: "snapshot", messages: this.getRecent() }));
+    server.send(
+      JSON.stringify({ type: "snapshot", messages: this.getRecent() }),
+    );
     return new Response(null, { status: 101, webSocket: client });
   }
 
   webSocketMessage(socket: WebSocket): void {
-    socket.send(JSON.stringify({ type: "error", error: "Transmit through the authenticated uplink." }));
+    socket.send(
+      JSON.stringify({
+        type: "error",
+        error: "Transmit through the authenticated uplink.",
+      }),
+    );
   }
 
   webSocketClose(socket: WebSocket, code: number, reason: string): void {

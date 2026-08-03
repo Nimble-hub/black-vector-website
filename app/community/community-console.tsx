@@ -20,6 +20,8 @@ import {
 } from "@/lib/community";
 import styles from "./community.module.css";
 import controls from "./community-controls.module.css";
+import { CommunityMembersPanel } from "./community-members-panel";
+import { ClanConsole } from "./clan-console";
 
 interface CurrentUser {
   id: string;
@@ -111,7 +113,9 @@ export function CommunityConsole({
 }: {
   currentUser: CurrentUser | null;
 }) {
-  const [mode, setMode] = useState<"chat" | "forum" | "staff">("chat");
+  const [mode, setMode] = useState<"chat" | "forum" | "clans" | "staff">(
+    "chat",
+  );
   const [channel, setChannel] = useState<ChatChannelId>("general");
   const [messages, setMessages] = useState<CommunityChatMessage[]>([]);
   const [connection, setConnection] = useState<
@@ -550,6 +554,14 @@ export function CommunityConsole({
             <b>FORUM ARCHIVE</b>
             <small>FEEDBACK &amp; REPORTS</small>
           </button>
+          <button
+            className={mode === "clans" ? styles.active : ""}
+            onClick={() => setMode("clans")}
+          >
+            <span>03</span>
+            <b>CLAN NETWORK</b>
+            <small>PRIVATE GROUPS &amp; OPS</small>
+          </button>
           {currentUser?.role === "admin" && (
             <button
               className={mode === "staff" ? styles.active : ""}
@@ -558,7 +570,7 @@ export function CommunityConsole({
                 void loadStaff();
               }}
             >
-              <span>03</span>
+              <span>04</span>
               <b>STAFF CONTROL</b>
               <small>ROLES &amp; AUTHORITY</small>
             </button>
@@ -574,7 +586,7 @@ export function CommunityConsole({
         </aside>
 
         {mode === "chat" && (
-          <div className={styles.workspace}>
+          <div className={`${styles.workspace} ${styles.withMembers}`}>
             <aside className={styles.channelRail}>
               <p>COMMS CHANNELS</p>
               {CHAT_CHANNELS.map((item) => (
@@ -712,11 +724,15 @@ export function CommunityConsole({
                 </Link>
               )}
             </section>
+            <CommunityMembersPanel
+              currentUser={currentUser}
+              onNotice={setNotice}
+            />
           </div>
         )}
 
         {mode === "forum" && (
-          <div className={styles.workspace}>
+          <div className={`${styles.workspace} ${styles.withMembers}`}>
             <aside className={styles.channelRail}>
               <p>FORUM CATEGORIES</p>
               {FORUM_CATEGORIES.map((item) => (
@@ -1091,7 +1107,15 @@ export function CommunityConsole({
                 </>
               )}
             </section>
+            <CommunityMembersPanel
+              currentUser={currentUser}
+              onNotice={setNotice}
+            />
           </div>
+        )}
+
+        {mode === "clans" && (
+          <ClanConsole currentUser={currentUser} onNotice={setNotice} />
         )}
 
         {mode === "staff" && currentUser?.role === "admin" && (

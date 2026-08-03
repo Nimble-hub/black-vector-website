@@ -81,7 +81,16 @@ test("routes the hero playtest call-to-action by authentication state", async ()
 });
 
 test("ships the realtime community hub and account profile media controls", async () => {
-  const [community, communityData, room, schema, avatar, audio, worker, config] = await Promise.all([
+  const [
+    community,
+    communityData,
+    room,
+    schema,
+    avatar,
+    audio,
+    worker,
+    config,
+  ] = await Promise.all([
     readFile(new URL("app/community/community-console.tsx", root), "utf8"),
     readFile(new URL("lib/community.ts", root), "utf8"),
     readFile(new URL("worker/chat-room.ts", root), "utf8"),
@@ -115,12 +124,27 @@ test("ships the realtime community hub and account profile media controls", asyn
 });
 
 test("enforces community ownership and staff moderation roles", async () => {
-  const [schema, permissions, chatRoom, chatRoute, forumRoute, staffRoute, community, migration] = await Promise.all([
+  const [
+    schema,
+    permissions,
+    chatRoom,
+    chatRoute,
+    forumRoute,
+    staffRoute,
+    community,
+    migration,
+  ] = await Promise.all([
     readFile(new URL("db/schema.ts", root), "utf8"),
     readFile(new URL("lib/community-permissions.ts", root), "utf8"),
     readFile(new URL("worker/chat-room.ts", root), "utf8"),
-    readFile(new URL("app/api/community/chat/[channel]/route.ts", root), "utf8"),
-    readFile(new URL("app/api/community/forum/[threadId]/route.ts", root), "utf8"),
+    readFile(
+      new URL("app/api/community/chat/[channel]/route.ts", root),
+      "utf8",
+    ),
+    readFile(
+      new URL("app/api/community/forum/[threadId]/route.ts", root),
+      "utf8",
+    ),
     readFile(new URL("app/api/community/staff/route.ts", root), "utf8"),
     readFile(new URL("app/community/community-console.tsx", root), "utf8"),
     readFile(new URL("drizzle/0002_broad_the_renegades.sql", root), "utf8"),
@@ -172,4 +196,85 @@ test("presents the production game pitch and cleanly hands transit audio to the 
   assert.match(header, /SKIP TO GAME OVERVIEW/);
   assert.match(header, /COMMUNITY/);
   assert.match(header, /ACCOUNT/);
+});
+
+test("ships authenticated social connections, direct comms, and clan operations", async () => {
+  const [
+    schema,
+    members,
+    friends,
+    conversations,
+    direct,
+    clans,
+    clanChat,
+    clanForum,
+    consoleUi,
+    memberUi,
+    clanUi,
+    migration,
+  ] = await Promise.all([
+    readFile(new URL("db/schema.ts", root), "utf8"),
+    readFile(new URL("app/api/community/members/route.ts", root), "utf8"),
+    readFile(new URL("app/api/community/friends/route.ts", root), "utf8"),
+    readFile(new URL("app/api/community/conversations/route.ts", root), "utf8"),
+    readFile(
+      new URL("app/api/community/dm/[conversationId]/route.ts", root),
+      "utf8",
+    ),
+    readFile(new URL("app/api/community/clans/route.ts", root), "utf8"),
+    readFile(
+      new URL("app/api/community/clans/[clanId]/chat/route.ts", root),
+      "utf8",
+    ),
+    readFile(
+      new URL("app/api/community/clans/[clanId]/forum/route.ts", root),
+      "utf8",
+    ),
+    readFile(new URL("app/community/community-console.tsx", root), "utf8"),
+    readFile(
+      new URL("app/community/community-members-panel.tsx", root),
+      "utf8",
+    ),
+    readFile(new URL("app/community/clan-console.tsx", root), "utf8"),
+    readFile(new URL("drizzle/0003_pretty_gabe_jones.sql", root), "utf8"),
+  ]);
+
+  assert.match(schema, /communityPresence/);
+  assert.match(schema, /communityFriendship/);
+  assert.match(schema, /directConversation/);
+  assert.match(schema, /clanForumThread/);
+  assert.match(members, /getCommunitySession/);
+  assert.match(friends, /orderedPair/);
+  assert.match(
+    conversations,
+    /uidx_direct_conversation_pair|direct_conversation/,
+  );
+  assert.match(direct, /requireConversationMembership/);
+  assert.match(clans, /requireClanMembership/);
+  assert.match(clanChat, /getByName\(`clan:/);
+  assert.match(clanForum, /Clan access required/);
+  assert.match(consoleUi, /CLAN NETWORK/);
+  assert.match(memberUi, /ONLINE/);
+  assert.match(memberUi, /DIRECT/);
+  assert.match(clanUi, /OPERATIONS BOARD/);
+  assert.match(migration, /CREATE TABLE `community_friendship`/);
+  assert.match(migration, /CREATE TABLE `direct_conversation`/);
+  assert.match(migration, /CREATE TABLE `clan`/);
+});
+
+test("resolves the hyperspace camera, FOV, and interface on one handoff curve", async () => {
+  const intro = await readFile(
+    new URL("app/hyperspace-intro.tsx", root),
+    "utf8",
+  );
+  assert.match(intro, /const handoffBlend = smoothstep/);
+  assert.match(intro, /camera\.position\.set\([\s\S]*handoffBlend/);
+  assert.match(
+    intro,
+    /camera\.fov = THREE\.MathUtils\.lerp\(hyperspaceFov, 64, handoffBlend\)/,
+  );
+  assert.match(
+    intro,
+    /world\.interfaceAnchor\.position\.lerpVectors\(\s*interfaceFar,\s*interfaceNear,\s*handoffBlend,?\s*\)/,
+  );
 });

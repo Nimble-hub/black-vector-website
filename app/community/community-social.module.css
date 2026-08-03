@@ -1,0 +1,663 @@
+.membersPanel,
+.clanRoster,
+.clanRail {
+  min-width: 0;
+  border-left: 1px solid rgba(126, 190, 195, 0.14);
+  background: linear-gradient(
+    180deg,
+    rgba(6, 16, 21, 0.98),
+    rgba(2, 7, 10, 0.96)
+  );
+  color: #d9dad5;
+}
+
+.membersPanel {
+  display: grid;
+  min-height: 0;
+  grid-template-rows: auto auto minmax(0, 1fr);
+}
+
+.membersPanel > header,
+.clanRoster > header {
+  position: relative;
+  display: grid;
+  gap: 6px;
+  min-height: 82px;
+  align-content: center;
+  padding: 16px 18px;
+  border-bottom: 1px solid rgba(126, 190, 195, 0.14);
+}
+
+.membersPanel > header small,
+.clanRoster > header small {
+  color: #60777d;
+  font-size: 7px;
+  letter-spacing: 0.18em;
+}
+
+.membersPanel > header strong,
+.clanRoster > header strong {
+  overflow: hidden;
+  color: #f0ede4;
+  font:
+    700 14px/1.1 Bahnschrift,
+    "Arial Narrow",
+    sans-serif;
+  letter-spacing: 0.05em;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.membersPanel > header > button {
+  position: absolute;
+  top: 28px;
+  right: 14px;
+}
+
+.membersPanel nav {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  border-bottom: 1px solid rgba(126, 190, 195, 0.13);
+}
+
+.membersPanel button,
+.clanWorkspace button {
+  border: 0;
+  background: transparent;
+  color: #7d8d92;
+  font:
+    700 7px/1.2 Consolas,
+    monospace;
+  letter-spacing: 0.1em;
+  cursor: pointer;
+}
+
+.membersPanel button:hover,
+.clanWorkspace button:hover,
+.active {
+  color: #69d7dd !important;
+}
+
+.membersPanel nav button {
+  min-height: 46px;
+  border-bottom: 2px solid transparent;
+}
+
+.membersPanel nav button.active {
+  border-bottom-color: #65d4da;
+  background: rgba(92, 206, 214, 0.06);
+}
+
+.membersPanel nav b {
+  display: inline-grid;
+  min-width: 16px;
+  height: 16px;
+  margin-left: 4px;
+  border: 1px solid rgba(100, 210, 217, 0.2);
+  place-items: center;
+}
+
+.memberList,
+.dmFeed,
+.clanFeed {
+  min-height: 0;
+  overflow-y: auto;
+  scrollbar-color: rgba(96, 205, 212, 0.25) transparent;
+  scrollbar-width: thin;
+}
+
+.memberList > article,
+.conversation,
+.clanRoster article {
+  display: grid;
+  grid-template-columns: 32px minmax(0, 1fr) auto;
+  gap: 10px;
+  width: 100%;
+  min-height: 56px;
+  align-items: center;
+  padding: 10px 13px;
+  border-bottom: 1px solid rgba(126, 190, 195, 0.075);
+  text-align: left;
+}
+
+.memberList img,
+.memberList i,
+.conversation img,
+.conversation i,
+.clanRoster img,
+.clanRoster i,
+.clanFeed img,
+.clanFeed i {
+  display: grid;
+  width: 32px;
+  height: 32px;
+  border: 1px solid rgba(100, 210, 217, 0.28);
+  background: #07161c;
+  place-items: center;
+  color: #72d9de;
+  font:
+    700 9px/1 Consolas,
+    monospace;
+  font-style: normal;
+  object-fit: cover;
+}
+
+.memberList span,
+.conversation span,
+.clanRoster span {
+  display: grid;
+  min-width: 0;
+  gap: 5px;
+}
+
+.memberList span b,
+.conversation span b,
+.clanRoster span b {
+  overflow: hidden;
+  color: #d8dad5;
+  font-size: 9px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.memberList span small,
+.conversation span small,
+.clanRoster span small {
+  color: #53656b;
+  font-size: 6px;
+  letter-spacing: 0.12em;
+}
+
+.online {
+  color: #69d7dd !important;
+}
+
+.online::before {
+  display: inline-block;
+  width: 5px;
+  height: 5px;
+  margin-right: 5px;
+  border-radius: 50%;
+  background: #64d7dd;
+  box-shadow: 0 0 9px #64d7dd;
+  content: "";
+}
+
+.memberList article > div {
+  display: flex;
+  gap: 4px;
+}
+
+.memberList article > div button,
+.membersPanel > header > button {
+  min-height: 26px;
+  padding: 0 7px;
+  border: 1px solid rgba(100, 210, 217, 0.2);
+}
+
+.directThread {
+  display: grid;
+  min-height: 0;
+  grid-template-rows: minmax(0, 1fr) auto;
+}
+
+.dmFeed {
+  padding: 14px;
+}
+
+.dmFeed article {
+  max-width: 88%;
+  margin-bottom: 10px;
+  padding: 9px 10px;
+  border-left: 2px solid rgba(100, 210, 217, 0.24);
+  background: rgba(9, 24, 30, 0.72);
+}
+
+.dmFeed article.mine {
+  margin-left: auto;
+  border-right: 2px solid #62cdd4;
+  border-left: 0;
+  background: rgba(45, 125, 133, 0.12);
+}
+
+.dmFeed article b {
+  color: #68d4da;
+  font-size: 7px;
+}
+
+.dmFeed article p {
+  margin: 5px 0 0;
+  color: #d3d5d0;
+  font-size: 11px;
+  line-height: 1.45;
+}
+
+.directThread form,
+.clanComposer,
+.clanThread form,
+.clanForum > form,
+.clanCreate {
+  display: grid;
+  gap: 8px;
+  padding: 12px;
+  border-top: 1px solid rgba(126, 190, 195, 0.14);
+  background: rgba(3, 11, 15, 0.98);
+}
+
+.directThread textarea,
+.clanWorkspace textarea,
+.clanWorkspace input {
+  width: 100%;
+  min-height: 58px;
+  resize: vertical;
+  border: 1px solid rgba(126, 190, 195, 0.22);
+  border-radius: 0;
+  outline: 0;
+  background: #061218;
+  color: #edeae1;
+  font:
+    11px/1.45 Consolas,
+    monospace;
+  padding: 9px;
+}
+
+.directThread form button,
+.clanComposer button,
+.clanThread form button,
+.clanForum > form button,
+.clanCreate button {
+  min-height: 34px;
+  background: #64d2d8;
+  color: #021014;
+}
+
+.signedOut,
+.emptySocial {
+  margin: 0;
+  padding: 22px 18px;
+  color: #63767c;
+  font:
+    700 8px/1.7 Consolas,
+    monospace;
+  letter-spacing: 0.08em;
+  text-align: center;
+}
+
+.clanWorkspace {
+  display: grid;
+  min-width: 0;
+  min-height: 0;
+  grid-template-columns: 250px minmax(0, 1fr) 250px;
+  background: #02070a;
+}
+
+.clanRail {
+  overflow-y: auto;
+  border-right: 1px solid rgba(126, 190, 195, 0.14);
+  border-left: 0;
+}
+
+.clanRail > header {
+  display: flex;
+  min-height: 72px;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px;
+  border-bottom: 1px solid rgba(126, 190, 195, 0.14);
+}
+
+.clanRail > header small,
+.clanRail > p {
+  color: #62747a;
+  font:
+    700 7px/1 Consolas,
+    monospace;
+  letter-spacing: 0.14em;
+}
+
+.clanRail > header button {
+  min-height: 30px;
+  padding: 0 8px;
+  border: 1px solid rgba(100, 210, 217, 0.25);
+}
+
+.clanRail > button {
+  display: grid;
+  width: 100%;
+  gap: 6px;
+  padding: 16px;
+  border-left: 3px solid transparent;
+  border-bottom: 1px solid rgba(126, 190, 195, 0.08);
+  text-align: left;
+}
+
+.clanRail > button.active {
+  border-left-color: #64d2d8;
+  background: linear-gradient(90deg, rgba(88, 202, 210, 0.12), transparent);
+}
+
+.clanRail > button b,
+.clanRail article b {
+  color: #d9dad4;
+  font-size: 9px;
+}
+
+.clanRail > button small,
+.clanRail article small {
+  color: #61747a;
+  font-size: 6px;
+}
+
+.clanRail > p {
+  margin: 22px 14px 8px;
+}
+
+.clanRail > article {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 8px;
+  align-items: center;
+  padding: 11px 14px;
+  border-bottom: 1px solid rgba(126, 190, 195, 0.07);
+}
+
+.clanRail > article span {
+  display: grid;
+  gap: 5px;
+}
+
+.clanRail > article button {
+  min-height: 28px;
+  padding: 0 8px;
+  border: 1px solid rgba(100, 210, 217, 0.22);
+}
+
+.clanCreate {
+  border-top: 0;
+}
+
+.clanCreate input {
+  min-height: 36px;
+}
+
+.clanMain {
+  display: grid;
+  min-width: 0;
+  min-height: 0;
+  grid-template-rows: auto minmax(0, 1fr) auto;
+  background: radial-gradient(
+    circle at 78% 0,
+    rgba(62, 155, 165, 0.07),
+    transparent 34%
+  );
+}
+
+.clanHeader {
+  display: flex;
+  min-height: 116px;
+  align-items: end;
+  justify-content: space-between;
+  gap: 20px;
+  padding: 22px 26px;
+  border-bottom: 1px solid rgba(126, 190, 195, 0.14);
+  background: linear-gradient(
+    90deg,
+    rgba(8, 21, 28, 0.96),
+    rgba(3, 10, 14, 0.72)
+  );
+}
+
+.clanHeader small {
+  color: #64d1d8;
+  font:
+    700 7px/1 Consolas,
+    monospace;
+  letter-spacing: 0.15em;
+}
+
+.clanHeader h1,
+.clanForum h2 {
+  margin: 8px 0 4px;
+  color: #f2eee4;
+  font:
+    700 34px/0.95 Bahnschrift,
+    "Arial Narrow",
+    sans-serif;
+  letter-spacing: -0.03em;
+}
+
+.clanHeader p {
+  max-width: 600px;
+  margin: 0;
+  color: #8d9ba0;
+  font-size: 11px;
+}
+
+.clanHeader nav {
+  display: flex;
+  gap: 6px;
+}
+
+.clanHeader nav button,
+.clanForum > header > button {
+  min-height: 36px;
+  padding: 0 12px;
+  border: 1px solid rgba(100, 210, 217, 0.23);
+}
+
+.clanFeed {
+  padding: 20px 26px;
+}
+
+.clanFeed article {
+  display: grid;
+  grid-template-columns: 32px minmax(0, 1fr);
+  gap: 12px;
+  padding: 12px 0;
+  border-bottom: 1px solid rgba(126, 190, 195, 0.075);
+}
+
+.clanFeed article header {
+  display: flex;
+  justify-content: space-between;
+}
+
+.clanFeed article header b {
+  color: #e3e2dc;
+  font-size: 10px;
+}
+
+.clanFeed time,
+.clanFeed article header time {
+  color: #586a70;
+  font-size: 7px;
+}
+
+.clanFeed article p {
+  margin: 6px 0 0;
+  color: #c5c8c3;
+  font-size: 13px;
+  line-height: 1.55;
+}
+
+.clanComposer {
+  grid-template-columns: minmax(0, 1fr) 110px;
+}
+
+.clanComposer textarea {
+  min-height: 60px;
+}
+
+.clanForum,
+.clanThread {
+  min-height: 0;
+  overflow-y: auto;
+  padding: 24px 28px;
+}
+
+.clanForum > header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 18px;
+}
+
+.clanForum > form {
+  margin-bottom: 16px;
+  border: 1px solid rgba(126, 190, 195, 0.14);
+}
+
+.clanForum > div > button {
+  display: grid;
+  width: 100%;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 16px;
+  padding: 17px 4px;
+  border-bottom: 1px solid rgba(126, 190, 195, 0.1);
+  text-align: left;
+}
+
+.clanForum > div > button span {
+  display: grid;
+  gap: 6px;
+}
+
+.clanForum > div > button b,
+.clanThread h2 {
+  color: #e9e6dd;
+  font:
+    700 18px/1.1 Bahnschrift,
+    sans-serif;
+}
+
+.clanForum > div > button p,
+.clanThread article p {
+  margin: 0;
+  color: #89979b;
+  font:
+    12px/1.5 Arial,
+    sans-serif;
+}
+
+.clanForum > div > button strong {
+  display: grid;
+  min-width: 48px;
+  place-items: center;
+  color: #68d5db;
+  font-size: 14px;
+}
+
+.clanForum > div > button strong small {
+  color: #5e7076;
+  font-size: 6px;
+}
+
+.clanThread > button {
+  margin-bottom: 14px;
+}
+
+.clanThread article {
+  margin-bottom: 10px;
+  padding: 18px;
+  border: 1px solid rgba(126, 190, 195, 0.13);
+  background: rgba(7, 18, 23, 0.75);
+}
+
+.clanThread article small {
+  color: #65d2d9;
+  font:
+    700 7px/1 Consolas,
+    monospace;
+}
+
+.clanRoster {
+  overflow-y: auto;
+}
+
+.clanEmpty,
+.clanSignIn {
+  display: grid;
+  min-height: 500px;
+  place-content: center;
+  gap: 12px;
+  padding: 32px;
+  text-align: center;
+}
+
+.clanEmpty strong,
+.clanSignIn strong {
+  color: #e9e6dd;
+  font:
+    700 28px/1 Bahnschrift,
+    sans-serif;
+}
+
+.clanEmpty p,
+.clanSignIn p {
+  max-width: 520px;
+  color: #718188;
+  line-height: 1.6;
+}
+
+.clanSignIn a {
+  justify-self: center;
+  padding: 13px 16px;
+  background: #65d4da;
+  color: #021014;
+  font:
+    700 9px/1 Consolas,
+    monospace;
+  text-decoration: none;
+}
+
+@media (max-width: 1280px) {
+  .clanWorkspace {
+    grid-template-columns: 220px minmax(0, 1fr) 210px;
+  }
+}
+
+@media (max-width: 1050px) {
+  .membersPanel {
+    border-top: 1px solid rgba(126, 190, 195, 0.14);
+    border-left: 0;
+  }
+  .memberList {
+    max-height: 340px;
+  }
+  .clanWorkspace {
+    grid-template-columns: 210px minmax(0, 1fr);
+  }
+  .clanRoster {
+    display: none;
+  }
+}
+
+@media (max-width: 720px) {
+  .membersPanel {
+    min-height: 420px;
+  }
+  .clanWorkspace {
+    grid-template-columns: 1fr;
+  }
+  .clanRail {
+    max-height: 280px;
+    border-right: 0;
+    border-bottom: 1px solid rgba(126, 190, 195, 0.14);
+  }
+  .clanHeader {
+    align-items: start;
+    flex-direction: column;
+    padding: 18px 16px;
+  }
+  .clanHeader h1 {
+    font-size: 28px;
+  }
+  .clanFeed,
+  .clanForum,
+  .clanThread {
+    padding: 16px;
+  }
+  .clanComposer {
+    grid-template-columns: 1fr;
+  }
+}

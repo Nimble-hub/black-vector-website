@@ -1631,24 +1631,11 @@ function createTunnelGeometry(count: number) {
 
   for (let segment = 0; segment < ribbonSegments; segment += 1) {
     const row = segment * 2;
-    ribbonIndices.push(
-      row,
-      row + 1,
-      row + 3,
-      row,
-      row + 3,
-      row + 2,
-    );
+    ribbonIndices.push(row, row + 1, row + 3, row, row + 3, row + 2);
   }
 
-  geometry.setAttribute(
-    "position",
-    new THREE.Float32BufferAttribute(ribbonPositions, 3),
-  );
-  geometry.setAttribute(
-    "uv",
-    new THREE.Float32BufferAttribute(ribbonUvs, 2),
-  );
+  geometry.setAttribute("position", new THREE.Float32BufferAttribute(ribbonPositions, 3));
+  geometry.setAttribute("uv", new THREE.Float32BufferAttribute(ribbonUvs, 2));
   geometry.setIndex(ribbonIndices);
 
   const angles = new Float32Array(count);
@@ -1697,20 +1684,10 @@ function createTunnelDustGeometry(count: number) {
     const isCoreDust = !isSideDust && Math.random() < 0.42;
     const isHeroGlint = Math.random() < 0.07;
     angles[index] = Math.random() * Math.PI * 2;
-    radii[index] = isSideDust
-      ? 9.4 + Math.pow(Math.random(), 0.66) * 11.6
-      : isCoreDust
-        ? 0.72 + Math.pow(Math.random(), 1.34) * 5.2
-        : 4.8 + Math.pow(Math.random(), 0.8) * 8.2;
+    radii[index] = isSideDust ? 9.4 + Math.pow(Math.random(), 0.66) * 11.6 : isCoreDust ? 0.72 + Math.pow(Math.random(), 1.34) * 5.2 : 4.8 + Math.pow(Math.random(), 0.8) * 8.2;
     seeds[index] = Math.random() * DEPTH;
-    sizes[index] = isHeroGlint
-      ? 1.55 + Math.pow(Math.random(), 1.6) * 1.15
-      : (isCoreDust ? 0.56 : 0.48)
-        + Math.pow(Math.random(), 2.2) * (isCoreDust ? 0.82 : 0.68);
-    brightness[index] = isHeroGlint
-      ? 0.9 + Math.random() * 0.1
-      : (isSideDust ? 0.58 : isCoreDust ? 0.66 : 0.46)
-        + Math.random() * (isSideDust ? 0.36 : isCoreDust ? 0.28 : 0.38);
+    sizes[index] = isHeroGlint ? 1.55 + Math.pow(Math.random(), 1.6) * 1.15 : (isCoreDust ? 0.56 : 0.48) + Math.pow(Math.random(), 2.2) * (isCoreDust ? 0.82 : 0.68);
+    brightness[index] = isHeroGlint ? 0.9 + Math.random() * 0.1 : (isSideDust ? 0.58 : isCoreDust ? 0.66 : 0.46) + Math.random() * (isSideDust ? 0.36 : isCoreDust ? 0.28 : 0.38);
     glints[index] = isHeroGlint ? 1 : 0;
     // A small deterministic subset becomes near-lens hero particles. Their
     // depth still comes from the shared tunnel flow, so the flybys feel like
@@ -1730,14 +1707,7 @@ function createTunnelDustGeometry(count: number) {
 }
 
 function createWarpBubbleGeometry(isMobile: boolean) {
-  const baseGeometry = new THREE.CylinderGeometry(
-    19.6,
-    19.6,
-    DEPTH,
-    isMobile ? 32 : 56,
-    isMobile ? 36 : 64,
-    true,
-  );
+  const baseGeometry = new THREE.CylinderGeometry(19.6, 19.6, DEPTH, isMobile ? 32 : 56, isMobile ? 36 : 64, true);
   baseGeometry.rotateX(Math.PI / 2);
   const geometry = new THREE.InstancedBufferGeometry();
   geometry.setIndex(baseGeometry.index);
@@ -1747,9 +1717,7 @@ function createWarpBubbleGeometry(isMobile: boolean) {
   for (const group of baseGeometry.groups) {
     geometry.addGroup(group.start, group.count, group.materialIndex);
   }
-  const layers = isMobile
-    ? new Float32Array([-0.68, 0.68])
-    : new Float32Array([-1, 0, 1]);
+  const layers = isMobile ? new Float32Array([-0.68, 0.68]) : new Float32Array([-1, 0, 1]);
   geometry.setAttribute("aLayer", new THREE.InstancedBufferAttribute(layers, 1));
   geometry.instanceCount = layers.length;
   return geometry;
@@ -1757,24 +1725,8 @@ function createWarpBubbleGeometry(isMobile: boolean) {
 
 function createExitWakeGeometry(count: number) {
   const geometry = new THREE.InstancedBufferGeometry();
-  geometry.setAttribute(
-    "position",
-    new THREE.Float32BufferAttribute([
-      -1, 0, 0,
-      1, 0, 0,
-      1, 1, 0,
-      -1, 1, 0,
-    ], 3),
-  );
-  geometry.setAttribute(
-    "uv",
-    new THREE.Float32BufferAttribute([
-      -1, 0,
-      1, 0,
-      1, 1,
-      -1, 1,
-    ], 2),
-  );
+  geometry.setAttribute("position", new THREE.Float32BufferAttribute([-1, 0, 0, 1, 0, 0, 1, 1, 0, -1, 1, 0], 3));
+  geometry.setAttribute("uv", new THREE.Float32BufferAttribute([-1, 0, 1, 0, 1, 1, -1, 1], 2));
   geometry.setIndex([0, 1, 2, 0, 2, 3]);
 
   const angles = new Float32Array(count);
@@ -1795,10 +1747,7 @@ function createExitWakeGeometry(count: number) {
     lengths[index] = 1.8 + Math.pow(Math.random(), 0.62) * 4.4;
     widths[index] = 0.22 + Math.random() * 0.48;
     brightness[index] = 0.42 + Math.random() * 0.53;
-    drift[index] = Math.min(1, Math.max(
-      0,
-      0.5 + Math.sin(angle * 2.0 + 0.9) * 0.28 + (Math.random() - 0.5) * 0.12,
-    ));
+    drift[index] = Math.min(1, Math.max(0, 0.5 + Math.sin(angle * 2.0 + 0.9) * 0.28 + (Math.random() - 0.5) * 0.12));
   }
 
   geometry.setAttribute("aAngle", new THREE.InstancedBufferAttribute(angles, 1));
@@ -1831,16 +1780,8 @@ function createExitCrystalGeometry(count: number) {
     const angle = (clusterIndex / clusterCount) * Math.PI * 2 + (Math.random() - 0.5) * 0.36;
     const radius = 3.0 + Math.pow(Math.random(), 0.58) * 5.4;
     return {
-      origin: new THREE.Vector3(
-        Math.cos(angle) * radius,
-        Math.sin(angle) * radius * 0.72,
-        -6.8 - Math.random() * 6.2,
-      ),
-      velocity: new THREE.Vector3(
-        Math.cos(angle) * (0.18 + Math.random() * 0.44),
-        Math.sin(angle) * (0.14 + Math.random() * 0.38),
-        -0.72 - Math.random() * 1.15,
-      ),
+      origin: new THREE.Vector3(Math.cos(angle) * radius, Math.sin(angle) * radius * 0.72, -6.8 - Math.random() * 6.2),
+      velocity: new THREE.Vector3(Math.cos(angle) * (0.18 + Math.random() * 0.44), Math.sin(angle) * (0.14 + Math.random() * 0.38), -0.72 - Math.random() * 1.15),
       delay: Math.random() * 0.34,
       swirl: (Math.random() < 0.5 ? -1 : 1) * (1.35 + Math.random() * 1.9),
       phase: Math.random() * Math.PI * 2,
@@ -1867,9 +1808,7 @@ function createExitCrystalGeometry(count: number) {
     delays[index] = cluster.delay + Math.random() * 0.2;
     lifetimes[index] = 3.8 + Math.random() * 1.7;
     const isMicroFrost = Math.random() < 0.78;
-    sizes[index] = isMicroFrost
-      ? 0.58 + Math.pow(Math.random(), 0.8) * 1.72
-      : 2.4 + Math.pow(Math.random(), 0.72) * 4.6;
+    sizes[index] = isMicroFrost ? 0.58 + Math.pow(Math.random(), 0.8) * 1.72 : 2.4 + Math.pow(Math.random(), 0.72) * 4.6;
     brightness[index] = isMicroFrost ? 0.48 + Math.random() * 0.3 : 0.58 + Math.random() * 0.34;
     turbulence[index] = 0.52 + Math.random() * 1.05;
     seeds[index] = Math.random();
@@ -1913,17 +1852,11 @@ function createExitDustGeometry(count: number) {
     const broadLobe = Math.sin(angle * 3 + 0.42) * 0.92;
     const fineLobe = Math.sin(angle * 7 - 1.15) * 0.34;
     const shellChoice = Math.random();
-    const shellOffset = shellChoice < 0.68
-      ? (Math.random() - 0.5) * 1.1
-      : shellChoice < 0.9
-        ? 0.8 + Math.random() * 1.6
-        : -1.5 + Math.random() * 0.9;
+    const shellOffset = shellChoice < 0.68 ? (Math.random() - 0.5) * 1.1 : shellChoice < 0.9 ? 0.8 + Math.random() * 1.6 : -1.5 + Math.random() * 0.9;
     const ringRadius = 5.9 + broadLobe + fineLobe + shellOffset;
     const originX = Math.cos(angle) * ringRadius;
     const originY = Math.sin(angle) * ringRadius * 0.72 - 0.16;
-    const originZ = 1.15
-      + Math.pow(Math.random(), 1.3) * 7.4
-      + (0.5 + 0.5 * Math.sin(angle * 2 - 0.7)) * 0.8;
+    const originZ = 1.15 + Math.pow(Math.random(), 1.3) * 7.4 + (0.5 + 0.5 * Math.sin(angle * 2 - 0.7)) * 0.8;
     const tangentX = -Math.sin(angle);
     const tangentY = Math.cos(angle) * 0.72;
     const radialX = Math.cos(angle);
@@ -1974,11 +1907,7 @@ function createExitDustGeometry(count: number) {
   return geometry;
 }
 
-function createDeepSpaceWorld(
-  isMobile: boolean,
-  balancedQuality: boolean,
-  softwareRendering: boolean,
-) {
+function createDeepSpaceWorld(isMobile: boolean, balancedQuality: boolean, softwareRendering: boolean) {
   const group = new THREE.Group();
   const fleet = new THREE.Group();
   const planetRadius = isMobile ? 16 : 18;
@@ -2039,9 +1968,7 @@ function createDeepSpaceWorld(
     const depth = 180 + Math.pow(Math.random(), 0.52) * 150;
     const wrapsScene = index >= frontStarCount;
     const clusterRoll = Math.random();
-    const clusterIndex = !wrapsScene && clusterRoll < 0.17
-      ? Math.floor(Math.random() * starClusterCenters.length)
-      : -1;
+    const clusterIndex = !wrapsScene && clusterRoll < 0.17 ? Math.floor(Math.random() * starClusterCenters.length) : -1;
     let screenX: number;
     let screenY: number;
     let sitsInStellarBand = false;
@@ -2052,10 +1979,7 @@ function createDeepSpaceWorld(
       // coverage without introducing another draw call.
       const azimuth = Math.random() * Math.PI * 2;
       sitsInStellarBand = Math.random() < 0.42;
-      const elevation = sitsInStellarBand
-        ? Math.sin(azimuth * 2.35 + 0.8) * 0.075
-          + (Math.random() - 0.5) * (0.12 + Math.pow(Math.random(), 2.1) * 0.34)
-        : Math.asin(Math.random() * 2 - 1);
+      const elevation = sitsInStellarBand ? Math.sin(azimuth * 2.35 + 0.8) * 0.075 + (Math.random() - 0.5) * (0.12 + Math.pow(Math.random(), 2.1) * 0.34) : Math.asin(Math.random() * 2 - 1);
       const latitudeRadius = Math.cos(elevation);
       starPositions[positionOffset] = Math.sin(azimuth) * latitudeRadius * depth;
       starPositions[positionOffset + 1] = Math.sin(elevation) * depth;
@@ -2076,9 +2000,7 @@ function createDeepSpaceWorld(
       sitsInStellarBand = Math.random() < 0.43;
       screenX = (Math.random() - 0.5) * 2.42;
       const bandCenter = 0.16 - screenX * 0.23 + Math.sin(screenX * 3.2) * 0.045;
-      screenY = sitsInStellarBand
-        ? bandCenter + (Math.random() - 0.5) * (0.1 + Math.pow(Math.random(), 2.25) * 0.29)
-        : (Math.random() - 0.5) * 1.56;
+      screenY = sitsInStellarBand ? bandCenter + (Math.random() - 0.5) * (0.1 + Math.pow(Math.random(), 2.25) * 0.29) : (Math.random() - 0.5) * 1.56;
     }
     if (!wrapsScene) {
       starPositions[positionOffset] = screenX * depth;
@@ -2102,23 +2024,13 @@ function createDeepSpaceWorld(
     const projectedPlanetX = planetPosition.x / -planetPosition.z;
     const projectedPlanetY = planetPosition.y / -planetPosition.z;
     const projectedPlanetRadius = planetRadius / -planetPosition.z;
-    const distanceFromPlanet = Math.hypot(
-      screenX - projectedPlanetX,
-      screenY - projectedPlanetY,
-    );
+    const distanceFromPlanet = Math.hypot(screenX - projectedPlanetX, screenY - projectedPlanetY);
     const clearsPlanetaryNeighborhood = distanceFromPlanet > projectedPlanetRadius * 1.85;
-    const heroStar = clearsPlanetaryNeighborhood
-      && Math.random() < (wrapsScene ? 0.005 : 0.014);
+    const heroStar = clearsPlanetaryNeighborhood && Math.random() < (wrapsScene ? 0.005 : 0.014);
     const midStar = !heroStar && Math.random() < 0.105;
-    starSizes[index] = heroStar
-      ? 2.8 + Math.random() * 2.2
-      : midStar
-        ? 1.45 + Math.random() * 1.35
-        : 0.6 + Math.pow(Math.random(), 1.95) * 0.8;
+    starSizes[index] = heroStar ? 2.8 + Math.random() * 2.2 : midStar ? 1.45 + Math.random() * 1.35 : 0.6 + Math.pow(Math.random(), 1.95) * 0.8;
     const densityBoost = clusterIndex >= 0 ? 1.12 : sitsInStellarBand ? 1.05 : 1.1;
-    starIntensities[index] = heroStar
-      ? 0.82 + Math.random() * 0.18
-      : (0.36 + Math.pow(Math.random(), 0.78) * 0.48) * densityBoost;
+    starIntensities[index] = heroStar ? 0.82 + Math.random() * 0.18 : (0.36 + Math.pow(Math.random(), 0.78) * 0.48) * densityBoost;
     starPhases[index] = Math.random();
     starGlints[index] = heroStar ? 0.58 + Math.random() * 0.42 : 0;
   }
@@ -2133,16 +2045,18 @@ function createDeepSpaceWorld(
     uTime: { value: 0 },
     uOpacity: { value: 0 },
   };
-  const starMaterial = trackMaterial(new THREE.ShaderMaterial({
-    uniforms: starUniforms,
-    vertexShader: environmentStarVertexShader,
-    fragmentShader: environmentStarFragmentShader,
-    vertexColors: true,
-    transparent: true,
-    depthWrite: false,
-    blending: THREE.AdditiveBlending,
-    toneMapped: false,
-  }));
+  const starMaterial = trackMaterial(
+    new THREE.ShaderMaterial({
+      uniforms: starUniforms,
+      vertexShader: environmentStarVertexShader,
+      fragmentShader: environmentStarFragmentShader,
+      vertexColors: true,
+      transparent: true,
+      depthWrite: false,
+      blending: THREE.AdditiveBlending,
+      toneMapped: false,
+    }),
+  );
   const deepStars = new THREE.Points(starGeometry, starMaterial);
   deepStars.frustumCulled = false;
   deepStars.renderOrder = -12;
@@ -2159,8 +2073,7 @@ function createDeepSpaceWorld(
     const depth = 175 + Math.random() * 145;
     const bandX = (Math.random() - 0.5) * 2.28;
     const clusterWave = Math.sin(bandX * 2.7 + 0.8) * 0.055;
-    const bandY = 0.16 - bandX * 0.23 + clusterWave
-      + (Math.random() - 0.5) * (0.12 + Math.pow(Math.random(), 1.7) * 0.24);
+    const bandY = 0.16 - bandX * 0.23 + clusterWave + (Math.random() - 0.5) * (0.12 + Math.pow(Math.random(), 1.7) * 0.24);
     const positionOffset = index * 3;
     veilPositions[positionOffset] = bandX * depth;
     veilPositions[positionOffset + 1] = bandY * depth;
@@ -2188,16 +2101,18 @@ function createDeepSpaceWorld(
     uTime: { value: 0 },
     uOpacity: { value: 0 },
   };
-  const veilMaterial = trackMaterial(new THREE.ShaderMaterial({
-    uniforms: veilUniforms,
-    vertexShader: stellarVeilVertexShader,
-    fragmentShader: stellarVeilFragmentShader,
-    vertexColors: true,
-    transparent: true,
-    depthWrite: false,
-    blending: THREE.AdditiveBlending,
-    toneMapped: false,
-  }));
+  const veilMaterial = trackMaterial(
+    new THREE.ShaderMaterial({
+      uniforms: veilUniforms,
+      vertexShader: stellarVeilVertexShader,
+      fragmentShader: stellarVeilFragmentShader,
+      vertexColors: true,
+      transparent: true,
+      depthWrite: false,
+      blending: THREE.AdditiveBlending,
+      toneMapped: false,
+    }),
+  );
   const stellarVeil = new THREE.Points(veilGeometry, veilMaterial);
   stellarVeil.frustumCulled = false;
   stellarVeil.renderOrder = -13;
@@ -2227,25 +2142,23 @@ function createDeepSpaceWorld(
   stormHeightTexture.minFilter = THREE.LinearMipmapLinearFilter;
   stormHeightTexture.magFilter = THREE.LinearFilter;
   textures.push(stormHeightTexture);
-  const planetMaterial = trackMaterial(new THREE.MeshPhysicalMaterial({
-    color: 0x7895a0,
-    map: oceanTexture,
-    bumpMap: oceanTexture,
-    bumpScale: 0.055,
-    roughnessMap: oceanTexture,
-    emissive: 0x062936,
-    emissiveMap: oceanTexture,
-    emissiveIntensity: 0.08,
-    roughness: 0.24,
-    metalness: 0.02,
-    clearcoat: 0.72,
-    clearcoatRoughness: 0.12,
-  }));
-  const planetGeometry = trackGeometry(new THREE.SphereGeometry(
-    planetRadius,
-    isMobile ? 64 : softwareRendering ? 80 : balancedQuality ? 112 : 192,
-    isMobile ? 40 : softwareRendering ? 48 : balancedQuality ? 72 : 128,
-  ));
+  const planetMaterial = trackMaterial(
+    new THREE.MeshPhysicalMaterial({
+      color: 0x7895a0,
+      map: oceanTexture,
+      bumpMap: oceanTexture,
+      bumpScale: 0.055,
+      roughnessMap: oceanTexture,
+      emissive: 0x062936,
+      emissiveMap: oceanTexture,
+      emissiveIntensity: 0.08,
+      roughness: 0.24,
+      metalness: 0.02,
+      clearcoat: 0.72,
+      clearcoatRoughness: 0.12,
+    }),
+  );
+  const planetGeometry = trackGeometry(new THREE.SphereGeometry(planetRadius, isMobile ? 64 : softwareRendering ? 80 : balancedQuality ? 112 : 192, isMobile ? 40 : softwareRendering ? 48 : balancedQuality ? 72 : 128));
   const planet = new THREE.Mesh(planetGeometry, planetMaterial);
   planet.position.copy(planetPosition);
   // Present the eye of the primary continent-scale cyclone toward camera.
@@ -2254,13 +2167,7 @@ function createDeepSpaceWorld(
   group.add(planet);
 
   const sceneSunDirection = new THREE.Vector3(-14, 18, 9).normalize();
-  const createStormLayer = (
-    layer: number,
-    driftX: number,
-    steps: number,
-    relief: number,
-    shadowPass = 0,
-  ) => {
+  const createStormLayer = (layer: number, driftX: number, steps: number, relief: number, shadowPass = 0) => {
     const uniforms = {
       uMap: { value: stormTexture },
       uHeightMap: { value: stormHeightTexture },
@@ -2270,28 +2177,26 @@ function createDeepSpaceWorld(
       uSteps: { value: steps },
       uRelief: { value: relief },
       uShadowPass: { value: shadowPass },
-      uDrift: { value: new THREE.Vector2(driftX, layer > 0.5 ? 0.00016 : 0.0001) },
+      uDrift: {
+        value: new THREE.Vector2(driftX, layer > 0.5 ? 0.00016 : 0.0001),
+      },
       uSunDirection: { value: sceneSunDirection },
     };
-    const material = trackMaterial(new THREE.ShaderMaterial({
-      uniforms,
-      vertexShader: stormCloudVertexShader,
-      fragmentShader: stormCloudFragmentShader,
-      transparent: true,
-      depthWrite: false,
-      blending: THREE.NormalBlending,
-      toneMapped: false,
-    }));
+    const material = trackMaterial(
+      new THREE.ShaderMaterial({
+        uniforms,
+        vertexShader: stormCloudVertexShader,
+        fragmentShader: stormCloudFragmentShader,
+        transparent: true,
+        depthWrite: false,
+        blending: THREE.NormalBlending,
+        toneMapped: false,
+      }),
+    );
     return { uniforms, material };
   };
 
-  const stormShadowLayer = createStormLayer(
-    0,
-    0.00006,
-    isMobile || softwareRendering ? 1 : balancedQuality ? 3 : 4,
-    0,
-    1,
-  );
+  const stormShadowLayer = createStormLayer(0, 0.00006, isMobile || softwareRendering ? 1 : balancedQuality ? 3 : 4, 0, 1);
   const stormShadows = new THREE.Mesh(planetGeometry, stormShadowLayer.material);
   stormShadows.position.copy(planet.position);
   stormShadows.rotation.copy(planet.rotation);
@@ -2299,12 +2204,7 @@ function createDeepSpaceWorld(
   stormShadows.renderOrder = 1;
   group.add(stormShadows);
 
-  const lowerStormLayer = createStormLayer(
-    0,
-    0.00006,
-    isMobile || softwareRendering ? 2 : balancedQuality ? 4 : 6,
-    isMobile ? 0.14 : 0.22,
-  );
+  const lowerStormLayer = createStormLayer(0, 0.00006, isMobile || softwareRendering ? 2 : balancedQuality ? 4 : 6, isMobile ? 0.14 : 0.22);
   const lowerStormClouds = new THREE.Mesh(planetGeometry, lowerStormLayer.material);
   lowerStormClouds.position.copy(planet.position);
   lowerStormClouds.rotation.copy(planet.rotation);
@@ -2312,12 +2212,7 @@ function createDeepSpaceWorld(
   lowerStormClouds.renderOrder = 2;
   group.add(lowerStormClouds);
 
-  const anvilStormLayer = createStormLayer(
-    0.56,
-    0.000025,
-    isMobile || softwareRendering ? 2 : balancedQuality ? 4 : 5,
-    isMobile ? 0.24 : 0.36,
-  );
+  const anvilStormLayer = createStormLayer(0.56, 0.000025, isMobile || softwareRendering ? 2 : balancedQuality ? 4 : 5, isMobile ? 0.24 : 0.36);
   const anvilStormClouds = new THREE.Mesh(planetGeometry, anvilStormLayer.material);
   anvilStormClouds.position.copy(planet.position);
   anvilStormClouds.rotation.copy(planet.rotation);
@@ -2325,12 +2220,7 @@ function createDeepSpaceWorld(
   anvilStormClouds.renderOrder = 3;
   group.add(anvilStormClouds);
 
-  const upperStormLayer = createStormLayer(
-    1,
-    -0.000015,
-    isMobile || softwareRendering ? 1 : balancedQuality ? 3 : 4,
-    isMobile ? 0.34 : 0.52,
-  );
+  const upperStormLayer = createStormLayer(1, -0.000015, isMobile || softwareRendering ? 1 : balancedQuality ? 3 : 4, isMobile ? 0.34 : 0.52);
   const upperStormClouds = new THREE.Mesh(planetGeometry, upperStormLayer.material);
   upperStormClouds.position.copy(planet.position);
   upperStormClouds.rotation.copy(planet.rotation);
@@ -2344,16 +2234,18 @@ function createDeepSpaceWorld(
       uInnerLayer: { value: innerLayer },
       uSunDirection: { value: sceneSunDirection },
     };
-    const material = trackMaterial(new THREE.ShaderMaterial({
-      uniforms,
-      vertexShader: atmosphereVertexShader,
-      fragmentShader: atmosphereFragmentShader,
-      side,
-      transparent: true,
-      depthWrite: false,
-      blending: additive ? THREE.AdditiveBlending : THREE.NormalBlending,
-      toneMapped: false,
-    }));
+    const material = trackMaterial(
+      new THREE.ShaderMaterial({
+        uniforms,
+        vertexShader: atmosphereVertexShader,
+        fragmentShader: atmosphereFragmentShader,
+        side,
+        transparent: true,
+        depthWrite: false,
+        blending: additive ? THREE.AdditiveBlending : THREE.NormalBlending,
+        toneMapped: false,
+      }),
+    );
     return { uniforms, material };
   };
 
@@ -2377,21 +2269,27 @@ function createDeepSpaceWorld(
   const engineGeometry = trackGeometry(new THREE.CircleGeometry(1, 24));
   const antennaGeometry = trackGeometry(new THREE.CylinderGeometry(0.035, 0.035, 1, 6));
 
-  const hullMaterial = trackMaterial(new THREE.MeshStandardMaterial({
-    color: 0x46535b,
-    metalness: 0.88,
-    roughness: 0.2,
-  }));
-  const armorMaterial = trackMaterial(new THREE.MeshStandardMaterial({
-    color: 0x151b20,
-    metalness: 0.8,
-    roughness: 0.34,
-  }));
-  const engineMaterial = trackMaterial(new THREE.MeshBasicMaterial({
-    color: 0x71e5f0,
-    blending: THREE.AdditiveBlending,
-    depthWrite: false,
-  }));
+  const hullMaterial = trackMaterial(
+    new THREE.MeshStandardMaterial({
+      color: 0x46535b,
+      metalness: 0.88,
+      roughness: 0.2,
+    }),
+  );
+  const armorMaterial = trackMaterial(
+    new THREE.MeshStandardMaterial({
+      color: 0x151b20,
+      metalness: 0.8,
+      roughness: 0.34,
+    }),
+  );
+  const engineMaterial = trackMaterial(
+    new THREE.MeshBasicMaterial({
+      color: 0x71e5f0,
+      blending: THREE.AdditiveBlending,
+      depthWrite: false,
+    }),
+  );
 
   const createShip = (scale: number, position: THREE.Vector3, rotationY: number) => {
     const ship = new THREE.Group();
@@ -2471,34 +2369,34 @@ function createDeepSpaceWorld(
     new GLTFLoader().load(
       `${BASE_PATH}/models/Carrier.glb`,
       (gltf) => {
-      if (assetLoadCancelled) {
-        disposeLoadedScene(gltf.scene);
-        resolve();
-        return;
-      }
+        if (assetLoadCancelled) {
+          disposeLoadedScene(gltf.scene);
+          resolve();
+          return;
+        }
 
-      const sourceMaterials = new Set<THREE.Material>();
-      gltf.scene.traverse((object) => {
-        if (!(object instanceof THREE.Mesh)) return;
-        const sourceGeometry = object.geometry;
-        const gameGeometry = trackGeometry(sourceGeometry.clone());
-        gameGeometry.computeVertexNormals();
-        object.geometry = gameGeometry;
-        sourceGeometry.dispose();
-        const meshMaterials = Array.isArray(object.material) ? object.material : [object.material];
-        for (const meshMaterial of meshMaterials) sourceMaterials.add(meshMaterial);
-        object.material = hullMaterial;
-      });
-      for (const sourceMaterial of sourceMaterials) sourceMaterial.dispose();
+        const sourceMaterials = new Set<THREE.Material>();
+        gltf.scene.traverse((object) => {
+          if (!(object instanceof THREE.Mesh)) return;
+          const sourceGeometry = object.geometry;
+          const gameGeometry = trackGeometry(sourceGeometry.clone());
+          gameGeometry.computeVertexNormals();
+          object.geometry = gameGeometry;
+          sourceGeometry.dispose();
+          const meshMaterials = Array.isArray(object.material) ? object.material : [object.material];
+          for (const meshMaterial of meshMaterials) sourceMaterials.add(meshMaterial);
+          object.material = hullMaterial;
+        });
+        for (const sourceMaterial of sourceMaterials) sourceMaterial.dispose();
 
-      const bounds = new THREE.Box3().setFromObject(gltf.scene);
-      const size = bounds.getSize(new THREE.Vector3());
-      const center = bounds.getCenter(new THREE.Vector3());
-      const scale = 10.8 / Math.max(size.x, size.y, size.z, 0.001);
-      gltf.scene.scale.setScalar(scale);
-      gltf.scene.position.copy(center).multiplyScalar(-scale);
-      flagship.clear();
-      flagship.add(gltf.scene);
+        const bounds = new THREE.Box3().setFromObject(gltf.scene);
+        const size = bounds.getSize(new THREE.Vector3());
+        const center = bounds.getCenter(new THREE.Vector3());
+        const scale = 10.8 / Math.max(size.x, size.y, size.z, 0.001);
+        gltf.scene.scale.setScalar(scale);
+        gltf.scene.position.copy(center).multiplyScalar(-scale);
+        flagship.clear();
+        flagship.add(gltf.scene);
         resolve();
       },
       undefined,
@@ -2511,11 +2409,13 @@ function createDeepSpaceWorld(
   criticalAssetLoads.push(carrierLoad);
 
   const ringGeometry = trackGeometry(new THREE.TorusGeometry(planetRadius * 1.13, 0.022, 4, 128));
-  const ringMaterial = trackMaterial(new THREE.MeshBasicMaterial({
-    color: 0x44cad1,
-    blending: THREE.AdditiveBlending,
-    depthWrite: false,
-  }));
+  const ringMaterial = trackMaterial(
+    new THREE.MeshBasicMaterial({
+      color: 0x44cad1,
+      blending: THREE.AdditiveBlending,
+      depthWrite: false,
+    }),
+  );
   const orbitalRing = new THREE.Mesh(ringGeometry, ringMaterial);
   orbitalRing.position.copy(planet.position);
   orbitalRing.rotation.set(0, 0, 0.12);
@@ -2572,7 +2472,22 @@ function createDeepSpaceWorld(
 
   const ready = Promise.all(criticalAssetLoads).then(() => undefined);
 
-  return { group, fleet, flagship, planet, orbitalRing, rimLight, interfaceAnchor, geometries, materials, textures, ready, setOpacity, update, cancelAssetLoad };
+  return {
+    group,
+    fleet,
+    flagship,
+    planet,
+    orbitalRing,
+    rimLight,
+    interfaceAnchor,
+    geometries,
+    materials,
+    textures,
+    ready,
+    setOpacity,
+    update,
+    cancelAssetLoad,
+  };
 }
 
 export function HyperspaceIntro() {
@@ -2663,7 +2578,9 @@ export function HyperspaceIntro() {
     button?.addEventListener("click", toggleAudio);
     if ((hasSeenJump || reducedMotion) && !storedMuted) {
       void audio.startMusic();
-      window.addEventListener("pointerdown", startScoreOnGesture, { once: true });
+      window.addEventListener("pointerdown", startScoreOnGesture, {
+        once: true,
+      });
       window.addEventListener("keydown", startScoreOnGesture, { once: true });
     }
     return () => {
@@ -2699,9 +2616,7 @@ export function HyperspaceIntro() {
     skipJumpRef.current = !shouldJump;
     document.documentElement.classList.remove("experience-arriving");
     document.documentElement.classList.toggle("experience-landed", !shouldJump);
-    const settleTimer = !shouldJump
-      ? window.setTimeout(() => setJumping(false), 0)
-      : null;
+    const settleTimer = !shouldJump ? window.setTimeout(() => setJumping(false), 0) : null;
 
     const canvas = canvasRef.current;
     if (!canvas) return;
@@ -2721,32 +2636,13 @@ export function HyperspaceIntro() {
       failIfMajorPerformanceCaveat: true,
       powerPreference: "high-performance",
     };
-    const probeContext = probeCanvas.getContext("webgl2", probeAttributes)
-      ?? probeCanvas.getContext("webgl", probeAttributes);
+    const probeContext = probeCanvas.getContext("webgl2", probeAttributes) ?? probeCanvas.getContext("webgl", probeAttributes);
     const probeDebugInfo = probeContext?.getExtension("WEBGL_debug_renderer_info");
-    const probeRenderer = probeContext && probeDebugInfo
-      ? String(probeContext.getParameter(probeDebugInfo.UNMASKED_RENDERER_WEBGL))
-      : "";
-    const softwareRendering = !captureMode && (
-      qualityPreference === "software"
-      || probeContext === null
-      || /swiftshader|llvmpipe|softpipe|software raster|microsoft basic render/i.test(probeRenderer)
-    );
+    const probeRenderer = probeContext && probeDebugInfo ? String(probeContext.getParameter(probeDebugInfo.UNMASKED_RENDERER_WEBGL)) : "";
+    const softwareRendering = !captureMode && (qualityPreference === "software" || probeContext === null || /swiftshader|llvmpipe|softpipe|software raster|microsoft basic render/i.test(probeRenderer));
     probeContext?.getExtension("WEBGL_lose_context")?.loseContext();
 
-    const balancedQuality = !captureMode && (
-      qualityPreference === "balanced"
-        || (
-          qualityPreference !== "cinematic"
-            && (
-              softwareRendering
-                || isMobile
-                || viewportPixels > 3_000_000
-                || deviceMemory <= 4
-                || hardwareThreads <= 6
-            )
-        )
-    );
+    const balancedQuality = !captureMode && (qualityPreference === "balanced" || (qualityPreference !== "cinematic" && (softwareRendering || isMobile || viewportPixels > 3_000_000 || deviceMemory <= 4 || hardwareThreads <= 6)));
 
     let renderer: THREE.WebGLRenderer;
     try {
@@ -2799,9 +2695,7 @@ export function HyperspaceIntro() {
       uPressurePhase: { value: 0 },
       uResolution: { value: new THREE.Vector2(1, 1) },
     };
-    const geometry = createTunnelGeometry(
-      isMobile ? 1350 : softwareRendering ? 1500 : balancedQuality ? 1750 : 2300,
-    );
+    const geometry = createTunnelGeometry(isMobile ? 1350 : softwareRendering ? 1500 : balancedQuality ? 1750 : 2300);
     const material = new THREE.ShaderMaterial({
       uniforms,
       vertexShader,
@@ -2833,9 +2727,7 @@ export function HyperspaceIntro() {
       uPressurePulse: { value: 0 },
       uPressurePhase: { value: 0 },
     };
-    const tunnelDustGeometry = createTunnelDustGeometry(
-      isMobile ? 1150 : softwareRendering ? 1700 : balancedQuality ? 2100 : 3000,
-    );
+    const tunnelDustGeometry = createTunnelDustGeometry(isMobile ? 1150 : softwareRendering ? 1700 : balancedQuality ? 2100 : 3000);
     const tunnelDustMaterial = new THREE.ShaderMaterial({
       uniforms: tunnelDustUniforms,
       vertexShader: tunnelDustVertexShader,
@@ -2862,9 +2754,7 @@ export function HyperspaceIntro() {
       uCruise: { value: 0 },
       uImpact: { value: 0 },
     };
-    const warpBubbleGeometry = createWarpBubbleGeometry(
-      isMobile || softwareRendering || balancedQuality,
-    );
+    const warpBubbleGeometry = createWarpBubbleGeometry(isMobile || softwareRendering || balancedQuality);
     const warpBubbleMaterial = new THREE.ShaderMaterial({
       uniforms: warpBubbleUniforms,
       vertexShader: warpBubbleVertexShader,
@@ -2889,9 +2779,7 @@ export function HyperspaceIntro() {
       uOpacity: { value: 0 },
       uResolution: { value: new THREE.Vector2(1, 1) },
     };
-    const exitWakeGeometry = createExitWakeGeometry(
-      isMobile ? 96 : softwareRendering ? 112 : balancedQuality ? 128 : 192,
-    );
+    const exitWakeGeometry = createExitWakeGeometry(isMobile ? 96 : softwareRendering ? 112 : balancedQuality ? 128 : 192);
     const exitWakeMaterial = new THREE.ShaderMaterial({
       uniforms: exitWakeUniforms,
       vertexShader: exitWakeVertexShader,
@@ -2917,9 +2805,7 @@ export function HyperspaceIntro() {
       uTime: { value: 0 },
       uOpacity: { value: 0 },
     };
-    const exitCrystalGeometry = createExitCrystalGeometry(
-      isMobile ? 900 : softwareRendering ? 1050 : balancedQuality ? 1250 : 1900,
-    );
+    const exitCrystalGeometry = createExitCrystalGeometry(isMobile ? 900 : softwareRendering ? 1050 : balancedQuality ? 1250 : 1900);
     const exitCrystalMaterial = new THREE.ShaderMaterial({
       uniforms: exitCrystalUniforms,
       vertexShader: exitCrystalVertexShader,
@@ -2942,9 +2828,7 @@ export function HyperspaceIntro() {
       uTime: { value: 0 },
       uOpacity: { value: 0 },
     };
-    const exitDustGeometry = createExitDustGeometry(
-      isMobile ? 12200 : softwareRendering ? 16000 : balancedQuality ? 22000 : 34000,
-    );
+    const exitDustGeometry = createExitDustGeometry(isMobile ? 12200 : softwareRendering ? 16000 : balancedQuality ? 22000 : 34000);
     const exitDustMaterial = new THREE.ShaderMaterial({
       uniforms: exitDustUniforms,
       vertexShader: exitDustVertexShader,
@@ -3010,9 +2894,7 @@ export function HyperspaceIntro() {
         projectedAnchor.add(anchor.offset).project(camera);
         const offscreen = projectedAnchor.z > 1 || Math.abs(projectedAnchor.x) > 1.2 || Math.abs(projectedAnchor.y) > 1.2;
         const rawAnchorX = projectedAnchor.x * 0.5 + 0.5;
-        const anchorX = anchor.element.dataset.worldAnchor === "flagship"
-          ? THREE.MathUtils.clamp(rawAnchorX, isMobile ? 0.34 : 0.18, 0.92)
-          : THREE.MathUtils.clamp(rawAnchorX, 0.08, isMobile ? 0.66 : 0.78);
+        const anchorX = anchor.element.dataset.worldAnchor === "flagship" ? THREE.MathUtils.clamp(rawAnchorX, isMobile ? 0.34 : 0.18, 0.92) : THREE.MathUtils.clamp(rawAnchorX, 0.08, isMobile ? 0.66 : 0.78);
         anchor.element.toggleAttribute("data-offscreen", offscreen);
         anchor.element.style.setProperty("--anchor-x", `${anchorX * 100}%`);
         anchor.element.style.setProperty("--anchor-y", `${(-projectedAnchor.y * 0.5 + 0.5) * 100}%`);
@@ -3049,11 +2931,7 @@ export function HyperspaceIntro() {
       // Interactive playback stays at the display's native backing resolution;
       // performance tiers reduce scene workload and cadence instead.
       const pixelRatio = captureMode ? 2 : window.devicePixelRatio || 1;
-      if (
-        width === renderWidth
-        && height === renderHeight
-        && pixelRatio === renderPixelRatio
-      ) return;
+      if (width === renderWidth && height === renderHeight && pixelRatio === renderPixelRatio) return;
       renderWidth = width;
       renderHeight = height;
       renderPixelRatio = pixelRatio;
@@ -3082,6 +2960,7 @@ export function HyperspaceIntro() {
     let jumpComplete = !shouldJump;
     let finishQueued = !shouldJump;
     let landingStartTime: number | null = null;
+    let interfaceRevealStarted = !shouldJump;
     const cameraTarget = new THREE.Vector3(0, 0, -100);
     const desiredTarget = new THREE.Vector3();
     const desiredCamera = new THREE.Vector3();
@@ -3091,12 +2970,7 @@ export function HyperspaceIntro() {
       // A locked 30 fps cadence is substantially smoother than irregularly
       // missing 60 fps under a software rasterizer. Animation remains based on
       // elapsed time, so audio and the cinematic timeline stay synchronized.
-      if (
-        softwareRendering
-        && qualityPreference !== "cinematic"
-        && lastSoftwareFrame > 0
-        && time - lastSoftwareFrame < 1000 / 30
-      ) {
+      if (softwareRendering && qualityPreference !== "cinematic" && lastSoftwareFrame > 0 && time - lastSoftwareFrame < 1000 / 30) {
         return;
       }
       lastSoftwareFrame = time;
@@ -3111,17 +2985,26 @@ export function HyperspaceIntro() {
       const delta = Math.min((time - previousTime) / 1000, 0.05);
       previousTime = time;
       if (worldAssetsReady) worldAssetFade = Math.min(1, worldAssetFade + delta * 2.8);
+      let currentInterfaceArrival = jumpComplete ? 1 : 0;
 
       if (!jumpComplete) {
         const progress = skipJumpRef.current ? 1 : clamp01(elapsed / DURATION);
+        // The destination interface now enters during the final braking veil,
+        // not after the cinematic state flips. Camera, FOV, dust, and DOM UI
+        // therefore resolve on one shared handoff curve.
+        const handoffBlend = smoothstep((progress - 0.94) / 0.06);
+        currentInterfaceArrival = handoffBlend;
+        world.interfaceAnchor.position.lerpVectors(interfaceFar, interfaceNear, handoffBlend);
+        if (!interfaceRevealStarted && progress >= 0.948) {
+          interfaceRevealStarted = true;
+          document.documentElement.classList.add("experience-arriving");
+        }
         // Keep the light wall charging while acceleration begins so the short
         // traces stretch into hyperspace as one uninterrupted motion.
         // A nearly linear five-second charge leaves visible growth available
         // all the way to ignition. The old smoothstep + power stack reached
         // most of its apparent size too early and made the final second hold.
-        const sequencePressure = clamp01(
-          (progress - 0.018) / (LAUNCH_PROGRESS - 0.018),
-        );
+        const sequencePressure = clamp01((progress - 0.018) / (LAUNCH_PROGRESS - 0.018));
         const charge = sequencePressure;
         const launchProgress = clamp01((progress - LAUNCH_PROGRESS) / 0.0065);
         const launch = 1 - Math.pow(1 - launchProgress, 6);
@@ -3132,51 +3015,23 @@ export function HyperspaceIntro() {
         const warpReleaseAttack = smoothstep((progress - LAUNCH_PROGRESS) / 0.014);
         const warpReleaseFade = 1 - smoothstep((progress - (LAUNCH_PROGRESS + 0.295)) / 0.16);
         const warpRelease = warpReleaseAttack * warpReleaseFade;
-        const launchImpulse = smoothstep((progress - (LAUNCH_PROGRESS - 0.002)) / 0.005)
-          * (1 - smoothstep((progress - (LAUNCH_PROGRESS + 0.025)) / 0.018));
-        const launchSnap = smoothstep(
-          (progress - (LAUNCH_PROGRESS + 0.001)) / 0.0035,
-        ) * (1 - smoothstep(
-          (progress - (LAUNCH_PROGRESS + 0.018)) / 0.014,
-        ));
+        const launchImpulse = smoothstep((progress - (LAUNCH_PROGRESS - 0.002)) / 0.005) * (1 - smoothstep((progress - (LAUNCH_PROGRESS + 0.025)) / 0.018));
+        const launchSnap = smoothstep((progress - (LAUNCH_PROGRESS + 0.001)) / 0.0035) * (1 - smoothstep((progress - (LAUNCH_PROGRESS + 0.018)) / 0.014));
         // Recoil lands first, then the lens rapidly collapses toward the mouth
         // of the tunnel. This stagger is what makes the launch feel as though
         // the ship is being grabbed and pulled forward instead of merely cut
         // to a wider field of view.
-        const crashZoom = smoothstep(
-          (progress - (LAUNCH_PROGRESS + 0.002)) / 0.0065,
-        ) * (1 - smoothstep(
-          (progress - (LAUNCH_PROGRESS + 0.024)) / 0.018,
-        ));
-        const launchRumble = smoothstep(
-          (progress - (LAUNCH_PROGRESS - 0.004)) / 0.008,
-        ) * (1 - smoothstep(
-          (progress - (LAUNCH_PROGRESS + 0.078)) / 0.052,
-        ));
-        const secondaryKick = smoothstep(
-          (progress - (LAUNCH_PROGRESS + 0.018)) / 0.009,
-        ) * (1 - smoothstep(
-          (progress - (LAUNCH_PROGRESS + 0.07)) / 0.035,
-        ));
+        const crashZoom = smoothstep((progress - (LAUNCH_PROGRESS + 0.002)) / 0.0065) * (1 - smoothstep((progress - (LAUNCH_PROGRESS + 0.024)) / 0.018));
+        const launchRumble = smoothstep((progress - (LAUNCH_PROGRESS - 0.004)) / 0.008) * (1 - smoothstep((progress - (LAUNCH_PROGRESS + 0.078)) / 0.052));
+        const secondaryKick = smoothstep((progress - (LAUNCH_PROGRESS + 0.018)) / 0.009) * (1 - smoothstep((progress - (LAUNCH_PROGRESS + 0.07)) / 0.035));
         // First-person translation of the familiar third-person ship stretch:
         // the field becomes one narrow quantum streak from the 5.54s body hit
         // through the 5.88s sub impact, then releases into full tunnel speed.
-        const streakStretch = smoothstep(
-          (progress - (LAUNCH_PROGRESS - 0.014)) / 0.012,
-        ) * (1 - smoothstep(
-          (progress - (LAUNCH_PROGRESS + 0.012)) / 0.012,
-        ));
-        const bowCharge = smoothstep((sequencePressure - 0.68) / 0.32)
-          * (1 - launch);
-        const bowRelease = smoothstep(
-          (progress - (LAUNCH_PROGRESS - 0.002)) / 0.004,
-        ) * (1 - smoothstep(
-          (progress - (LAUNCH_PROGRESS + 0.06)) / 0.045,
-        ));
+        const streakStretch = smoothstep((progress - (LAUNCH_PROGRESS - 0.014)) / 0.012) * (1 - smoothstep((progress - (LAUNCH_PROGRESS + 0.012)) / 0.012));
+        const bowCharge = smoothstep((sequencePressure - 0.68) / 0.32) * (1 - launch);
+        const bowRelease = smoothstep((progress - (LAUNCH_PROGRESS - 0.002)) / 0.004) * (1 - smoothstep((progress - (LAUNCH_PROGRESS + 0.06)) / 0.045));
         const bowWave = Math.max(bowCharge * 0.34, bowRelease);
-        const bowPhase = clamp01(
-          (progress - (LAUNCH_PROGRESS - 0.006)) / 0.067,
-        );
+        const bowPhase = clamp01((progress - (LAUNCH_PROGRESS - 0.006)) / 0.067);
         const warpPhase = clamp01((progress - LAUNCH_PROGRESS) / 0.21);
         const braking = smoothstep((progress - 0.84) / 0.055);
         const exitArrival = smoothstep((progress - 0.89) / 0.11);
@@ -3190,59 +3045,26 @@ export function HyperspaceIntro() {
           pressurePulse = localPulse;
           pressurePhase = localPhase;
         }
-        const fieldSwayX = Math.sin(elapsed * 0.00108)
-          + Math.sin(elapsed * 0.00047 + 1.8) * 0.42;
-        const fieldSwayY = Math.cos(elapsed * 0.00091 + 0.7)
-          + Math.sin(elapsed * 0.00039 + 2.4) * 0.36;
-        const cruiseFloatEnvelope = smoothstep(
-          (visualLaunch - 0.08) / 0.72,
-        ) * (1 - braking);
-        const cruiseFloatX = Math.sin(elapsed * 0.00043 + 0.8)
-          + Math.sin(elapsed * 0.00019 + 2.3) * 0.48;
-        const cruiseFloatY = Math.cos(elapsed * 0.00037 + 1.4)
-          + Math.sin(elapsed * 0.00023 + 0.4) * 0.42;
-        const cruiseFloatZ = Math.sin(elapsed * 0.00031 + 2.1)
-          + Math.cos(elapsed * 0.00017 + 0.2) * 0.36;
+        const fieldSwayX = Math.sin(elapsed * 0.00108) + Math.sin(elapsed * 0.00047 + 1.8) * 0.42;
+        const fieldSwayY = Math.cos(elapsed * 0.00091 + 0.7) + Math.sin(elapsed * 0.00039 + 2.4) * 0.36;
+        const cruiseFloatEnvelope = smoothstep((visualLaunch - 0.08) / 0.72) * (1 - braking);
+        const cruiseFloatX = Math.sin(elapsed * 0.00043 + 0.8) + Math.sin(elapsed * 0.00019 + 2.3) * 0.48;
+        const cruiseFloatY = Math.cos(elapsed * 0.00037 + 1.4) + Math.sin(elapsed * 0.00023 + 0.4) * 0.42;
+        const cruiseFloatZ = Math.sin(elapsed * 0.00031 + 2.1) + Math.cos(elapsed * 0.00017 + 0.2) * 0.36;
         const lineGrowth = sequencePressure;
         const preLaunchSpeed = sequencePressure * 7.5;
         const hyperspaceSpeed = 212;
-        const speed = THREE.MathUtils.lerp(
-          preLaunchSpeed,
-          hyperspaceSpeed,
-          launch,
-        ) * (1 - braking) + 0.35 * braking;
+        const speed = THREE.MathUtils.lerp(preLaunchSpeed, hyperspaceSpeed, launch) * (1 - braking) + 0.35 * braking;
         travel += speed * delta;
-        const dustSuction = smoothstep(
-          (sequencePressure - 0.55) / 0.45,
-        );
-        const dustReveal = smoothstep(
-          (sequencePressure - 0.12) / 0.62,
-        );
-        const dustSpeed = (
-          sequencePressure * 2.2
-          + sequencePressure * sequencePressure * 7
-          + Math.pow(dustSuction, 3) * 30
-          + streakStretch * 82
-          + launchSnap * 92
-          + speed * 1.48
-        ) * (1 - braking) + braking * 0.5;
+        const dustSuction = smoothstep((sequencePressure - 0.55) / 0.45);
+        const dustReveal = smoothstep((sequencePressure - 0.12) / 0.62);
+        const dustSpeed = (sequencePressure * 2.2 + sequencePressure * sequencePressure * 7 + Math.pow(dustSuction, 3) * 30 + streakStretch * 82 + launchSnap * 92 + speed * 1.48) * (1 - braking) + braking * 0.5;
         dustTravel += dustSpeed * delta;
         uniforms.uTravel.value = travel;
         tunnelDustUniforms.uTravel.value = dustTravel;
-        const launchDust = launchImpulse * 0.22
-          + streakStretch * 0.18
-          + launchSnap * 0.46
-          + warpRelease * 0.24
-          + dustSuction * warpTension * 0.18;
-        const preLaunchDust = dustReveal * 0.26
-          + dustSuction * (0.08 + warpTension * 0.14);
-        tunnelDustUniforms.uOpacity.value = (
-          0.1
-          + charge * 0.06
-          + preLaunchDust
-          + launchDust
-          + visualLaunch * 0.55
-        ) * (1 - braking);
+        const launchDust = launchImpulse * 0.22 + streakStretch * 0.18 + launchSnap * 0.46 + warpRelease * 0.24 + dustSuction * warpTension * 0.18;
+        const preLaunchDust = dustReveal * 0.26 + dustSuction * (0.08 + warpTension * 0.14);
+        tunnelDustUniforms.uOpacity.value = (0.1 + charge * 0.06 + preLaunchDust + launchDust + visualLaunch * 0.55) * (1 - braking);
         tunnelDustUniforms.uWarpTension.value = warpTension;
         tunnelDustUniforms.uWarpRelease.value = warpRelease;
         tunnelDustUniforms.uWarpPhase.value = warpPhase;
@@ -3250,57 +3072,20 @@ export function HyperspaceIntro() {
         tunnelDustUniforms.uFormation.value = sequencePressure;
         tunnelDustUniforms.uPressurePulse.value = pressurePulse;
         tunnelDustUniforms.uPressurePhase.value = pressurePhase;
-        tunnelDustUniforms.uLaunchDust.value = Math.min(
-          1,
-          dustReveal * 0.14
-            + dustSuction * (0.18 + warpTension * 0.46)
-            + streakStretch * 0.72
-            + launchImpulse * 0.95
-            + launchSnap * 1.1
-            + warpRelease * 0.78,
-        );
+        tunnelDustUniforms.uLaunchDust.value = Math.min(1, dustReveal * 0.14 + dustSuction * (0.18 + warpTension * 0.46) + streakStretch * 0.72 + launchImpulse * 0.95 + launchSnap * 1.1 + warpRelease * 0.78);
         warpBubbleUniforms.uTime.value = elapsed * 0.001;
         warpBubbleUniforms.uTravel.value = travel;
         warpBubbleUniforms.uCompression.value = warpTension;
         warpBubbleUniforms.uRelease.value = warpRelease;
         warpBubbleUniforms.uCruise.value = visualLaunch * (1 - braking);
-        warpBubbleUniforms.uImpact.value = Math.max(
-          launchImpulse,
-          launchSnap,
-          streakStretch,
-          pressurePulse * 0.34,
-        );
-        warpBubbleUniforms.uOpacity.value = (
-          warpTension * 0.075
-            + warpRelease * 0.62
-            + visualLaunch * 0.96
-            + launchImpulse * 0.13
-            + launchSnap * 0.22
-            + pressurePulse * 0.1
-        ) * (1 - braking);
-        const lensTravelFade = 1 - smoothstep(
-          (progress - (LAUNCH_PROGRESS + 0.08)) / 0.14,
-        );
+        warpBubbleUniforms.uImpact.value = Math.max(launchImpulse, launchSnap, streakStretch, pressurePulse * 0.34);
+        warpBubbleUniforms.uOpacity.value = (warpTension * 0.075 + warpRelease * 0.62 + visualLaunch * 0.96 + launchImpulse * 0.13 + launchSnap * 0.22 + pressurePulse * 0.1) * (1 - braking);
+        const lensTravelFade = 1 - smoothstep((progress - (LAUNCH_PROGRESS + 0.08)) / 0.14);
         const lensRelease = launchImpulse + warpRelease * lensTravelFade * 0.42;
         const cruiseLens = visualLaunch * (1 - braking);
         const cruiseBreath = 0.2 + Math.sin(elapsed * 0.00072) * 0.008;
-        const lensStrength = (
-          warpTension * 2.2
-          + lensRelease * 2.05
-          + streakStretch * 0.95
-          + crashZoom * 3.35
-          + launchSnap * 3.1
-          + cruiseLens * cruiseBreath
-        ) * (1 - braking);
-        const sceneWarp = Math.min(1, (
-          warpTension * (0.34 + sequencePressure * 0.66)
-            + streakStretch * 0.4
-            + crashZoom * 0.3
-            + launchImpulse * 0.2
-            + launchSnap * 0.46
-            + pressurePulse * 0.06
-            + cruiseLens * 0.08
-        ) * (1 - braking));
+        const lensStrength = (warpTension * 2.2 + lensRelease * 2.05 + streakStretch * 0.95 + crashZoom * 3.35 + launchSnap * 3.1 + cruiseLens * cruiseBreath) * (1 - braking);
+        const sceneWarp = Math.min(1, (warpTension * (0.34 + sequencePressure * 0.66) + streakStretch * 0.4 + crashZoom * 0.3 + launchImpulse * 0.2 + launchSnap * 0.46 + pressurePulse * 0.06 + cruiseLens * 0.08) * (1 - braking));
         lensPass.enabled = lensStrength > 0.002;
         lensPass.uniforms.uStrength.value = lensStrength;
         lensPass.uniforms.uSceneWarp.value = sceneWarp;
@@ -3310,50 +3095,18 @@ export function HyperspaceIntro() {
         // center independently from the rig creates a visible rocking motion
         // even when the actual flight path is smooth.
         lensPass.uniforms.uCenter.value.set(0.5, 0.5);
-        lensPass.uniforms.uRadius.value = 0.05
-          + charge * 0.145
-          - cruiseLens * 0.04
-          + launchImpulse * 0.02
-          + launchSnap * 0.055
-          + crashZoom * 0.135;
-        lensPass.uniforms.uStretch.value = warpTension * 0.052
-          + streakStretch * 0.34
-          + launchImpulse * 0.27
-          + launchSnap * 0.62
-          + crashZoom * 0.43
-          + warpRelease * lensTravelFade * 0.125
-          + cruiseLens * 0.006;
-        lensPass.uniforms.uFlash.value = Math.min(
-          1,
-          launchImpulse + crashZoom * 0.54 + launchSnap * 0.88,
-        );
-        lensPass.uniforms.uMotionBlur.value = Math.min(
-          1,
-          crashZoom * 0.78
-            + streakStretch * 0.92
-            + launchImpulse * 0.36
-            + launchSnap * 0.74
-            + launchRumble * 0.16,
-        );
+        lensPass.uniforms.uRadius.value = 0.05 + charge * 0.145 - cruiseLens * 0.04 + launchImpulse * 0.02 + launchSnap * 0.055 + crashZoom * 0.135;
+        lensPass.uniforms.uStretch.value = warpTension * 0.052 + streakStretch * 0.34 + launchImpulse * 0.27 + launchSnap * 0.62 + crashZoom * 0.43 + warpRelease * lensTravelFade * 0.125 + cruiseLens * 0.006;
+        lensPass.uniforms.uFlash.value = Math.min(1, launchImpulse + crashZoom * 0.54 + launchSnap * 0.88);
+        lensPass.uniforms.uMotionBlur.value = Math.min(1, crashZoom * 0.78 + streakStretch * 0.92 + launchImpulse * 0.36 + launchSnap * 0.74 + launchRumble * 0.16);
         lensPass.uniforms.uTime.value = elapsed * 0.001;
         lensPass.uniforms.uCruise.value = cruiseLens;
-        lensPass.uniforms.uDarkness.value = Math.min(
-          1,
-          warpTension * 0.3 + launchImpulse * 0.08 + cruiseLens * 0.03,
-        );
+        lensPass.uniforms.uDarkness.value = Math.min(1, warpTension * 0.3 + launchImpulse * 0.08 + cruiseLens * 0.03);
         const staticStretch = THREE.MathUtils.lerp(0.028, 0.74, lineGrowth);
-        uniforms.uForwardStretch.value = (
-          staticStretch + streakStretch * 1.62 + launchSnap * 0.58
-        ) * (1 - braking) + braking * 0.01;
-        uniforms.uBackwardStretch.value = (
-          staticStretch + streakStretch * 2.32 + launchSnap * 0.92 + visualLaunch * 1.04
-        ) * (1 - braking) + braking * 0.03;
-        uniforms.uWidthScale.value = (
-          0.72 + charge * 0.46 + visualLaunch * 0.4
-        ) * (1 - streakStretch * 0.38) * (1 - braking * 0.35);
-        uniforms.uEnergy.value = (
-          0.28 + charge * 0.96 + streakStretch * 0.34 + visualLaunch * 0.18
-        ) * (1 - braking * 0.48);
+        uniforms.uForwardStretch.value = (staticStretch + streakStretch * 1.62 + launchSnap * 0.58) * (1 - braking) + braking * 0.01;
+        uniforms.uBackwardStretch.value = (staticStretch + streakStretch * 2.32 + launchSnap * 0.92 + visualLaunch * 1.04) * (1 - braking) + braking * 0.03;
+        uniforms.uWidthScale.value = (0.72 + charge * 0.46 + visualLaunch * 0.4) * (1 - streakStretch * 0.38) * (1 - braking * 0.35);
+        uniforms.uEnergy.value = (0.28 + charge * 0.96 + streakStretch * 0.34 + visualLaunch * 0.18) * (1 - braking * 0.48);
         uniforms.uSymmetry.value = 1 - visualLaunch;
         uniforms.uWarpTension.value = warpTension;
         uniforms.uWarpRelease.value = warpRelease;
@@ -3362,118 +3115,59 @@ export function HyperspaceIntro() {
         uniforms.uFormation.value = sequencePressure;
         uniforms.uPressurePulse.value = pressurePulse;
         uniforms.uPressurePhase.value = pressurePhase;
-        uniforms.uOpacity.value = smoothstep(progress / 0.015)
-          * (0.3 + charge * 0.7)
-          * (1 - visualLaunch * 0.14)
-          * (1 - smoothstep((progress - 0.88) / 0.055));
+        uniforms.uOpacity.value = smoothstep(progress / 0.015) * (0.3 + charge * 0.7) * (1 - visualLaunch * 0.14) * (1 - smoothstep((progress - 0.88) / 0.055));
         const exitDustIgnition = smoothstep((progress - 0.822) / 0.022);
         exitDust.visible = exitDustIgnition > 0.001;
-        const exitDustWhiteout = exitDustIgnition
-          * (1 - smoothstep((progress - 0.912) / 0.06));
+        const exitDustWhiteout = exitDustIgnition * (1 - smoothstep((progress - 0.912) / 0.06));
         exitWakeUniforms.uTime.value = Math.max(0, (elapsed - DURATION * 0.818) / 1000);
         exitWakeUniforms.uOpacity.value = smoothstep((progress - 0.824) / 0.04) * 0.34;
         exitCrystalUniforms.uTime.value = Math.max(0, (elapsed - DURATION * 0.872) / 1000);
         exitCrystalUniforms.uOpacity.value = 0;
         exitDustUniforms.uTime.value = Math.max(0, (elapsed - DURATION * 0.818) / 1000);
-        exitDustUniforms.uOpacity.value = exitDustIgnition
-          * (1.15 + exitDustWhiteout * 1.35);
+        exitDustUniforms.uOpacity.value = exitDustIgnition * (1.15 + exitDustWhiteout * 1.35);
         // Let the destination exist behind the collapsing tunnel before the
         // exit completes. The early power curve keeps it subliminal at first,
         // then turns the final tunnel fade into a continuous reveal.
-        const destinationForeshadow = Math.pow(
-          smoothstep((progress - 0.86) / 0.14),
-          1.65,
-        );
+        const destinationForeshadow = Math.pow(smoothstep((progress - 0.86) / 0.14), 1.65);
         world.setOpacity(captureMode ? 0 : destinationForeshadow * worldAssetFade);
-        const exitIllumination = smoothstep((progress - 0.842) / 0.042)
-          * (1 - smoothstep((progress - 0.982) / 0.034));
-        const exposureSpike = smoothstep(
-          (progress - (LAUNCH_PROGRESS - 0.001)) / 0.003,
-        ) * (1 - smoothstep(
-          (progress - (LAUNCH_PROGRESS + 0.014)) / 0.01,
-        ));
-        const exposureSettle = smoothstep(
-          (progress - (LAUNCH_PROGRESS + 0.011)) / 0.008,
-        ) * (1 - smoothstep(
-          (progress - (LAUNCH_PROGRESS + 0.04)) / 0.022,
-        ));
-        world.rimLight.intensity = SCENE_RIM_BASE
-          + exitIllumination * EXIT_RIM_BOOST
-          + exitDustWhiteout * 34;
-        renderer.toneMappingExposure = 1.0
-          + charge * 0.17
-          + launch * 0.08
-          + launchImpulse * 0.18
-          + warpRelease * 0.035
-          + exposureSpike * 0.34
-          - exposureSettle * 0.1
-          + pressurePulse * 0.025
-          + exitIllumination * 0.18
-          + exitDustWhiteout * 0.42;
+        const exitIllumination = smoothstep((progress - 0.842) / 0.042) * (1 - smoothstep((progress - 0.982) / 0.034));
+        const exposureSpike = smoothstep((progress - (LAUNCH_PROGRESS - 0.001)) / 0.003) * (1 - smoothstep((progress - (LAUNCH_PROGRESS + 0.014)) / 0.01));
+        const exposureSettle = smoothstep((progress - (LAUNCH_PROGRESS + 0.011)) / 0.008) * (1 - smoothstep((progress - (LAUNCH_PROGRESS + 0.04)) / 0.022));
+        world.rimLight.intensity = SCENE_RIM_BASE + exitIllumination * EXIT_RIM_BOOST + exitDustWhiteout * 34;
+        renderer.toneMappingExposure = 1.0 + charge * 0.17 + launch * 0.08 + launchImpulse * 0.18 + warpRelease * 0.035 + exposureSpike * 0.34 - exposureSettle * 0.1 + pressurePulse * 0.025 + exitIllumination * 0.18 + exitDustWhiteout * 0.42;
 
         const launchLocal = clamp01((progress - LAUNCH_PROGRESS) / 0.11);
         const pressureDrift = warpTension * (1 - launch) * 0.07;
-        const impactKick = smoothstep((progress - (LAUNCH_PROGRESS - 0.002)) / 0.004)
-          * (1 - smoothstep((progress - (LAUNCH_PROGRESS + 0.018)) / 0.016));
-        const preLaunchZoom = smoothstep(
-          (progress - (LAUNCH_PROGRESS - 0.145)) / 0.115,
-        ) * (1 - smoothstep(
-          (progress - (LAUNCH_PROGRESS + 0.012)) / 0.024,
-        ));
-        const launchShake = smoothstep((progress - LAUNCH_PROGRESS) / 0.004)
-          * (1 - smoothstep((progress - (LAUNCH_PROGRESS + 0.07)) / 0.06));
-        const brakingShake = smoothstep((progress - 0.82) / 0.05)
-          * (1 - smoothstep((progress - 0.965) / 0.035));
-        const exitStopKick = smoothstep((progress - 0.835) / 0.018)
-          * (1 - smoothstep((progress - 0.905) / 0.05));
+        const impactKick = smoothstep((progress - (LAUNCH_PROGRESS - 0.002)) / 0.004) * (1 - smoothstep((progress - (LAUNCH_PROGRESS + 0.018)) / 0.016));
+        const preLaunchZoom = smoothstep((progress - (LAUNCH_PROGRESS - 0.145)) / 0.115) * (1 - smoothstep((progress - (LAUNCH_PROGRESS + 0.012)) / 0.024));
+        const launchShake = smoothstep((progress - LAUNCH_PROGRESS) / 0.004) * (1 - smoothstep((progress - (LAUNCH_PROGRESS + 0.07)) / 0.06));
+        const brakingShake = smoothstep((progress - 0.82) / 0.05) * (1 - smoothstep((progress - 0.965) / 0.035));
+        const exitStopKick = smoothstep((progress - 0.835) / 0.018) * (1 - smoothstep((progress - 0.905) / 0.05));
         const impactDecay = launchShake * (1 - smoothstep(launchLocal));
-        const shakeStrength = impactKick * 0.105
-          + impactDecay * 0.055
-          + launchShake * 0.025
-          + launchSnap * 0.16
-          + launchRumble * (0.022 + secondaryKick * 0.025)
-          + brakingShake * 0.032
-          + exitStopKick * 0.06;
-        const cameraDive = smoothstep((progress - (LAUNCH_PROGRESS + 0.004)) / 0.008)
-          * (1 - smoothstep((progress - (LAUNCH_PROGRESS + 0.1)) / 0.07));
+        const shakeStrength = impactKick * 0.105 + impactDecay * 0.055 + launchShake * 0.025 + launchSnap * 0.16 + launchRumble * (0.022 + secondaryKick * 0.025) + brakingShake * 0.032 + exitStopKick * 0.06;
+        const cameraDive = smoothstep((progress - (LAUNCH_PROGRESS + 0.004)) / 0.008) * (1 - smoothstep((progress - (LAUNCH_PROGRESS + 0.1)) / 0.07));
         // Keep the physical recoil almost imperceptible. A large backward
         // translation followed by the crash zoom reads as a rubber-band camera
         // move, so the seat impact is carried by optical compression, rumble,
         // and forward acceleration instead.
-        const recoilAttack = smoothstep(
-          (progress - (LAUNCH_PROGRESS - 0.001)) / 0.003,
-        );
-        const recoilRelease = 1 - smoothstep(
-          (progress - (LAUNCH_PROGRESS + 0.025)) / 0.02,
-        );
+        const recoilAttack = smoothstep((progress - (LAUNCH_PROGRESS - 0.001)) / 0.003);
+        const recoilRelease = 1 - smoothstep((progress - (LAUNCH_PROGRESS + 0.025)) / 0.02);
         const recoilEnvelope = recoilAttack * recoilRelease;
         const launchRecoil = recoilEnvelope * 0.28;
-        const shakeX = Math.sin(elapsed * 0.043)
-          + Math.sin(elapsed * 0.071 + 1.7) * 0.38;
-        const shakeY = Math.cos(elapsed * 0.037 + 0.6)
-          + Math.sin(elapsed * 0.083) * 0.31;
-        const shakeZ = Math.sin(elapsed * 0.052 + 2.1)
-          + Math.sin(elapsed * 0.097) * 0.24;
+        const shakeX = Math.sin(elapsed * 0.043) + Math.sin(elapsed * 0.071 + 1.7) * 0.38;
+        const shakeY = Math.cos(elapsed * 0.037 + 0.6) + Math.sin(elapsed * 0.083) * 0.31;
+        const shakeZ = Math.sin(elapsed * 0.052 + 2.1) + Math.sin(elapsed * 0.097) * 0.24;
         // Hull vibration is transmitted through the camera mount: dense,
         // high-frequency vertical and longitudinal tremors with almost no
         // lateral travel. It rises under late-charge load, peaks at ignition,
         // then clears rather than turning cruise into handheld camera shake.
-        const hullCharge = smoothstep((sequencePressure - 0.58) / 0.42)
-          * (1 - launch);
+        const hullCharge = smoothstep((sequencePressure - 0.58) / 0.42) * (1 - launch);
         const hullEnvelope = hullCharge * 0.3 + launchRumble;
-        const hullVibrationX = Math.sin(elapsed * 0.061 + 2.1) * 0.18
-          + Math.sin(elapsed * 0.089 + 0.6) * 0.08;
-        const hullVibrationY = Math.sin(elapsed * 0.052 + 0.3) * 0.55
-          + Math.sin(elapsed * 0.077 + 1.7) * 0.28
-          + Math.sin(elapsed * 0.031 + 2.4) * 0.17;
-        const hullVibrationZ = Math.sin(elapsed * 0.038 + 1.2) * 0.5
-          + Math.sin(elapsed * 0.068 + 2.6) * 0.22;
-        const cinematicDriftX = fieldSwayX
-          * (charge * 0.095 + visualLaunch * 0.14)
-          * (1 - braking);
-        const cinematicDriftY = fieldSwayY
-          * (charge * 0.068 + visualLaunch * 0.1)
-          * (1 - braking);
+        const hullVibrationX = Math.sin(elapsed * 0.061 + 2.1) * 0.18 + Math.sin(elapsed * 0.089 + 0.6) * 0.08;
+        const hullVibrationY = Math.sin(elapsed * 0.052 + 0.3) * 0.55 + Math.sin(elapsed * 0.077 + 1.7) * 0.28 + Math.sin(elapsed * 0.031 + 2.4) * 0.17;
+        const hullVibrationZ = Math.sin(elapsed * 0.038 + 1.2) * 0.5 + Math.sin(elapsed * 0.068 + 2.6) * 0.22;
+        const cinematicDriftX = fieldSwayX * (charge * 0.095 + visualLaunch * 0.14) * (1 - braking);
+        const cinematicDriftY = fieldSwayY * (charge * 0.068 + visualLaunch * 0.1) * (1 - braking);
         const cruiseDriftX = cruiseFloatX * cruiseFloatEnvelope * 0.26;
         const cruiseDriftY = cruiseFloatY * cruiseFloatEnvelope * 0.18;
         const cruiseDriftZ = cruiseFloatZ * cruiseFloatEnvelope * 0.28;
@@ -3481,68 +3175,23 @@ export function HyperspaceIntro() {
         const chargeLookY = fieldSwayY * charge * (1 - braking) * 0.032;
         const cruiseLookX = cruiseFloatX * cruiseFloatEnvelope * 0.085;
         const cruiseLookY = cruiseFloatY * cruiseFloatEnvelope * 0.06;
-        const rigX = Math.sin(elapsed * 0.0018) * pressureDrift
-          + cinematicDriftX
-          + cruiseDriftX;
-        const rigY = -pressureDrift * 0.42
-          + cinematicDriftY
-          + cruiseDriftY;
-        camera.position.x = rigX
-          + shakeX * shakeStrength * 0.16
-          + hullVibrationX * hullEnvelope * 0.018;
-        camera.position.y = rigY
-          + shakeY * shakeStrength * 0.22
-          + hullVibrationY * hullEnvelope * 0.055;
-        camera.position.z = -0.9 * exitArrival
-          - charge * (1 - launch) * 1.2
-          + launchRecoil
-          - cameraDive * 4.25
-          - crashZoom * 6.8
-          + shakeZ * shakeStrength * 0.18
-          + exitStopKick * 0.34
-          + hullVibrationZ * hullEnvelope * 0.035
-          + cruiseDriftZ;
-        cameraTarget.set(
-          rigX
-            + chargeLookX
-            + cruiseLookX
-            + hullVibrationX * hullEnvelope * 0.008
-            + shakeX * launchShake * 0.02,
-          rigY
-            + chargeLookY
-            + cruiseLookY
-            + recoilEnvelope * 0.16
-            - crashZoom * 0.5
-            + hullVibrationY * hullEnvelope * 0.015
-            + shakeY * launchShake * 0.014,
-          THREE.MathUtils.lerp(-100, -38, exitArrival)
-            + cruiseFloatZ * cruiseFloatEnvelope * 1.15
-            - crashZoom * 9.4,
-        );
+        const rigX = Math.sin(elapsed * 0.0018) * pressureDrift + cinematicDriftX + cruiseDriftX;
+        const rigY = -pressureDrift * 0.42 + cinematicDriftY + cruiseDriftY;
+        const hyperspaceCameraX = rigX + shakeX * shakeStrength * 0.16 + hullVibrationX * hullEnvelope * 0.018;
+        const hyperspaceCameraY = rigY + shakeY * shakeStrength * 0.22 + hullVibrationY * hullEnvelope * 0.055;
+        const hyperspaceCameraZ = -0.9 * exitArrival - charge * (1 - launch) * 1.2 + launchRecoil - cameraDive * 4.25 - crashZoom * 6.8 + shakeZ * shakeStrength * 0.18 + exitStopKick * 0.34 + hullVibrationZ * hullEnvelope * 0.035 + cruiseDriftZ;
+        camera.position.set(THREE.MathUtils.lerp(hyperspaceCameraX, 0, handoffBlend), THREE.MathUtils.lerp(hyperspaceCameraY, 0, handoffBlend), THREE.MathUtils.lerp(hyperspaceCameraZ, -0.9, handoffBlend));
+        const hyperspaceTargetX = rigX + chargeLookX + cruiseLookX + hullVibrationX * hullEnvelope * 0.008 + shakeX * launchShake * 0.02;
+        const hyperspaceTargetY = rigY + chargeLookY + cruiseLookY + recoilEnvelope * 0.16 - crashZoom * 0.5 + hullVibrationY * hullEnvelope * 0.015 + shakeY * launchShake * 0.014;
+        const hyperspaceTargetZ = THREE.MathUtils.lerp(-100, -38, exitArrival) + cruiseFloatZ * cruiseFloatEnvelope * 1.15 - crashZoom * 9.4;
+        cameraTarget.set(THREE.MathUtils.lerp(hyperspaceTargetX, 0, handoffBlend), THREE.MathUtils.lerp(hyperspaceTargetY, 0, handoffBlend), THREE.MathUtils.lerp(hyperspaceTargetZ, -38, handoffBlend));
         camera.lookAt(cameraTarget);
-        camera.rotation.z += hullVibrationX * hullEnvelope * 0.0015
-          + shakeX * shakeStrength * 0.0018
-          + impactKick * 0.0018
-          + launchSnap * 0.0014
-          + recoilEnvelope * 0.001;
-        const hyperspaceFov = 62
-          + charge * 2.5
-          - warpTension * 9.5
-          - preLaunchZoom * 10.5
-          - crashZoom * 33
-          + visualLaunch * 27
-          + impactKick * 6.2
-          + recoilEnvelope * 1.1
-          + cameraDive * 8
-          + exitStopKick * 3.6
-          + cruiseFloatZ * cruiseFloatEnvelope * 0.12
-          + hullVibrationZ * hullEnvelope * 0.12
-          - braking * 23.5;
+        camera.rotation.z += hullVibrationX * hullEnvelope * 0.0015 + shakeX * shakeStrength * 0.0018 + impactKick * 0.0018 + launchSnap * 0.0014 + recoilEnvelope * 0.001;
+        const hyperspaceFov = 62 + charge * 2.5 - warpTension * 9.5 - preLaunchZoom * 10.5 - crashZoom * 33 + visualLaunch * 27 + impactKick * 6.2 + recoilEnvelope * 1.1 + cameraDive * 8 + exitStopKick * 3.6 + cruiseFloatZ * cruiseFloatEnvelope * 0.12 + hullVibrationZ * hullEnvelope * 0.12 - braking * 23.5;
         // End the optical compression at the exact theater FOV used by the
         // destination. This removes the apparent planet/browser resize during
         // the handoff without weakening the braking beat beforehand.
-        const landingFovBlend = smoothstep((progress - 0.972) / 0.028);
-        camera.fov = THREE.MathUtils.lerp(hyperspaceFov, 64, landingFovBlend);
+        camera.fov = THREE.MathUtils.lerp(hyperspaceFov, 64, handoffBlend);
         camera.updateProjectionMatrix();
 
         if (progress >= 1) {
@@ -3576,31 +3225,21 @@ export function HyperspaceIntro() {
         // Preserve the veil's brightness across the jump-complete boundary so
         // the destination emerges from one continuous diamond-dust curtain.
         exitDustUniforms.uOpacity.value = dustFade * 1.15;
-        world.rimLight.intensity = SCENE_RIM_BASE
-          + (exitDust.visible ? dustFade * EXIT_RIM_BOOST * 0.62 : 0);
+        world.rimLight.intensity = SCENE_RIM_BASE + (exitDust.visible ? dustFade * EXIT_RIM_BOOST * 0.62 : 0);
         if (wakeFade <= 0.001) {
           exitWake.visible = false;
           exitCrystals.visible = false;
         }
         if (dustFade <= 0.001) exitDust.visible = false;
-        const interfaceArrival = landingStartTime === null
-          ? 1
-          : smoothstep((time - landingStartTime - 100) / 1450);
+        const interfaceArrival = 1;
+        currentInterfaceArrival = interfaceArrival;
         world.interfaceAnchor.position.lerpVectors(interfaceFar, interfaceNear, interfaceArrival);
         const documentHeight = Math.max(document.documentElement.scrollHeight - window.innerHeight, 1);
         const scrollProgress = clamp01(window.scrollY / documentHeight);
-        desiredCamera.set(
-          scrollProgress * 6.5,
-          -scrollProgress * 3.2,
-          -0.9 - scrollProgress * 10.5,
-        );
+        desiredCamera.set(scrollProgress * 6.5, -scrollProgress * 3.2, -0.9 - scrollProgress * 10.5);
         const cameraDamping = 1 - Math.pow(0.004, delta);
         camera.position.lerp(desiredCamera, cameraDamping);
-        desiredTarget.set(
-          -scrollProgress * 2,
-          scrollProgress * 0.4,
-          -38 - scrollProgress * 12,
-        );
+        desiredTarget.set(-scrollProgress * 2, scrollProgress * 0.4, -38 - scrollProgress * 12);
         cameraTarget.lerp(desiredTarget, cameraDamping);
         camera.lookAt(cameraTarget);
         camera.fov = THREE.MathUtils.lerp(camera.fov, 64 - scrollProgress * 2, cameraDamping);
@@ -3610,12 +3249,9 @@ export function HyperspaceIntro() {
         world.flagship.position.y = -1.45 + Math.sin(elapsed * 0.00034) * 0.08;
       }
 
-      const currentInterfaceArrival = jumpComplete && landingStartTime !== null
-        ? smoothstep((time - landingStartTime - 100) / 1450)
-        : jumpComplete ? 1 : 0;
       const destinationElapsedSeconds = Math.max(0, (elapsed - DURATION * 0.86) / 1000);
       world.update(destinationElapsedSeconds);
-      if (jumpComplete) updateWorldAnchors(currentInterfaceArrival);
+      if (currentInterfaceArrival > 0 || jumpComplete) updateWorldAnchors(currentInterfaceArrival);
       if (lensPass.enabled) composer.render(delta);
       else renderer.render(scene, camera);
     };
@@ -3738,10 +3374,13 @@ export function HyperspaceIntro() {
     };
   }, [experienceReady, fallback, finish, runId]);
 
-  useEffect(() => () => {
-    if (interfaceTimerRef.current) window.clearTimeout(interfaceTimerRef.current);
-    document.documentElement.classList.remove("experience-arriving");
-  }, []);
+  useEffect(
+    () => () => {
+      if (interfaceTimerRef.current) window.clearTimeout(interfaceTimerRef.current);
+      document.documentElement.classList.remove("experience-arriving");
+    },
+    [],
+  );
 
   if (fallback) return <HyperspaceIntro2D />;
 
@@ -3753,20 +3392,25 @@ export function HyperspaceIntro() {
           <strong>INITIATE TRANSIT</strong>
           {mobileVisitor ? (
             <div className="cinema-gate-options">
-              <button type="button" onClick={() => engage(false)}>CONTINUE SILENT</button>
-              <button type="button" onClick={() => engage(true)}>ENABLE AUDIO</button>
+              <button type="button" onClick={() => engage(false)}>
+                CONTINUE SILENT
+              </button>
+              <button type="button" onClick={() => engage(true)}>
+                ENABLE AUDIO
+              </button>
             </div>
           ) : (
-            <button className="cinema-gate-primary" type="button" onClick={() => engage(true)}>ENTER WITH AUDIO</button>
+            <button className="cinema-gate-primary" type="button" onClick={() => engage(true)}>
+              ENTER WITH AUDIO
+            </button>
           )}
-          <button className="cinema-gate-skip" type="button" onClick={skipIntro}>SKIP HYPERSPACE</button>
+          <button className="cinema-gate-skip" type="button" onClick={skipIntro}>
+            SKIP HYPERSPACE
+          </button>
           <small>{mobileVisitor ? "AUDIO IS OFF BY DEFAULT ON MOBILE" : "HEADPHONES RECOMMENDED"}</small>
         </div>
       )}
-      <div
-        className={`space-experience${jumping ? " is-jumping" : " is-landed"}`}
-        aria-label={jumping ? "Hyperspace transit sequence" : "Black Vector fleet command environment"}
-      >
+      <div className={`space-experience${jumping ? " is-jumping" : " is-landed"}`} aria-label={jumping ? "Hyperspace transit sequence" : "Black Vector fleet command environment"}>
         <canvas ref={canvasRef} aria-hidden="true" />
       </div>
     </>
