@@ -22,6 +22,7 @@ import styles from "./community.module.css";
 import controls from "./community-controls.module.css";
 import { CommunityMembersPanel } from "./community-members-panel";
 import { ClanConsole } from "./clan-console";
+import { submitChatOnEnter } from "@/lib/chat-input";
 
 interface CurrentUser {
   id: string;
@@ -892,6 +893,7 @@ export function CommunityConsole({
                   <textarea
                     value={chatText}
                     onChange={(event) => setChatText(event.target.value)}
+                    onKeyDown={submitChatOnEnter}
                     maxLength={500}
                     placeholder={`Transmit to #${activeChannel.label.toLowerCase()}…`}
                   />

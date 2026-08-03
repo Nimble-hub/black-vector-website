@@ -11,6 +11,7 @@ import {
 } from "react";
 import type { CommunityChatMessage, CommunityRole } from "@/lib/community";
 import social from "./community-social.module.css";
+import { submitChatOnEnter } from "@/lib/chat-input";
 
 interface Member {
   id: string;
@@ -344,6 +345,7 @@ export function CommunityMembersPanel({
             <textarea
               value={text}
               onChange={(event) => setText(event.target.value)}
+              onKeyDown={submitChatOnEnter}
               maxLength={1000}
               placeholder="Direct transmission…"
             />

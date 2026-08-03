@@ -215,6 +215,7 @@ test("ships authenticated social connections, direct comms, and clan operations"
     clanUi,
     migration,
     chatRoom,
+    chatInput,
   ] = await Promise.all([
     readFile(new URL("db/schema.ts", root), "utf8"),
     readFile(new URL("app/api/community/members/route.ts", root), "utf8"),
@@ -241,6 +242,7 @@ test("ships authenticated social connections, direct comms, and clan operations"
     readFile(new URL("app/community/clan-console.tsx", root), "utf8"),
     readFile(new URL("drizzle/0003_pretty_gabe_jones.sql", root), "utf8"),
     readFile(new URL("worker/chat-room.ts", root), "utf8"),
+    readFile(new URL("lib/chat-input.ts", root), "utf8"),
   ]);
 
   assert.match(schema, /communityPresence/);
@@ -281,6 +283,10 @@ test("ships authenticated social connections, direct comms, and clan operations"
   assert.match(chatRoom, /setWebSocketAutoResponse/);
   assert.match(consoleUi, /Heartbeat timed out/);
   assert.match(consoleUi, /socket !== candidate/);
+  assert.match(chatInput, /event\.currentTarget\.form\?\.requestSubmit\(\)/);
+  assert.match(consoleUi, /onKeyDown=\{submitChatOnEnter\}/);
+  assert.match(memberUi, /onKeyDown=\{submitChatOnEnter\}/);
+  assert.match(clanUi, /onKeyDown=\{submitChatOnEnter\}/);
 });
 
 test("resolves the hyperspace camera, FOV, and interface on one handoff curve", async () => {

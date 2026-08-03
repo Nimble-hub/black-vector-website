@@ -5,6 +5,7 @@ import Link from "next/link";
 import { FormEvent, useCallback, useEffect, useRef, useState } from "react";
 import type { CommunityChatMessage } from "@/lib/community";
 import social from "./community-social.module.css";
+import { submitChatOnEnter } from "@/lib/chat-input";
 
 interface ClanSummary {
   id: string;
@@ -438,6 +439,7 @@ export function ClanConsole({
                 <textarea
                   value={chatText}
                   onChange={(event) => setChatText(event.target.value)}
+                  onKeyDown={submitChatOnEnter}
                   maxLength={1000}
                   placeholder={`Transmit to [${selected.tag}]…`}
                 />
