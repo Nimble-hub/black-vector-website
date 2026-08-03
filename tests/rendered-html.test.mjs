@@ -79,3 +79,37 @@ test("routes the hero playtest call-to-action by authentication state", async ()
   assert.match(playtestRoute, /\/#download/);
   assert.match(playtestRoute, /\/register\?returnTo=/);
 });
+
+test("ships the realtime community hub and account profile media controls", async () => {
+  const [community, communityData, room, schema, avatar, audio, worker, config] = await Promise.all([
+    readFile(new URL("app/community/community-console.tsx", root), "utf8"),
+    readFile(new URL("lib/community.ts", root), "utf8"),
+    readFile(new URL("worker/chat-room.ts", root), "utf8"),
+    readFile(new URL("db/schema.ts", root), "utf8"),
+    readFile(new URL("app/api/account/avatar/route.ts", root), "utf8"),
+    readFile(new URL("app/hyperspace-audio.ts", root), "utf8"),
+    readFile(new URL("worker/index.ts", root), "utf8"),
+    readFile(new URL("wrangler.jsonc", root), "utf8"),
+  ]);
+
+  assert.match(community, /LIVE COMMS/);
+  assert.match(community, /FORUM ARCHIVE/);
+  assert.match(communityData, /BUG REPORTS/);
+  assert.match(room, /acceptWebSocket/);
+  assert.match(room, /RATE_LIMITED/);
+  assert.match(schema, /forumThread/);
+  assert.match(schema, /forumPost/);
+  assert.match(avatar, /MAX_AVATAR_BYTES/);
+  assert.match(avatar, /PROFILE_MEDIA/);
+  assert.match(audio, /PLAYBACK_GAIN = 0\.72/);
+  assert.match(worker, /profileImage/);
+  assert.match(config, /community-v1/);
+  assert.match(config, /PROFILE_MEDIA/);
+
+  await Promise.all([
+    access(new URL("app/community/page.tsx", root)),
+    access(new URL("app/api/community/forum/route.ts", root)),
+    access(new URL("app/api/community/chat/[channel]/route.ts", root)),
+    access(new URL("drizzle/0001_woozy_swarm.sql", root)),
+  ]);
+});

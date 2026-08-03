@@ -1,10 +1,13 @@
 /** Cloudflare Worker entry point for the vinext-starter template. */
 import { handleImageOptimization, DEFAULT_DEVICE_SIZES, DEFAULT_IMAGE_SIZES } from "vinext/server/image-optimization";
 import handler from "vinext/server/app-router-entry";
+export { ChatRoom } from "./chat-room";
 
 interface Env {
   ASSETS: Fetcher;
   DB: D1Database;
+  CHAT_ROOMS: DurableObjectNamespace;
+  PROFILE_MEDIA: R2Bucket;
   IMAGES: {
     input(stream: ReadableStream): {
       transform(options: Record<string, unknown>): {
@@ -32,6 +35,29 @@ const worker = {
     if (url.hostname === "www.blackvector.win") {
       url.hostname = "blackvector.win";
       return Response.redirect(url.toString(), 308);
+    }
+
+    const chatSocket = url.pathname.match(/^\/api\/community\/chat\/([a-z-]+)\/socket$/);
+    if (chatSocket && request.headers.get("Upgrade")?.toLowerCase() === "websocket") {
+      const channel = chatSocket[1];
+      if (!["general", "fleet-tactics", "lore", "playtest-ops"].includes(channel)) {
+        return new Response("Unknown comms channel", { status: 404 });
+      }
+      return env.CHAT_ROOMS.getByName(channel).fetch(request);
+    }
+
+    const profileImage = url.pathname.match(/^\/media\/profile\/([0-9a-f-]{36})\.webp$/i);
+    if (profileImage && (request.method === "GET" || request.method === "HEAD")) {
+      const key = `profile:${profileImage[1]}`;
+      const stored = await env.PROFILE_MEDIA.get(key);
+      if (!stored) return new Response("Profile image not found", { status: 404 });
+      const responseHeaders = new Headers({
+        "content-type": stored.httpMetadata?.contentType || "image/webp",
+        "cache-control": "public, max-age=31536000, immutable",
+        "x-content-type-options": "nosniff",
+      });
+      responseHeaders.set("etag", stored.httpEtag);
+      return new Response(request.method === "HEAD" ? null : stored.body, { headers: responseHeaders });
     }
 
     if (url.pathname === "/_vinext/image") {

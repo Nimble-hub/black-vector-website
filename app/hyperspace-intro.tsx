@@ -2585,11 +2585,14 @@ export function HyperspaceIntro() {
   const [fallback, setFallback] = useState(false);
   const [experienceReady, setExperienceReady] = useState(false);
   const [needsEngagement, setNeedsEngagement] = useState(false);
+  const [mobileVisitor, setMobileVisitor] = useState(false);
 
-  const engage = useCallback(() => {
+  const engage = useCallback((audioEnabled: boolean) => {
+    audioRef.current?.setMuted(!audioEnabled);
+    window.localStorage.setItem("black-vector-audio-muted", String(!audioEnabled));
     setNeedsEngagement(false);
     setExperienceReady(true);
-    void audioRef.current?.start();
+    if (audioEnabled) void audioRef.current?.start();
   }, []);
 
   const finish = useCallback(() => {
@@ -2619,11 +2622,14 @@ export function HyperspaceIntro() {
     const captureMode = new URLSearchParams(window.location.search).get("capture") === "hyperspace";
     const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
     const hasSeenJump = Boolean(window.sessionStorage.getItem(SEEN_KEY));
-    const storedMuted = window.localStorage.getItem("black-vector-audio-muted") === "true";
+    const isMobileVisitor = window.matchMedia("(pointer: coarse)").matches || window.innerWidth <= 760;
+    const storedAudioPreference = window.localStorage.getItem("black-vector-audio-muted");
+    const storedMuted = storedAudioPreference === null ? isMobileVisitor : storedAudioPreference === "true";
     const audio = new HyperspaceAudio(storedMuted);
     audioRef.current = audio;
-    audio.prepare();
+    if (!storedMuted) audio.prepare();
     const readinessTimer = window.setTimeout(() => {
+      setMobileVisitor(isMobileVisitor);
       setNeedsEngagement(captureMode ? false : !hasSeenJump && !reducedMotion);
       setExperienceReady(captureMode || hasSeenJump || reducedMotion);
     }, 0);
@@ -3029,9 +3035,9 @@ export function HyperspaceIntro() {
     const resize = () => {
       const width = Math.max(1, Math.round(canvas.clientWidth || window.innerWidth));
       const height = Math.max(1, Math.round(canvas.clientHeight || window.innerHeight));
-      // The capture route uses a fixed 2x backing surface. With the native
-      // 1280x720 viewport this produces a true 2560x1440 canvas that can be
-      // read directly, bypassing browser compositor scaling and tile seams.
+      // The capture route uses a fixed 2x backing surface. The master renderer
+      // supplies a 1920x1080 viewport for a native 3840x2160 capture surface,
+      // bypassing browser compositor scaling and tile seams.
       // Interactive playback stays at the display's native backing resolution;
       // performance tiers reduce scene workload and cadence instead.
       const pixelRatio = captureMode ? 2 : window.devicePixelRatio || 1;
@@ -3734,11 +3740,19 @@ export function HyperspaceIntro() {
   return (
     <>
       {needsEngagement && (
-        <button className="cinema-gate" type="button" onClick={engage}>
+        <div className="cinema-gate">
           <span>BLACK VECTOR // CINEMATIC EXPERIENCE</span>
           <strong>INITIATE TRANSIT</strong>
-          <small>CINEMATIC AUDIO ENABLED</small>
-        </button>
+          {mobileVisitor ? (
+            <div className="cinema-gate-options">
+              <button type="button" onClick={() => engage(false)}>CONTINUE SILENT</button>
+              <button type="button" onClick={() => engage(true)}>ENABLE CINEMATIC AUDIO</button>
+            </div>
+          ) : (
+            <button className="cinema-gate-primary" type="button" onClick={() => engage(true)}>ENTER WITH CINEMATIC AUDIO</button>
+          )}
+          <small>{mobileVisitor ? "AUDIO IS OFF BY DEFAULT ON MOBILE" : "HEADPHONES OR THEATER SPEAKERS RECOMMENDED"}</small>
+        </div>
       )}
       <div
         className={`space-experience${jumping ? " is-jumping" : " is-landed"}`}

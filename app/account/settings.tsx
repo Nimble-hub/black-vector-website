@@ -1,6 +1,7 @@
 "use client";
 
 import { FormEvent, useMemo, useState } from "react";
+import Image from "next/image";
 import { authClient } from "@/lib/auth-client";
 import type { ProviderAvailability } from "@/lib/auth-environment";
 
@@ -20,6 +21,23 @@ const providerLabels: Record<string, string> = {
   steam: "Steam",
 };
 
+async function prepareAvatar(file: File) {
+  if (!file.type.startsWith("image/")) throw new Error("Select an image file.");
+  if (file.size > 12 * 1024 * 1024) throw new Error("Source image must be under 12 MB.");
+  const bitmap = await createImageBitmap(file);
+  const canvas = document.createElement("canvas");
+  canvas.width = 256;
+  canvas.height = 256;
+  const context = canvas.getContext("2d");
+  if (!context) throw new Error("Image processing is unavailable.");
+  const crop = Math.min(bitmap.width, bitmap.height);
+  context.drawImage(bitmap, (bitmap.width - crop) / 2, (bitmap.height - crop) / 2, crop, crop, 0, 0, 256, 256);
+  bitmap.close();
+  const blob = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, "image/webp", 0.88));
+  if (!blob) throw new Error("Image conversion failed.");
+  return blob;
+}
+
 export function AccountSettings({
   user,
   accounts,
@@ -38,7 +56,38 @@ export function AccountSettings({
   const [tab, setTab] = useState<"profile" | "connections" | "security">(initialTab);
   const [status, setStatus] = useState(initialStatus);
   const [busy, setBusy] = useState(false);
+  const [avatar, setAvatar] = useState(user.image);
   const linked = useMemo(() => new Map(accounts.map((item) => [item.providerId, item])), [accounts]);
+
+  const uploadAvatar = async (file: File) => {
+    setBusy(true);
+    setStatus("Preparing profile image...");
+    try {
+      const blob = await prepareAvatar(file);
+      const body = new FormData();
+      body.set("avatar", new File([blob], "avatar.webp", { type: "image/webp" }));
+      const response = await fetch("/api/account/avatar", { method: "POST", body });
+      const data = await response.json() as { image?: string; error?: string };
+      if (!response.ok || !data.image) throw new Error(data.error || "Profile image upload failed.");
+      setAvatar(data.image);
+      setStatus("Profile image synchronized.");
+    } catch (error) {
+      setStatus(error instanceof Error ? error.message : "Profile image upload failed.");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const removeAvatar = async () => {
+    setBusy(true);
+    const response = await fetch("/api/account/avatar", { method: "DELETE" });
+    const data = await response.json() as { error?: string };
+    if (response.ok) {
+      setAvatar(null);
+      setStatus("Profile image removed.");
+    } else setStatus(data.error || "Profile image could not be removed.");
+    setBusy(false);
+  };
 
   const linkSocial = async (provider: "google" | "discord") => {
     setBusy(true);
@@ -159,6 +208,19 @@ export function AccountSettings({
         {tab === "profile" && (
           <div className="account-view">
             <div className="account-view-heading"><p className="eyebrow">PLAYER RECORD // PLAYTEST INTAKE</p><h1>PROFILE &amp; ACCESS.</h1><p>Choose how the development team can identify and contact you for future test waves.</p></div>
+            <section className="settings-form avatar-settings" aria-labelledby="avatar-settings-title">
+              <div className="avatar-preview">
+                {avatar ? <Image src={avatar} alt="Current profile" width={112} height={112} unoptimized /> : <span>{user.name.split(/\s+/).slice(0, 2).map((part) => part[0]).join("").toUpperCase()}</span>}
+              </div>
+              <div>
+                <h2 id="avatar-settings-title">PROFILE IMAGE</h2>
+                <p>Square images work best. Your source is cropped and compressed locally before upload.</p>
+                <div className="avatar-actions">
+                  <label className={busy ? "is-disabled" : ""}>UPLOAD IMAGE<input type="file" accept="image/png,image/jpeg,image/webp" disabled={busy} onChange={(event) => { const file = event.target.files?.[0]; if (file) void uploadAvatar(file); event.currentTarget.value = ""; }} /></label>
+                  {avatar && <button type="button" disabled={busy} onClick={() => void removeAvatar()}>REMOVE</button>}
+                </div>
+              </div>
+            </section>
             <form className="settings-form" onSubmit={saveIdentity}>
               <h2>IDENTITY</h2>
               <label><span>DISPLAY NAME</span><input name="name" defaultValue={user.name} minLength={2} maxLength={48} required /></label>

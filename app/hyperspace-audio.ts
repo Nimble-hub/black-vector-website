@@ -1,7 +1,9 @@
 const BASE_PATH = process.env.NEXT_PUBLIC_BASE_PATH ?? "";
 const JUMP_SOUNDTRACK_URL = `${BASE_PATH}/audio/hyperspace-jump.mp3?v=theater-19`;
 const SCORE_LOOP_URL = `${BASE_PATH}/audio/black-vector-score-loop.mp3?v=score-2`;
-const PLAYBACK_GAIN = 0.96;
+// The source mix measures roughly -13.7 LUFS / -0.9 dBTP. This trim leaves
+// cinematic headroom for the live hull-resonance layer and full-volume devices.
+const PLAYBACK_GAIN = 0.72;
 const MUSIC_GAIN = 0.051;
 const MUSIC_ENTRY_SECONDS = 16.54;
 

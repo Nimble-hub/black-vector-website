@@ -1,0 +1,33 @@
+export const CHAT_CHANNELS = [
+  { id: "general", label: "GENERAL", description: "Fleet-wide conversation" },
+  { id: "fleet-tactics", label: "FLEET TACTICS", description: "Strategy, doctrine, and command" },
+  { id: "lore", label: "LORE & WORLDS", description: "The Black Vector universe" },
+  { id: "playtest-ops", label: "PLAYTEST OPS", description: "Build discussion and coordination" },
+] as const;
+
+export const FORUM_CATEGORIES = [
+  { id: "feedback", label: "FEEDBACK", description: "Tell us how the current experience feels." },
+  { id: "suggestions", label: "SUGGESTIONS", description: "Pitch systems, refinements, and new ideas." },
+  { id: "bug-reports", label: "BUG REPORTS", description: "Document defects so the team can reproduce them." },
+] as const;
+
+export type ChatChannelId = (typeof CHAT_CHANNELS)[number]["id"];
+export type ForumCategoryId = (typeof FORUM_CATEGORIES)[number]["id"];
+
+export function isChatChannel(value: string): value is ChatChannelId {
+  return CHAT_CHANNELS.some((channel) => channel.id === value);
+}
+
+export function isForumCategory(value: string): value is ForumCategoryId {
+  return FORUM_CATEGORIES.some((category) => category.id === value);
+}
+
+export interface CommunityChatMessage {
+  id: string;
+  channel: ChatChannelId;
+  userId: string;
+  displayName: string;
+  avatarUrl: string | null;
+  content: string;
+  createdAt: number;
+}

@@ -105,6 +105,7 @@ export default function Home() {
             <a href="#universe">UNIVERSE</a>
             <a href="#development">DEVELOPMENT</a>
             <a href="#access">ACCESS</a>
+            <a href={`${BASE_PATH}/community`}>COMMUNITY</a>
             <a href={`${BASE_PATH}/account`}>ACCOUNT</a>
           </nav>
 

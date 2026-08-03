@@ -104,10 +104,67 @@ export const playtestProfile = sqliteTable("playtest_profile", {
     .notNull(),
 });
 
+export const forumThread = sqliteTable(
+  "forum_thread",
+  {
+    id: text("id").primaryKey(),
+    category: text("category", { enum: ["feedback", "suggestions", "bug-reports"] }).notNull(),
+    title: text("title").notNull(),
+    body: text("body").notNull(),
+    authorId: text("author_id")
+      .notNull()
+      .references(() => user.id, { onDelete: "cascade" }),
+    status: text("status", { enum: ["open", "resolved", "locked"] }).default("open").notNull(),
+    replyCount: integer("reply_count").default(0).notNull(),
+    createdAt: integer("created_at", { mode: "timestamp_ms" }).default(now).notNull(),
+    updatedAt: integer("updated_at", { mode: "timestamp_ms" })
+      .default(now)
+      .notNull(),
+  },
+  (table) => [
+    index("idx_forum_thread_category_updated").on(table.category, table.updatedAt),
+    index("idx_forum_thread_author").on(table.authorId),
+  ],
+);
+
+export const forumPost = sqliteTable(
+  "forum_post",
+  {
+    id: text("id").primaryKey(),
+    threadId: text("thread_id")
+      .notNull()
+      .references(() => forumThread.id, { onDelete: "cascade" }),
+    authorId: text("author_id")
+      .notNull()
+      .references(() => user.id, { onDelete: "cascade" }),
+    body: text("body").notNull(),
+    createdAt: integer("created_at", { mode: "timestamp_ms" }).default(now).notNull(),
+    updatedAt: integer("updated_at", { mode: "timestamp_ms" })
+      .default(now)
+      .notNull(),
+  },
+  (table) => [
+    index("idx_forum_post_thread_created").on(table.threadId, table.createdAt),
+    index("idx_forum_post_author").on(table.authorId),
+  ],
+);
+
 export const userRelations = relations(user, ({ many, one }) => ({
   sessions: many(session),
   accounts: many(account),
   playtestProfile: one(playtestProfile),
+  forumThreads: many(forumThread),
+  forumPosts: many(forumPost),
+}));
+
+export const forumThreadRelations = relations(forumThread, ({ many, one }) => ({
+  author: one(user, { fields: [forumThread.authorId], references: [user.id] }),
+  posts: many(forumPost),
+}));
+
+export const forumPostRelations = relations(forumPost, ({ one }) => ({
+  thread: one(forumThread, { fields: [forumPost.threadId], references: [forumThread.id] }),
+  author: one(user, { fields: [forumPost.authorId], references: [user.id] }),
 }));
 
 export const sessionRelations = relations(session, ({ one }) => ({
