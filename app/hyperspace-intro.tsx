@@ -1402,6 +1402,36 @@ const stormCloudFragmentShader = `
     return fract(sin(dot(value, vec2(127.1, 311.7))) * 43758.5453123);
   }
 
+  float lightningFilament(vec2 uv, out float pulse) {
+    vec2 gridUv = uv * vec2(36.0, 18.0);
+    vec2 cell = floor(gridUv);
+    vec2 local = fract(gridUv) - 0.5;
+    float seed = hash21(cell);
+    float activeCell = step(0.965, seed);
+    pulse = pow(
+      max(0.0, sin(uTime * (0.82 + seed * 0.24) + seed * 61.0)),
+      96.0
+    ) * activeCell;
+
+    float mainPath = sin((local.y + seed) * 18.0 + seed * 8.0) * 0.09
+      + sin((local.y - seed) * 41.0) * 0.026;
+    float mainDistance = abs(local.x - mainPath);
+    float mainCore = 1.0 - smoothstep(0.008, 0.026, mainDistance);
+    float mainHalo = (1.0 - smoothstep(0.025, 0.09, mainDistance)) * 0.16;
+
+    float branchAnchor = mix(-0.2, 0.12, hash21(cell + vec2(4.3, 8.7)));
+    float branchDirection = mix(-0.72, 0.72, hash21(cell + vec2(9.1, 2.4)));
+    float branchDistance = abs(
+      local.x - mainPath - (local.y - branchAnchor) * branchDirection
+    );
+    float branchWindow = smoothstep(0.01, 0.08, local.y - branchAnchor)
+      * (1.0 - smoothstep(0.2, 0.4, local.y - branchAnchor));
+    float branchCore = (1.0 - smoothstep(0.008, 0.022, branchDistance))
+      * branchWindow * 0.62;
+    float envelope = smoothstep(0.5, 0.34, abs(local.y));
+    return max(mainCore, branchCore) * envelope + mainHalo * envelope;
+  }
+
   vec2 advectVortex(vec2 uv, vec2 center, float radius, float angularSpeed) {
     vec2 delta = uv - center;
     delta.x = fract(delta.x + 0.5) - 0.5;
@@ -1515,24 +1545,19 @@ const stormCloudFragmentShader = `
       accumulatedColor += layerColor * contribution;
       accumulatedAlpha += contribution;
 
-      vec2 lightningCell = floor(sampleUv * vec2(9.0, 5.0));
-      float lightningPhase = hash21(lightningCell);
-      float electricalPulse = pow(
-        max(0.0, sin(uTime * (2.1 + lightningPhase * 3.2) + lightningPhase * 47.0)),
-        34.0
-      );
-      float lightningGate = step(0.82, lightningPhase);
-      float embeddedLightning = lightningGate
+      float electricalPulse = 0.0;
+      float filament = lightningFilament(sampleUv, electricalPulse);
+      float embeddedLightning = filament
         * electricalPulse
-        * smoothstep(0.42, 0.8, luminance)
-        * (1.0 - smoothstep(0.9, 1.0, luminance));
-      accumulatedLightning += contribution * embeddedLightning
-        * 11.0;
+        * smoothstep(0.34, 0.68, luminance)
+        * (1.0 - smoothstep(0.94, 1.0, luminance))
+        * mix(1.0, 0.18, layerHeight);
+      accumulatedLightning += contribution * embeddedLightning * 3.4;
       transmittance *= 1.0 - stepAlpha;
     }
 
     vec3 cloudColor = accumulatedColor / max(accumulatedAlpha, 0.001);
-    cloudColor += vec3(0.3, 0.86, 1.0) * accumulatedLightning;
+    cloudColor += vec3(0.92, 0.97, 1.0) * accumulatedLightning;
     float alpha = clamp(accumulatedAlpha, 0.0, 0.96) * uOpacity;
     vec3 finalColor = mix(cloudColor, vec3(0.005, 0.012, 0.018), uShadowPass);
     float finalAlpha = alpha * mix(1.0, 0.56, uShadowPass);
