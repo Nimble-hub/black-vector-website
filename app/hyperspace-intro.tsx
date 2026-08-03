@@ -1141,26 +1141,31 @@ const exitDustVertexShader = `
     float headlightResponse = headlightProximity
       * headlightCone
       * step(0.18, forwardDepth);
-    float facetFlash = pow(
+    float primaryFlash = pow(
       max(sin(age * (3.15 + aSeed * 2.55) + aSeed * 43.0), 0.0),
-      22.0
-    ) * step(0.62, aSeed);
+      27.0
+    ) * step(0.5, aSeed);
+    float secondaryFlash = pow(
+      max(cos(age * (5.1 + aSeed * 2.6) + aSeed * 97.0), 0.0),
+      34.0
+    ) * step(0.76, aSeed);
+    float facetFlash = max(primaryFlash, secondaryFlash);
     float seededFlash = aGlint * pow(
-      max(sin(age * (1.55 + aSeed * 1.3) + aSeed * 67.0), 0.0),
-      22.0
+      max(sin(age * (2.05 + aSeed * 1.55) + aSeed * 67.0), 0.0),
+      28.0
     );
     float diamondFire = max(facetFlash, seededFlash);
     float effectiveGlint = max(diamondFire, headlightResponse * 0.42);
     gl_PointSize = clamp(
       aSize * (18.0 / max(-viewPosition.z, 1.0))
-        * (1.0 + diamondFire * 2.5 + headlightResponse * 0.16),
+        * (1.0 + diamondFire * 1.55 + headlightResponse * 0.12),
       0.58,
-      6.4
+      5.8
     );
 
     vLife = isAlive * fade * uOpacity;
     vBrightness = aBrightness * (
-      0.78 + headlightResponse * 2.8 + diamondFire * 2.65
+      0.8 + headlightResponse * 2.8 + diamondFire * 4.15
     );
     vGlint = effectiveGlint;
     vFacetRotation = aSeed * 6.2831853 + age * (0.32 + aTurbulence * 0.23);
@@ -1191,36 +1196,33 @@ const exitDustFragmentShader = `
     float facetSeam = 1.0 - smoothstep(0.008, 0.035, abs(facetAxis));
     float crystalEdge = smoothstep(0.28, 0.47, diamondDistance) * crystalBody;
 
-    float horizontalGlint = 1.0 - smoothstep(0.01, 0.06, abs(point.y));
-    float verticalGlint = 1.0 - smoothstep(0.01, 0.06, abs(point.x));
-    float glintFalloff = 1.0 - smoothstep(0.06, 0.49, diamondDistance);
-    float diffraction = max(horizontalGlint, verticalGlint * 0.72)
+    // Keep the camera glint inside the crystal sprite. Long cross-shaped
+    // diffraction read as blue/green streaks once thousands overlapped.
+    float horizontalGlint = 1.0 - smoothstep(0.008, 0.038, abs(point.y));
+    float verticalGlint = 1.0 - smoothstep(0.008, 0.038, abs(point.x));
+    float glintFalloff = 1.0 - smoothstep(0.045, 0.19, diamondDistance);
+    float compactGlint = max(horizontalGlint, verticalGlint * 0.82)
       * glintFalloff * max(vGlint, vFacetFlash);
     float pinFire = 1.0 - smoothstep(0.0, 0.075, diamondDistance);
 
-    vec3 iceShadow = vec3(0.62, 0.78, 0.9);
-    vec3 iceFacet = vec3(0.88, 0.965, 1.0);
-    vec3 reflectedWhite = vec3(0.985, 0.998, 1.0);
+    vec3 iceShadow = vec3(0.79, 0.815, 0.845);
+    vec3 iceFacet = vec3(0.95, 0.97, 0.99);
+    vec3 reflectedWhite = vec3(1.0, 0.998, 0.99);
     vec3 color = mix(iceShadow, iceFacet, 0.66 + facetLight * 0.3);
     color = mix(color, reflectedWhite, innerDiamond * 0.58 + facetSeam * 0.24);
 
     float bodyAlpha = crystalBody * (0.13 + innerDiamond * 0.1)
       * (1.0 - vFacetFlash * 0.84);
-    float sparkleAlpha = max(diffraction * 1.08, pinFire * vFacetFlash * 0.88);
+    float sparkleAlpha = max(compactGlint * 0.94, pinFire * vFacetFlash * 1.08);
     float alpha = max(
       bodyAlpha,
       sparkleAlpha
     ) * vLife * vBrightness;
-    vec3 spectralIce = mix(
-      vec3(0.58, 0.88, 1.0),
-      vec3(1.0, 0.91, 0.76),
-      smoothstep(-0.32, 0.32, point.x)
-    );
-    vec3 flashColor = mix(reflectedWhite, spectralIce, vFacetFlash * 0.12);
+    vec3 flashColor = reflectedWhite;
     vec3 emittedLight = flashColor * (
-      pinFire * (1.6 + vFacetFlash * 7.2)
-        + diffraction * 4.25
-        + crystalEdge * vGlint * 0.42
+      pinFire * (1.8 + vFacetFlash * 10.4)
+        + compactGlint * 5.1
+        + crystalEdge * vGlint * 0.34
     );
     gl_FragColor = vec4(color * (1.12 + facetLight * 0.52) + emittedLight, alpha);
   }
@@ -2620,13 +2622,16 @@ export function HyperspaceIntro() {
           + dustSuction * warpTension * 0.18;
         const preLaunchDust = dustReveal * 0.26
           + dustSuction * (0.08 + warpTension * 0.14);
+        // Clear axial tunnel grains before the perimeter dust ignites. Their
+        // inherited cool tint was the remaining source of colored exit lines.
+        const exitStreakFade = 1 - smoothstep((progress - 0.802) / 0.044);
         tunnelDustUniforms.uOpacity.value = (
           0.1
           + charge * 0.06
           + preLaunchDust
           + launchDust
           + visualLaunch * 0.55
-        ) * (1 - braking);
+        ) * (1 - braking) * exitStreakFade;
         tunnelDustUniforms.uWarpTension.value = warpTension;
         tunnelDustUniforms.uWarpRelease.value = warpRelease;
         tunnelDustUniforms.uWarpPhase.value = warpPhase;
@@ -2749,7 +2754,7 @@ export function HyperspaceIntro() {
         uniforms.uOpacity.value = smoothstep(progress / 0.015)
           * (0.3 + charge * 0.7)
           * (1 - visualLaunch * 0.14)
-          * (1 - smoothstep((progress - 0.88) / 0.055));
+          * (1 - smoothstep((progress - 0.805) / 0.052));
         const exitDustIgnition = smoothstep((progress - 0.822) / 0.022);
         const exitDustWhiteout = exitDustIgnition
           * (1 - smoothstep((progress - 0.912) / 0.06));
