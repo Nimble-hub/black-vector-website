@@ -1740,8 +1740,13 @@ function createWarpBubbleGeometry(isMobile: boolean) {
   );
   baseGeometry.rotateX(Math.PI / 2);
   const geometry = new THREE.InstancedBufferGeometry();
-  geometry.copy(baseGeometry);
-  baseGeometry.dispose();
+  geometry.setIndex(baseGeometry.index);
+  for (const [name, attribute] of Object.entries(baseGeometry.attributes)) {
+    geometry.setAttribute(name, attribute);
+  }
+  for (const group of baseGeometry.groups) {
+    geometry.addGroup(group.start, group.count, group.materialIndex);
+  }
   const layers = isMobile
     ? new Float32Array([-0.68, 0.68])
     : new Float32Array([-1, 0, 1]);

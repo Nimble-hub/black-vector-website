@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Image from "next/image";
+import { preload } from "react-dom";
 import { HyperspaceIntro } from "./hyperspace-intro";
 
 const BASE_PATH = process.env.NEXT_PUBLIC_BASE_PATH ?? "";
@@ -17,7 +18,7 @@ const accessOptions = [
     title: "Join the playtest",
     description:
       "Help shape command readability, pacing, fleet behavior, and the decisions that define Black Vector.",
-    href: process.env.NEXT_PUBLIC_PLAYTEST_URL,
+    href: process.env.NEXT_PUBLIC_PLAYTEST_URL || `${BASE_PATH}/register?returnTo=%2Faccount&intent=playtest`,
     readyLabel: "REGISTER FOR ACCESS",
     pendingLabel: "INTAKE PREPARING",
     status: "PRE-RELEASE TESTING",
@@ -83,6 +84,11 @@ const timeline = [
 ] as const;
 
 export default function Home() {
+  preload(`${BASE_PATH}/textures/bv-abyssal-ocean.webp`, { as: "image" });
+  preload(`${BASE_PATH}/textures/bv-planetary-storm-clouds-v3.webp`, { as: "image" });
+  preload(`${BASE_PATH}/textures/bv-planetary-storm-cloud-height-v3.webp`, { as: "image" });
+  preload(`${BASE_PATH}/models/Carrier.glb`, { as: "fetch", crossOrigin: "anonymous" });
+
   return (
     <main>
       <HyperspaceIntro />
@@ -99,6 +105,7 @@ export default function Home() {
             <a href="#universe">UNIVERSE</a>
             <a href="#development">DEVELOPMENT</a>
             <a href="#access">ACCESS</a>
+            <a href={`${BASE_PATH}/account`}>ACCOUNT</a>
           </nav>
 
           <div className="header-status">
@@ -302,8 +309,12 @@ export default function Home() {
               <h3>{option.title}</h3>
               <p>{option.description}</p>
               {option.href ? (
-                <a className="access-action" href={option.href} target="_blank" rel="noreferrer">
-                  {option.readyLabel} <span aria-hidden="true">&#8599;</span>
+                <a
+                  className="access-action"
+                  href={option.href}
+                  {...(option.href.startsWith("http") ? { target: "_blank", rel: "noreferrer" } : {})}
+                >
+                  {option.readyLabel} <span aria-hidden="true">{option.href.startsWith("http") ? "↗" : "→"}</span>
                 </a>
               ) : (
                 <span className="access-action is-disabled" aria-disabled="true">
@@ -329,6 +340,7 @@ export default function Home() {
           <a href="#game">GAME</a>
           <a href="#universe">UNIVERSE</a>
           <a href="#access">ACCESS</a>
+          <a href={`${BASE_PATH}/account`}>ACCOUNT</a>
         </div>
       </footer>
     </main>
