@@ -1925,7 +1925,7 @@ function createExitDustGeometry(count: number) {
   return geometry;
 }
 
-function createDeepSpaceWorld(isMobile: boolean) {
+function createDeepSpaceWorld(isMobile: boolean, balancedQuality: boolean) {
   const group = new THREE.Group();
   const fleet = new THREE.Group();
   const planetRadius = isMobile ? 16 : 18;
@@ -1952,8 +1952,8 @@ function createDeepSpaceWorld(isMobile: boolean) {
   // Keep the destination sky richly populated at every depth. This remains a
   // single Points draw call, so the added density costs vertices rather than
   // additional scene objects or materials.
-  const frontStarCount = isMobile ? 5200 : 10400;
-  const surroundStarCount = isMobile ? 18000 : 42000;
+  const frontStarCount = isMobile ? 5200 : balancedQuality ? 7800 : 10400;
+  const surroundStarCount = isMobile ? 18000 : balancedQuality ? 30000 : 42000;
   const starCount = frontStarCount + surroundStarCount;
   const starPositions = new Float32Array(starCount * 3);
   const starColors = new Float32Array(starCount * 3);
@@ -2083,7 +2083,7 @@ function createDeepSpaceWorld(isMobile: boolean) {
   deepStars.renderOrder = -12;
   group.add(deepStars);
 
-  const veilCount = isMobile ? 500 : 980;
+  const veilCount = isMobile ? 500 : balancedQuality ? 720 : 980;
   const veilPositions = new Float32Array(veilCount * 3);
   const veilColors = new Float32Array(veilCount * 3);
   const veilSizes = new Float32Array(veilCount);
@@ -2171,8 +2171,8 @@ function createDeepSpaceWorld(isMobile: boolean) {
   }));
   const planetGeometry = trackGeometry(new THREE.SphereGeometry(
     planetRadius,
-    isMobile ? 64 : 128,
-    isMobile ? 40 : 80,
+    isMobile ? 64 : balancedQuality ? 96 : 128,
+    isMobile ? 40 : balancedQuality ? 60 : 80,
   ));
   const planet = new THREE.Mesh(planetGeometry, planetMaterial);
   planet.position.copy(planetPosition);
@@ -2210,7 +2210,13 @@ function createDeepSpaceWorld(isMobile: boolean) {
     return { uniforms, material };
   };
 
-  const stormShadowLayer = createStormLayer(0, 0.00034, isMobile ? 2 : 4, 0, 1);
+  const stormShadowLayer = createStormLayer(
+    0,
+    0.00034,
+    isMobile ? 2 : balancedQuality ? 3 : 4,
+    0,
+    1,
+  );
   const stormShadows = new THREE.Mesh(planetGeometry, stormShadowLayer.material);
   stormShadows.position.copy(planet.position);
   stormShadows.rotation.copy(planet.rotation);
@@ -2218,7 +2224,12 @@ function createDeepSpaceWorld(isMobile: boolean) {
   stormShadows.renderOrder = 1;
   group.add(stormShadows);
 
-  const lowerStormLayer = createStormLayer(0, 0.00034, isMobile ? 3 : 6, isMobile ? 0.1 : 0.18);
+  const lowerStormLayer = createStormLayer(
+    0,
+    0.00034,
+    isMobile ? 3 : balancedQuality ? 4 : 6,
+    isMobile ? 0.1 : 0.18,
+  );
   const lowerStormClouds = new THREE.Mesh(planetGeometry, lowerStormLayer.material);
   lowerStormClouds.position.copy(planet.position);
   lowerStormClouds.rotation.copy(planet.rotation);
@@ -2226,7 +2237,12 @@ function createDeepSpaceWorld(isMobile: boolean) {
   lowerStormClouds.renderOrder = 2;
   group.add(lowerStormClouds);
 
-  const upperStormLayer = createStormLayer(1, -0.00022, isMobile ? 2 : 4, isMobile ? 0.06 : 0.11);
+  const upperStormLayer = createStormLayer(
+    1,
+    -0.00022,
+    isMobile ? 2 : balancedQuality ? 3 : 4,
+    isMobile ? 0.06 : 0.11,
+  );
   const upperStormClouds = new THREE.Mesh(planetGeometry, upperStormLayer.material);
   upperStormClouds.position.copy(planet.position);
   upperStormClouds.rotation.copy(planet.rotation);
@@ -2420,6 +2436,7 @@ function createDeepSpaceWorld(isMobile: boolean) {
 
   const setOpacity = (opacity: number) => {
     const eased = clamp01(opacity);
+    group.visible = eased > 0.001;
     for (const material of materials) material.opacity = eased;
     engineMaterial.opacity = eased * 0.92;
     ringMaterial.opacity = eased * 0.46;
@@ -2433,6 +2450,7 @@ function createDeepSpaceWorld(isMobile: boolean) {
   };
 
   const update = (elapsedSeconds: number) => {
+    if (!group.visible) return;
     starUniforms.uTime.value = elapsedSeconds;
     veilUniforms.uTime.value = elapsedSeconds;
     deepStars.rotation.z = Math.sin(elapsedSeconds * 0.004) * 0.003;
@@ -2558,7 +2576,8 @@ export function HyperspaceIntro() {
 
   useEffect(() => {
     if (fallback || !experienceReady) return;
-    const captureMode = new URLSearchParams(window.location.search).get("capture") === "hyperspace";
+    const searchParams = new URLSearchParams(window.location.search);
+    const captureMode = searchParams.get("capture") === "hyperspace";
     const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
     const shouldJump = captureMode || runId > 0 || (!window.sessionStorage.getItem(SEEN_KEY) && !reducedMotion);
     skipJumpRef.current = !shouldJump;
@@ -2571,11 +2590,29 @@ export function HyperspaceIntro() {
     const canvas = canvasRef.current;
     if (!canvas) return;
 
+    const isMobile = window.matchMedia("(max-width: 720px)").matches;
+    const viewportPixels = window.innerWidth * window.innerHeight;
+    const deviceMemory = (navigator as Navigator & { deviceMemory?: number }).deviceMemory ?? 8;
+    const hardwareThreads = navigator.hardwareConcurrency || 8;
+    const qualityPreference = searchParams.get("quality");
+    const balancedQuality = !captureMode && (
+      qualityPreference === "balanced"
+        || (
+          qualityPreference !== "cinematic"
+            && (
+              isMobile
+                || viewportPixels > 3_000_000
+                || deviceMemory <= 4
+                || hardwareThreads <= 6
+            )
+        )
+    );
+
     let renderer: THREE.WebGLRenderer;
     try {
       renderer = new THREE.WebGLRenderer({
         canvas,
-        antialias: true,
+        antialias: captureMode || !balancedQuality,
         alpha: false,
         depth: true,
         preserveDrawingBuffer: captureMode,
@@ -2587,7 +2624,6 @@ export function HyperspaceIntro() {
       return;
     }
 
-    const isMobile = window.matchMedia("(max-width: 720px)").matches;
     const scene = new THREE.Scene();
     scene.background = new THREE.Color(captureMode ? 0x000000 : 0x000104);
     const camera = new THREE.PerspectiveCamera(74, 1, 0.1, 420);
@@ -2623,7 +2659,7 @@ export function HyperspaceIntro() {
       uPressurePhase: { value: 0 },
       uResolution: { value: new THREE.Vector2(1, 1) },
     };
-    const geometry = createTunnelGeometry(isMobile ? 1350 : 2300);
+    const geometry = createTunnelGeometry(isMobile ? 1350 : balancedQuality ? 1750 : 2300);
     const material = new THREE.ShaderMaterial({
       uniforms,
       vertexShader,
@@ -2655,7 +2691,9 @@ export function HyperspaceIntro() {
       uPressurePulse: { value: 0 },
       uPressurePhase: { value: 0 },
     };
-    const tunnelDustGeometry = createTunnelDustGeometry(isMobile ? 1150 : 3000);
+    const tunnelDustGeometry = createTunnelDustGeometry(
+      isMobile ? 1150 : balancedQuality ? 2100 : 3000,
+    );
     const tunnelDustMaterial = new THREE.ShaderMaterial({
       uniforms: tunnelDustUniforms,
       vertexShader: tunnelDustVertexShader,
@@ -2682,7 +2720,7 @@ export function HyperspaceIntro() {
       uCruise: { value: 0 },
       uImpact: { value: 0 },
     };
-    const warpBubbleGeometry = createWarpBubbleGeometry(isMobile);
+    const warpBubbleGeometry = createWarpBubbleGeometry(isMobile || balancedQuality);
     const warpBubbleMaterial = new THREE.ShaderMaterial({
       uniforms: warpBubbleUniforms,
       vertexShader: warpBubbleVertexShader,
@@ -2707,7 +2745,9 @@ export function HyperspaceIntro() {
       uOpacity: { value: 0 },
       uResolution: { value: new THREE.Vector2(1, 1) },
     };
-    const exitWakeGeometry = createExitWakeGeometry(isMobile ? 96 : 192);
+    const exitWakeGeometry = createExitWakeGeometry(
+      isMobile ? 96 : balancedQuality ? 128 : 192,
+    );
     const exitWakeMaterial = new THREE.ShaderMaterial({
       uniforms: exitWakeUniforms,
       vertexShader: exitWakeVertexShader,
@@ -2733,7 +2773,9 @@ export function HyperspaceIntro() {
       uTime: { value: 0 },
       uOpacity: { value: 0 },
     };
-    const exitCrystalGeometry = createExitCrystalGeometry(isMobile ? 900 : 1900);
+    const exitCrystalGeometry = createExitCrystalGeometry(
+      isMobile ? 900 : balancedQuality ? 1250 : 1900,
+    );
     const exitCrystalMaterial = new THREE.ShaderMaterial({
       uniforms: exitCrystalUniforms,
       vertexShader: exitCrystalVertexShader,
@@ -2756,7 +2798,9 @@ export function HyperspaceIntro() {
       uTime: { value: 0 },
       uOpacity: { value: 0 },
     };
-    const exitDustGeometry = createExitDustGeometry(isMobile ? 12200 : 34000);
+    const exitDustGeometry = createExitDustGeometry(
+      isMobile ? 12200 : balancedQuality ? 22000 : 34000,
+    );
     const exitDustMaterial = new THREE.ShaderMaterial({
       uniforms: exitDustUniforms,
       vertexShader: exitDustVertexShader,
@@ -2772,10 +2816,10 @@ export function HyperspaceIntro() {
     exitDust.matrixAutoUpdate = false;
     exitDust.updateMatrix();
     exitDust.renderOrder = 8;
-    exitDust.visible = shouldJump;
+    exitDust.visible = false;
     scene.add(exitDust);
 
-    const world = createDeepSpaceWorld(isMobile);
+    const world = createDeepSpaceWorld(isMobile, balancedQuality);
     world.setOpacity(captureMode || shouldJump ? 0 : 1);
     scene.add(world.group);
 
@@ -2828,16 +2872,25 @@ export function HyperspaceIntro() {
       }
     };
 
+    let adaptivePixelScale = 1;
     const resize = () => {
       const width = window.innerWidth;
       const height = window.innerHeight;
-      const largeFrame = width * height > 3_000_000;
+      const framePixels = Math.max(width * height, 1);
+      const pixelBudget = balancedQuality ? 3_200_000 : 5_200_000;
+      const resolutionBudgetRatio = Math.sqrt(pixelBudget / framePixels);
+      const ratioCap = isMobile ? 1.25 : balancedQuality ? 1.35 : 1.6;
       // The capture route uses a fixed 2x backing surface. With the native
       // 1280x720 viewport this produces a true 2560x1440 canvas that can be
       // read directly, bypassing browser compositor scaling and tile seams.
       const pixelRatio = captureMode
         ? 2
-        : Math.min(window.devicePixelRatio || 1, largeFrame ? 1.25 : isMobile ? 1.35 : 1.6);
+        : THREE.MathUtils.clamp(
+            Math.min(window.devicePixelRatio || 1, resolutionBudgetRatio, ratioCap)
+              * adaptivePixelScale,
+            0.5,
+            ratioCap,
+          );
       renderer.setPixelRatio(pixelRatio);
       renderer.setSize(width, height, false);
       composer.setPixelRatio(pixelRatio);
@@ -2857,6 +2910,9 @@ export function HyperspaceIntro() {
 
     let startTime = 0;
     let previousTime = 0;
+    let frameTimeEma = 1 / 60;
+    let slowFrameDuration = 0;
+    let lastScaleChange = 0;
     let travel = 0;
     let dustTravel = 0;
     let jumpComplete = !shouldJump;
@@ -2877,6 +2933,27 @@ export function HyperspaceIntro() {
       const elapsed = time - startTime;
       const delta = Math.min((time - previousTime) / 1000, 0.05);
       previousTime = time;
+
+      // Preserve the cinematic tier when the device can sustain it, but
+      // quietly reduce only the backing resolution when frame pacing remains
+      // poor. Never scale back up during the sequence: reallocating render
+      // targets mid-shot would be more visible than the reduced resolution.
+      if (!captureMode && document.visibilityState === "visible") {
+        frameTimeEma += (delta - frameTimeEma) * 0.05;
+        if (frameTimeEma > 1 / 48) slowFrameDuration += delta;
+        else slowFrameDuration = Math.max(0, slowFrameDuration - delta * 0.5);
+
+        if (
+          slowFrameDuration > 1.5
+          && time - lastScaleChange > 2500
+          && adaptivePixelScale > 0.72
+        ) {
+          adaptivePixelScale = Math.max(0.72, adaptivePixelScale * 0.88);
+          slowFrameDuration = 0;
+          lastScaleChange = time;
+          resize();
+        }
+      }
 
       if (!jumpComplete) {
         const progress = skipJumpRef.current ? 1 : clamp01(elapsed / DURATION);
@@ -3133,6 +3210,7 @@ export function HyperspaceIntro() {
           * (1 - visualLaunch * 0.14)
           * (1 - smoothstep((progress - 0.88) / 0.055));
         const exitDustIgnition = smoothstep((progress - 0.822) / 0.022);
+        exitDust.visible = exitDustIgnition > 0.001;
         const exitDustWhiteout = exitDustIgnition
           * (1 - smoothstep((progress - 0.912) / 0.06));
         exitWakeUniforms.uTime.value = Math.max(0, (elapsed - DURATION * 0.818) / 1000);
@@ -3439,6 +3517,19 @@ export function HyperspaceIntro() {
       window.__BV_CAPTURE_RENDER__ = (timeMs: number) => animate(1000 + timeMs);
       window.__BV_CAPTURE_RENDER__(0);
     } else {
+      // Queue the destination and exit shaders before they first become
+      // visible. compileAsync traverses the scene synchronously, so the
+      // visibility flags can be restored immediately while the driver finishes
+      // compiling in parallel with the early charge-up frames.
+      if (shouldJump) {
+        const worldWasVisible = world.group.visible;
+        const dustWasVisible = exitDust.visible;
+        world.group.visible = true;
+        exitDust.visible = true;
+        void renderer.compileAsync(scene, camera).catch(() => undefined);
+        world.group.visible = worldWasVisible;
+        exitDust.visible = dustWasVisible;
+      }
       renderer.setAnimationLoop(animate);
     }
 
