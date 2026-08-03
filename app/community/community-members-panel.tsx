@@ -255,8 +255,8 @@ export function CommunityMembersPanel({
     await loadConversations();
   }
 
-  async function transmit(event: FormEvent) {
-    event.preventDefault();
+  async function transmit(event?: FormEvent) {
+    event?.preventDefault();
     if (!selected || !text.trim()) return;
     const content = text.trim();
     setText("");
@@ -345,7 +345,9 @@ export function CommunityMembersPanel({
             <textarea
               value={text}
               onChange={(event) => setText(event.target.value)}
-              onKeyDown={submitChatOnEnter}
+              onKeyDown={(event) => {
+                if (submitChatOnEnter(event)) void transmit();
+              }}
               maxLength={1000}
               placeholder="Direct transmission…"
             />

@@ -16,6 +16,11 @@ interface MutationInput {
   content?: string;
 }
 
+interface AvatarInput {
+  userId: string;
+  avatarUrl: string | null;
+}
+
 interface MessageRow extends Record<string, string | number | null> {
   id: string;
   channel: string;
@@ -197,6 +202,19 @@ export class ChatRoom extends DurableObject<Env> {
     return input.id;
   }
 
+  updateAvatar(input: AvatarInput): void {
+    this.ctx.storage.sql.exec(
+      "UPDATE messages SET avatar_url = ? WHERE user_id = ?",
+      input.avatarUrl,
+      input.userId,
+    );
+    this.broadcast({
+      type: "avatar-updated",
+      userId: input.userId,
+      avatarUrl: input.avatarUrl,
+    });
+  }
+
   async fetch(request: Request): Promise<Response> {
     const url = new URL(request.url);
     if (request.method === "POST" && url.pathname === "/publish") {
@@ -239,6 +257,12 @@ export class ChatRoom extends DurableObject<Env> {
           { status: responseStatus(message) },
         );
       }
+    }
+
+    if (request.method === "PATCH" && url.pathname === "/avatar") {
+      const input = await request.json<AvatarInput>();
+      this.updateAvatar(input);
+      return Response.json({ updated: true });
     }
 
     if (request.method === "GET" && url.pathname === "/recent") {

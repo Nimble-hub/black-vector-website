@@ -110,6 +110,9 @@ test("ships the realtime community hub and account profile media controls", asyn
   assert.match(schema, /forumPost/);
   assert.match(avatar, /MAX_AVATAR_BYTES/);
   assert.match(avatar, /PROFILE_MEDIA/);
+  assert.match(avatar, /syncCommunityAvatars/);
+  assert.match(avatar, /direct_conversation/);
+  assert.match(avatar, /clan_member/);
   assert.match(audio, /PLAYBACK_GAIN = 0\.72/);
   assert.match(worker, /profileImage/);
   assert.match(config, /community-v1/);
@@ -283,10 +286,14 @@ test("ships authenticated social connections, direct comms, and clan operations"
   assert.match(chatRoom, /setWebSocketAutoResponse/);
   assert.match(consoleUi, /Heartbeat timed out/);
   assert.match(consoleUi, /socket !== candidate/);
-  assert.match(chatInput, /event\.currentTarget\.form\?\.requestSubmit\(\)/);
-  assert.match(consoleUi, /onKeyDown=\{submitChatOnEnter\}/);
-  assert.match(memberUi, /onKeyDown=\{submitChatOnEnter\}/);
-  assert.match(clanUi, /onKeyDown=\{submitChatOnEnter\}/);
+  assert.match(chatInput, /event\.preventDefault\(\);\s*return true/);
+  assert.match(
+    consoleUi,
+    /if \(submitChatOnEnter\(event\)\) void transmit\(\)/,
+  );
+  assert.match(memberUi, /if \(submitChatOnEnter\(event\)\) void transmit\(\)/);
+  assert.match(clanUi, /if \(submitChatOnEnter\(event\)\) void transmit\(\)/);
+  assert.match(chatRoom, /type: "avatar-updated"/);
 });
 
 test("resolves the hyperspace camera, FOV, and interface on one handoff curve", async () => {

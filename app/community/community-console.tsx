@@ -230,7 +230,12 @@ export function CommunityConsole({
               type: "message" | "message-updated";
               message: CommunityChatMessage;
             }
-          | { type: "message-deleted"; id: string };
+          | { type: "message-deleted"; id: string }
+          | {
+              type: "avatar-updated";
+              userId: string;
+              avatarUrl: string | null;
+            };
         try {
           payload = JSON.parse(String(event.data)) as typeof payload;
         } catch {
@@ -256,6 +261,15 @@ export function CommunityConsole({
         if (payload.type === "message-deleted") {
           setMessages((current) =>
             current.filter((item) => item.id !== payload.id),
+          );
+        }
+        if (payload.type === "avatar-updated") {
+          setMessages((current) =>
+            current.map((item) =>
+              item.userId === payload.userId
+                ? { ...item, avatarUrl: payload.avatarUrl }
+                : item,
+            ),
           );
         }
       });
@@ -432,8 +446,8 @@ export function CommunityConsole({
     [category],
   );
 
-  async function transmit(event: FormEvent) {
-    event.preventDefault();
+  async function transmit(event?: FormEvent) {
+    event?.preventDefault();
     if (!chatText.trim() || !currentUser) return;
     const content = chatText.trim();
     setChatText("");
@@ -893,7 +907,9 @@ export function CommunityConsole({
                   <textarea
                     value={chatText}
                     onChange={(event) => setChatText(event.target.value)}
-                    onKeyDown={submitChatOnEnter}
+                    onKeyDown={(event) => {
+                      if (submitChatOnEnter(event)) void transmit();
+                    }}
                     maxLength={500}
                     placeholder={`Transmit to #${activeChannel.label.toLowerCase()}…`}
                   />

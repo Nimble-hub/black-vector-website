@@ -226,8 +226,8 @@ export function ClanConsole({
     });
   }
 
-  async function transmit(event: FormEvent) {
-    event.preventDefault();
+  async function transmit(event?: FormEvent) {
+    event?.preventDefault();
     if (!selected || !chatText.trim()) return;
     const content = chatText.trim();
     setChatText("");
@@ -439,7 +439,9 @@ export function ClanConsole({
                 <textarea
                   value={chatText}
                   onChange={(event) => setChatText(event.target.value)}
-                  onKeyDown={submitChatOnEnter}
+                  onKeyDown={(event) => {
+                    if (submitChatOnEnter(event)) void transmit();
+                  }}
                   maxLength={1000}
                   placeholder={`Transmit to [${selected.tag}]…`}
                 />

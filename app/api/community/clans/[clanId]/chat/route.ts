@@ -1,5 +1,6 @@
 import { env } from "cloudflare:workers";
 import { z } from "zod";
+import { getD1 } from "@/db";
 import {
   getCommunitySession,
   requireClanMembership,
@@ -49,6 +50,10 @@ export async function POST(
       { error: "Message must be 1–1000 characters." },
       { status: 400 },
     );
+  const profile = await getD1()
+    .prepare("SELECT name, image FROM user WHERE id = ? LIMIT 1")
+    .bind(session.user.id)
+    .first<{ name: string; image: string | null }>();
   const response = await env.CHAT_ROOMS.getByName(`clan:${clanId}`).fetch(
     "https://chat-room/publish",
     {
@@ -57,8 +62,8 @@ export async function POST(
       body: JSON.stringify({
         channel: `clan:${clanId}`,
         userId: session.user.id,
-        displayName: session.user.name,
-        avatarUrl: session.user.image || null,
+        displayName: profile?.name ?? session.user.name,
+        avatarUrl: profile?.image ?? null,
         content: parsed.data.content,
       }),
     },
