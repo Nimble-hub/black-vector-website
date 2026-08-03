@@ -24,6 +24,7 @@ html {
   color: var(--ivory);
   scroll-behavior: smooth;
   scroll-padding-top: 92px;
+  scrollbar-gutter: stable;
 }
 
 body {
@@ -173,7 +174,7 @@ a:focus-visible {
 }
 
 .site-header {
-  position: absolute;
+  position: fixed;
   top: 0;
   left: 0;
   right: 0;
@@ -199,14 +200,15 @@ a:focus-visible {
   transition: opacity 500ms ease;
 }
 
+.experience-arriving .site-header,
 .experience-landed .site-header {
-  position: fixed;
   padding-top: 18px;
   padding-bottom: 18px;
   background: linear-gradient(180deg, rgba(2, 5, 8, 0.92), rgba(2, 5, 8, 0.62) 72%, transparent);
   backdrop-filter: blur(14px);
 }
 
+.experience-arriving .site-header::after,
 .experience-landed .site-header::after {
   opacity: 1;
 }
@@ -512,6 +514,10 @@ h1 span {
   transition: opacity 700ms 520ms ease, transform 1100ms 360ms cubic-bezier(.16,.72,.26,1);
 }
 
+.experience-arriving .site-header,
+.experience-arriving .hero-meta,
+.experience-arriving .scroll-cue,
+.experience-arriving .world-label,
 .experience-landed .site-header,
 .experience-landed .hero-meta,
 .experience-landed .scroll-cue,
@@ -520,10 +526,12 @@ h1 span {
   transform: translate3d(0, 0, 0);
 }
 
+.experience-arriving .world-label,
 .experience-landed .world-label {
   transform: translate3d(24px, -50%, 0) rotateY(0deg);
 }
 
+.experience-arriving .world-label-flagship,
 .experience-landed .world-label-flagship {
   transform: translate3d(calc(-100% - 24px), -50%, 0) rotateY(0deg);
 }
@@ -1042,6 +1050,7 @@ h1 span {
   .signal-state { display: none; }
   .header-status { gap: 0; }
   .site-header { padding-right: 20px; padding-left: 20px; }
+  .experience-arriving .site-header,
   .experience-landed .site-header { padding-top: 12px; padding-bottom: 12px; }
   .wordmark { font-size: 11px; }
   .wordmark-mark { width: 30px; height: 30px; }

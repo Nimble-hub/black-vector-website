@@ -1985,6 +1985,18 @@ function createDeepSpaceWorld(
   const geometries: THREE.BufferGeometry[] = [];
   const materials: THREE.Material[] = [];
   const textures: THREE.Texture[] = [];
+  const criticalAssetLoads: Promise<void>[] = [];
+  const textureLoader = new THREE.TextureLoader();
+
+  const loadCriticalTexture = (path: string) => {
+    let settleLoad: () => void = () => undefined;
+    const ready = new Promise<void>((resolve) => {
+      settleLoad = resolve;
+    });
+    const texture = textureLoader.load(path, settleLoad, undefined, settleLoad);
+    criticalAssetLoads.push(ready);
+    return texture;
+  };
 
   const trackGeometry = <T extends THREE.BufferGeometry>(geometry: T) => {
     geometries.push(geometry);
@@ -2186,7 +2198,7 @@ function createDeepSpaceWorld(
   stellarVeil.renderOrder = -13;
   group.add(stellarVeil);
 
-  const oceanTexture = new THREE.TextureLoader().load(`${BASE_PATH}/textures/bv-abyssal-ocean.webp`);
+  const oceanTexture = loadCriticalTexture(`${BASE_PATH}/textures/bv-abyssal-ocean.webp`);
   oceanTexture.colorSpace = THREE.SRGBColorSpace;
   oceanTexture.wrapS = THREE.RepeatWrapping;
   oceanTexture.wrapT = THREE.ClampToEdgeWrapping;
@@ -2195,7 +2207,7 @@ function createDeepSpaceWorld(
   oceanTexture.anisotropy = 8;
   textures.push(oceanTexture);
 
-  const stormTexture = new THREE.TextureLoader().load(`${BASE_PATH}/textures/bv-planetary-storm-clouds-v3.webp`);
+  const stormTexture = loadCriticalTexture(`${BASE_PATH}/textures/bv-planetary-storm-clouds-v3.webp`);
   stormTexture.colorSpace = THREE.SRGBColorSpace;
   stormTexture.wrapS = THREE.RepeatWrapping;
   stormTexture.wrapT = THREE.ClampToEdgeWrapping;
@@ -2203,7 +2215,7 @@ function createDeepSpaceWorld(
   stormTexture.magFilter = THREE.LinearFilter;
   stormTexture.anisotropy = 8;
   textures.push(stormTexture);
-  const stormHeightTexture = new THREE.TextureLoader().load(`${BASE_PATH}/textures/bv-planetary-storm-cloud-height-v3.webp`);
+  const stormHeightTexture = loadCriticalTexture(`${BASE_PATH}/textures/bv-planetary-storm-cloud-height-v3.webp`);
   stormHeightTexture.colorSpace = THREE.NoColorSpace;
   stormHeightTexture.wrapS = THREE.RepeatWrapping;
   stormHeightTexture.wrapT = THREE.ClampToEdgeWrapping;
@@ -2450,11 +2462,13 @@ function createDeepSpaceWorld(
     });
   };
 
-  new GLTFLoader().load(
-    `${BASE_PATH}/models/Carrier.glb`,
-    (gltf) => {
+  const carrierLoad = new Promise<void>((resolve) => {
+    new GLTFLoader().load(
+      `${BASE_PATH}/models/Carrier.glb`,
+      (gltf) => {
       if (assetLoadCancelled) {
         disposeLoadedScene(gltf.scene);
+        resolve();
         return;
       }
 
@@ -2480,12 +2494,16 @@ function createDeepSpaceWorld(
       gltf.scene.position.copy(center).multiplyScalar(-scale);
       flagship.clear();
       flagship.add(gltf.scene);
-    },
-    undefined,
-    () => {
-      // The procedural silhouette remains as a graceful offline fallback.
-    },
-  );
+        resolve();
+      },
+      undefined,
+      () => {
+        // The procedural silhouette remains as a graceful offline fallback.
+        resolve();
+      },
+    );
+  });
+  criticalAssetLoads.push(carrierLoad);
 
   const ringGeometry = trackGeometry(new THREE.TorusGeometry(planetRadius * 1.13, 0.022, 4, 128));
   const ringMaterial = trackMaterial(new THREE.MeshBasicMaterial({
@@ -2531,6 +2549,8 @@ function createDeepSpaceWorld(
     anvilStormLayer.uniforms.uTime.value = elapsedSeconds;
     upperStormLayer.uniforms.uTime.value = elapsedSeconds;
     stormShadowLayer.uniforms.uTime.value = elapsedSeconds;
+    planet.rotation.y = 0.12 + elapsedSeconds * 0.008;
+    orbitalRing.rotation.z = 0.12 + elapsedSeconds * 0.018;
     stormShadows.rotation.copy(planet.rotation);
     stormShadows.rotation.y += elapsedSeconds * 0.00062;
     lowerStormClouds.rotation.copy(planet.rotation);
@@ -2545,7 +2565,9 @@ function createDeepSpaceWorld(
     assetLoadCancelled = true;
   };
 
-  return { group, fleet, flagship, planet, orbitalRing, rimLight, interfaceAnchor, geometries, materials, textures, setOpacity, update, cancelAssetLoad };
+  const ready = Promise.all(criticalAssetLoads).then(() => undefined);
+
+  return { group, fleet, flagship, planet, orbitalRing, rimLight, interfaceAnchor, geometries, materials, textures, ready, setOpacity, update, cancelAssetLoad };
 }
 
 export function HyperspaceIntro() {
@@ -2923,8 +2945,29 @@ export function HyperspaceIntro() {
     scene.add(exitDust);
 
     const world = createDeepSpaceWorld(isMobile, balancedQuality, softwareRendering);
-    world.setOpacity(captureMode || shouldJump ? 0 : 1);
+    let disposed = false;
+    let worldAssetsReady = false;
+    let worldAssetFade = 0;
+    world.setOpacity(0);
     scene.add(world.group);
+
+    // Decode, upload, and compile the destination while the visitor is still
+    // in transit. The planet remains hidden until the complete material stack
+    // is GPU-ready, preventing the flat placeholder/texture pop at exit.
+    void world.ready.then(async () => {
+      if (disposed) return;
+      for (const texture of world.textures) renderer.initTexture(texture);
+      world.group.visible = true;
+      try {
+        await renderer.compileAsync(world.group, camera);
+      } catch {
+        // The normal render path remains a graceful fallback when a driver
+        // does not support asynchronous shader compilation.
+      }
+      if (disposed) return;
+      worldAssetsReady = true;
+      world.group.visible = worldAssetFade > 0.001;
+    });
 
     const worldAnchors = [
       {
@@ -2975,15 +3018,26 @@ export function HyperspaceIntro() {
       }
     };
 
+    let renderWidth = 0;
+    let renderHeight = 0;
+    let renderPixelRatio = 0;
     const resize = () => {
-      const width = window.innerWidth;
-      const height = window.innerHeight;
+      const width = Math.max(1, Math.round(canvas.clientWidth || window.innerWidth));
+      const height = Math.max(1, Math.round(canvas.clientHeight || window.innerHeight));
       // The capture route uses a fixed 2x backing surface. With the native
       // 1280x720 viewport this produces a true 2560x1440 canvas that can be
       // read directly, bypassing browser compositor scaling and tile seams.
       // Interactive playback stays at the display's native backing resolution;
       // performance tiers reduce scene workload and cadence instead.
       const pixelRatio = captureMode ? 2 : window.devicePixelRatio || 1;
+      if (
+        width === renderWidth
+        && height === renderHeight
+        && pixelRatio === renderPixelRatio
+      ) return;
+      renderWidth = width;
+      renderHeight = height;
+      renderPixelRatio = pixelRatio;
       renderer.setPixelRatio(pixelRatio);
       renderer.setSize(width, height, false);
       composer.setPixelRatio(pixelRatio);
@@ -3037,6 +3091,7 @@ export function HyperspaceIntro() {
       const elapsed = time - startTime;
       const delta = Math.min((time - previousTime) / 1000, 0.05);
       previousTime = time;
+      if (worldAssetsReady) worldAssetFade = Math.min(1, worldAssetFade + delta * 2.8);
 
       if (!jumpComplete) {
         const progress = skipJumpRef.current ? 1 : clamp01(elapsed / DURATION);
@@ -3310,7 +3365,7 @@ export function HyperspaceIntro() {
           smoothstep((progress - 0.86) / 0.14),
           1.65,
         );
-        world.setOpacity(captureMode ? 0 : destinationForeshadow);
+        world.setOpacity(captureMode ? 0 : destinationForeshadow * worldAssetFade);
         const exitIllumination = smoothstep((progress - 0.842) / 0.042)
           * (1 - smoothstep((progress - 0.982) / 0.034));
         const exposureSpike = smoothstep(
@@ -3451,7 +3506,7 @@ export function HyperspaceIntro() {
           + impactKick * 0.0018
           + launchSnap * 0.0014
           + recoilEnvelope * 0.001;
-        camera.fov = 62
+        const hyperspaceFov = 62
           + charge * 2.5
           - warpTension * 9.5
           - preLaunchZoom * 10.5
@@ -3464,6 +3519,11 @@ export function HyperspaceIntro() {
           + cruiseFloatZ * cruiseFloatEnvelope * 0.12
           + hullVibrationZ * hullEnvelope * 0.12
           - braking * 23.5;
+        // End the optical compression at the exact theater FOV used by the
+        // destination. This removes the apparent planet/browser resize during
+        // the handoff without weakening the braking beat beforehand.
+        const landingFovBlend = smoothstep((progress - 0.972) / 0.028);
+        camera.fov = THREE.MathUtils.lerp(hyperspaceFov, 64, landingFovBlend);
         camera.updateProjectionMatrix();
 
         if (progress >= 1) {
@@ -3473,15 +3533,20 @@ export function HyperspaceIntro() {
           tunnelDust.visible = false;
           warpBubble.visible = false;
           lensPass.enabled = false;
-          world.setOpacity(captureMode ? 0 : 1);
+          world.setOpacity(captureMode ? 0 : worldAssetFade);
           renderer.toneMappingExposure = SCENE_EXPOSURE;
-          if (!finishQueued) {
+          if (!finishQueued && worldAssetFade >= 0.25) {
             finishQueued = true;
             if (!captureMode) finish();
           }
         }
       } else {
         const landingElapsed = landingStartTime === null ? 1600 : Math.max(0, time - landingStartTime);
+        world.setOpacity(captureMode ? 0 : worldAssetFade);
+        if (!finishQueued && worldAssetFade >= 0.25) {
+          finishQueued = true;
+          if (!captureMode) finish();
+        }
         const wakeFade = 1 - smoothstep(landingElapsed / 3500);
         const dustFade = 1 - smoothstep(landingElapsed / 4200);
         exitWakeUniforms.uTime.value = Math.max(0, (elapsed - DURATION * 0.818) / 1000);
@@ -3524,14 +3589,13 @@ export function HyperspaceIntro() {
 
         world.fleet.rotation.y = Math.sin(elapsed * 0.00008) * 0.022;
         world.flagship.position.y = -1.45 + Math.sin(elapsed * 0.00034) * 0.08;
-        world.planet.rotation.y = 0.12 + elapsed * 0.000008;
-        world.orbitalRing.rotation.z = 0.12 + elapsed * 0.000018;
       }
 
       const currentInterfaceArrival = jumpComplete && landingStartTime !== null
         ? smoothstep((time - landingStartTime - 100) / 1450)
         : jumpComplete ? 1 : 0;
-      world.update(elapsed * 0.001);
+      const destinationElapsedSeconds = Math.max(0, (elapsed - DURATION * 0.86) / 1000);
+      world.update(destinationElapsedSeconds);
       if (jumpComplete) updateWorldAnchors(currentInterfaceArrival);
       if (lensPass.enabled) composer.render(delta);
       else renderer.render(scene, camera);
@@ -3617,6 +3681,7 @@ export function HyperspaceIntro() {
     }
 
     return () => {
+      disposed = true;
       if (settleTimer !== null) window.clearTimeout(settleTimer);
       renderer.setAnimationLoop(null);
       if (captureMode) {

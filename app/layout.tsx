@@ -1,6 +1,8 @@
 import type { Metadata, Viewport } from "next";
+import { preload } from "react-dom";
 import "./globals.css";
 
+const BASE_PATH = process.env.NEXT_PUBLIC_BASE_PATH ?? "";
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? "https://nimble-hub.github.io/black-vector-website";
 const SITE_ROOT = SITE_URL.endsWith("/") ? SITE_URL : `${SITE_URL}/`;
 const SOCIAL_IMAGE = new URL("og.png", SITE_ROOT).toString();
@@ -45,6 +47,11 @@ export default function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  preload(`${BASE_PATH}/textures/bv-abyssal-ocean.webp`, { as: "image" });
+  preload(`${BASE_PATH}/textures/bv-planetary-storm-clouds-v3.webp`, { as: "image" });
+  preload(`${BASE_PATH}/textures/bv-planetary-storm-cloud-height-v3.webp`, { as: "image" });
+  preload(`${BASE_PATH}/models/Carrier.glb`, { as: "fetch", crossOrigin: "anonymous" });
+
   return (
     <html lang="en">
       <body>{children}</body>
