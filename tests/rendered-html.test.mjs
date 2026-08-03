@@ -45,3 +45,23 @@ test("keeps account linking explicit and exposes every requested sign-in path", 
     access(new URL("app/api/account/profile/route.ts", root)),
   ]);
 });
+
+test("secures and exposes manual-account password recovery", async () => {
+  const [auth, email, forgotPassword, resetPassword] = await Promise.all([
+    readFile(new URL("lib/auth.ts", root), "utf8"),
+    readFile(new URL("lib/auth-email.ts", root), "utf8"),
+    readFile(new URL("app/forgot-password/page.tsx", root), "utf8"),
+    readFile(new URL("app/reset-password/page.tsx", root), "utf8"),
+  ]);
+
+  assert.match(auth, /resetPasswordTokenExpiresIn:\s*60 \* 30/);
+  assert.match(auth, /revokeSessionsOnPasswordReset:\s*true/);
+  assert.match(auth, /"\/request-password-reset"/);
+  assert.match(auth, /ipAddressHeaders:\s*\["cf-connecting-ip"\]/);
+  assert.match(email, /text:/);
+  assert.match(email, /html:/);
+  assert.match(forgotPassword, /If that address has an account/);
+  assert.match(forgotPassword, /window\.location\.origin/);
+  assert.match(resetPassword, /INVALID_TOKEN/);
+  assert.match(resetPassword, /REQUEST NEW RESET LINK/);
+});

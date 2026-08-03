@@ -11,10 +11,21 @@ export default function ForgotPasswordPage() {
   const submit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     setBusy(true);
+    setMessage("");
     const email = String(new FormData(event.currentTarget).get("email") || "");
-    await authClient.requestPasswordReset({ email, redirectTo: "/reset-password" });
-    setMessage("If that address has an account, reset instructions are in transit.");
-    setBusy(false);
+    try {
+      const result = await authClient.requestPasswordReset({
+        email,
+        redirectTo: new URL("/reset-password", window.location.origin).toString(),
+      });
+      if (result.error) throw new Error(result.error.message);
+      setMessage("If that address has an account, reset instructions are in transit.");
+      event.currentTarget.reset();
+    } catch {
+      setMessage("The recovery channel is temporarily unavailable. Try again shortly.");
+    } finally {
+      setBusy(false);
+    }
   };
 
   return (
@@ -28,7 +39,7 @@ export default function ForgotPasswordPage() {
           <label><span>EMAIL ADDRESS</span><input name="email" type="email" autoComplete="email" required /></label>
           <button className="primary-action auth-submit" type="submit" disabled={busy}>{busy ? "TRANSMITTING..." : "SEND RESET LINK"}</button>
         </form>
-        {message && <p className="auth-message" role="status">{message}</p>}
+        {message && <p className="auth-message" role="status" aria-live="polite">{message}</p>}
         <div className="auth-switch"><Link href="/login">RETURN TO SIGN IN</Link></div>
       </section>
     </main>

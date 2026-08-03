@@ -1,5 +1,6 @@
 import "server-only";
 
+import { waitUntil } from "cloudflare:workers";
 import { drizzleAdapter } from "@better-auth/drizzle-adapter";
 import { betterAuth, type BetterAuthOptions, type BetterAuthPlugin } from "better-auth";
 import { steamOpenID } from "better-auth-steam";
@@ -40,16 +41,18 @@ function createAuth() {
     minPasswordLength: 12,
     maxPasswordLength: 128,
     requireEmailVerification: true,
+    resetPasswordTokenExpiresIn: 60 * 30,
+    revokeSessionsOnPasswordReset: true,
     sendResetPassword: async ({ user, url }) => {
-      await sendAuthEmail({
+      waitUntil(sendAuthEmail({
         to: user.email,
         subject: "Reset your Black Vector access key",
         preheader: "A password reset was requested for your Black Vector account.",
         heading: "Reset access key",
-        message: "A password reset was requested for your Black Vector account. This link expires automatically.",
+        message: "A password reset was requested for your Black Vector account. This secure link expires in 30 minutes.",
         actionLabel: "RESET PASSWORD",
         actionUrl: url,
-      });
+      }));
     },
   },
   emailVerification: {
@@ -94,6 +97,16 @@ function createAuth() {
     window: 60,
     max: 100,
     storage: "database",
+    customRules: {
+      "/request-password-reset": {
+        window: 60 * 15,
+        max: 3,
+      },
+      "/reset-password": {
+        window: 60 * 15,
+        max: 5,
+      },
+    },
   },
   socialProviders,
   plugins: providers.steam
@@ -105,6 +118,9 @@ function createAuth() {
   advanced: {
     useSecureCookies: authEnvironment.baseURL.startsWith("https://"),
     database: { generateId: "uuid" },
+    ipAddress: {
+      ipAddressHeaders: ["cf-connecting-ip"],
+    },
   },
   });
 }
