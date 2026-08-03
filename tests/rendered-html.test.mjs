@@ -115,12 +115,13 @@ test("ships the realtime community hub and account profile media controls", asyn
 });
 
 test("presents the production game pitch and cleanly hands transit audio to the site", async () => {
-  const [home, layout, intro, audio, styles] = await Promise.all([
+  const [home, layout, intro, audio, styles, header] = await Promise.all([
     readFile(new URL("app/page.tsx", root), "utf8"),
     readFile(new URL("app/layout.tsx", root), "utf8"),
     readFile(new URL("app/hyperspace-intro.tsx", root), "utf8"),
     readFile(new URL("app/hyperspace-audio.ts", root), "utf8"),
     readFile(new URL("app/globals.css", root), "utf8"),
+    readFile(new URL("app/site-header.tsx", root), "utf8"),
   ]);
 
   assert.match(home, /large-scale space RTS/);
@@ -136,4 +137,8 @@ test("presents the production game pitch and cleanly hands transit audio to the 
   assert.match(audio, /playbackEpoch/);
   assert.match(audio, /finishTransit/);
   assert.match(styles, /\.site-header\s*\{[\s\S]*position:\s*fixed/);
+  assert.match(header, /aria-expanded=\{menuOpen\}/);
+  assert.match(header, /SKIP TO GAME OVERVIEW/);
+  assert.match(header, /COMMUNITY/);
+  assert.match(header, /ACCOUNT/);
 });

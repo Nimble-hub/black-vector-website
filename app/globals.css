@@ -54,6 +54,24 @@ a:focus-visible {
   outline-offset: 4px;
 }
 
+.skip-link {
+  position: fixed;
+  top: 10px;
+  left: 18px;
+  z-index: 220;
+  padding: 12px 15px;
+  border: 1px solid var(--cyan);
+  background: #02080b;
+  color: var(--ivory);
+  font: 700 9px/1 Consolas, "Cascadia Mono", monospace;
+  letter-spacing: 0.1em;
+  text-decoration: none;
+  transform: translateY(calc(-100% - 20px));
+  transition: transform 160ms ease;
+}
+
+.skip-link:focus { transform: translateY(0); }
+
 .jump-intro {
   position: fixed;
   inset: 0;
@@ -168,6 +186,36 @@ a:focus-visible {
 
 .audio-toggle:hover { border-color: rgba(68, 202, 209, 0.7); color: var(--cyan); }
 
+.menu-toggle {
+  display: none;
+  min-height: 38px;
+  align-items: center;
+  gap: 8px;
+  padding: 0 10px;
+  border: 1px solid rgba(68, 202, 209, 0.28);
+  background: rgba(3, 10, 15, 0.52);
+  color: rgba(231, 226, 214, 0.7);
+  font: 700 8px/1 Consolas, "Cascadia Mono", monospace;
+  letter-spacing: 0.12em;
+  cursor: pointer;
+}
+
+.menu-toggle span,
+.menu-toggle span::before,
+.menu-toggle span::after {
+  display: block;
+  width: 13px;
+  height: 1px;
+  background: currentColor;
+}
+
+.menu-toggle span { position: relative; }
+.menu-toggle span::before,
+.menu-toggle span::after { position: absolute; left: 0; content: ""; }
+.menu-toggle span::before { top: -4px; }
+.menu-toggle span::after { top: 4px; }
+.menu-toggle:hover { border-color: rgba(68, 202, 209, 0.7); color: var(--cyan); }
+
 .eyebrow,
 .signal-state,
 .scroll-cue {
@@ -278,12 +326,14 @@ a:focus-visible {
 }
 
 .site-nav a:hover,
-.site-nav a:focus-visible {
+.site-nav a:focus-visible,
+.site-nav a[aria-current="location"] {
   color: var(--ivory);
 }
 
 .site-nav a:hover::after,
-.site-nav a:focus-visible::after {
+.site-nav a:focus-visible::after,
+.site-nav a[aria-current="location"]::after {
   right: 0;
 }
 
@@ -446,7 +496,7 @@ h1 span {
 .hero-actions {
   display: flex;
   align-items: center;
-  gap: 28px;
+  gap: 12px;
   margin-top: 34px;
 }
 
@@ -470,6 +520,31 @@ h1 span {
   background: var(--ivory);
 }
 
+.secondary-action {
+  display: inline-flex;
+  min-height: 46px;
+  align-items: center;
+  justify-content: center;
+  gap: 24px;
+  padding: 0 18px;
+  border: 1px solid rgba(68, 202, 209, 0.66);
+  background: rgba(3, 10, 15, 0.72);
+  color: var(--ivory);
+  font-family: Consolas, "Cascadia Mono", monospace;
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-decoration: none;
+  transition: border-color 180ms ease, background 180ms ease, color 180ms ease;
+}
+
+.secondary-action:hover,
+.secondary-action:focus-visible {
+  border-color: var(--cyan);
+  background: rgba(68, 202, 209, 0.12);
+  color: var(--cyan);
+}
+
 .text-action {
   display: inline-block;
   padding: 12px 0;
@@ -485,7 +560,7 @@ h1 span {
 }
 
 .text-action:hover { color: var(--cyan); border-color: rgba(68, 202, 209, 0.72); }
-.replay-action { opacity: 0.62; }
+.replay-action { margin-left: 8px; opacity: 0.62; }
 
 .hero-playtest-cta {
   position: absolute;
@@ -1071,6 +1146,7 @@ h1 span {
 
 .site-footer > div {
   display: flex;
+  flex-wrap: wrap;
   justify-content: flex-end;
   gap: 24px;
 }
@@ -1326,24 +1402,43 @@ h1 span {
 
 .account-shell { padding: 0 0 70px; }
 .account-header {
-  display: flex;
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
   min-height: 106px;
   align-items: center;
-  justify-content: space-between;
+  gap: 28px;
   padding: 24px max(28px, 4vw);
   border-bottom: 1px solid rgba(155, 170, 179, 0.13);
   background: rgba(2, 5, 8, 0.72);
 }
 
 .account-header .auth-wordmark { position: static; }
-.account-header > div { display: grid; justify-items: end; gap: 5px; }
-.account-header > div span {
+.account-global-nav {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 28px;
+}
+.account-global-nav a {
+  color: rgba(231, 226, 214, 0.58);
+  font: 8px/1 Consolas, "Cascadia Mono", monospace;
+  letter-spacing: 0.12em;
+  text-decoration: none;
+}
+.account-global-nav a:hover { color: var(--cyan); }
+.account-user-state { display: grid; justify-items: end; gap: 5px; }
+.account-user-state span {
   color: var(--cyan);
   font-family: Consolas, "Cascadia Mono", monospace;
   font-size: 7px;
   letter-spacing: 0.13em;
 }
-.account-header > div strong { font-size: 13px; letter-spacing: 0.04em; }
+.account-user-state strong { font-size: 13px; letter-spacing: 0.04em; }
+
+nav[aria-label="Community navigation"] a:focus-visible {
+  outline: 2px solid var(--cyan);
+  outline-offset: 6px;
+}
 
 .account-console {
   display: grid;
@@ -1454,8 +1549,50 @@ h1 span {
   50% { opacity: .35; box-shadow: 0 0 3px var(--cyan); }
 }
 
+@media (max-width: 1360px) {
+  .signal-state { display: none; }
+  .site-nav { gap: clamp(16px, 1.8vw, 28px); }
+}
+
 @media (max-width: 1120px) {
-  .site-nav { display: none; }
+  .site-header { padding-inline: clamp(20px, 4vw, 44px); }
+  .header-status { gap: 8px; }
+  .menu-toggle { display: inline-flex; }
+  .site-nav {
+    position: absolute;
+    top: calc(100% - 1px);
+    right: clamp(20px, 4vw, 44px);
+    left: clamp(20px, 4vw, 44px);
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 0;
+    padding: 10px;
+    border: 1px solid rgba(68, 202, 209, 0.24);
+    background: rgba(2, 7, 10, 0.98);
+    box-shadow: 0 28px 70px rgba(0, 0, 0, 0.58);
+    opacity: 0;
+    pointer-events: none;
+    transform: translateY(-8px);
+    visibility: hidden;
+    transition: opacity 160ms ease, transform 160ms ease, visibility 160ms ease;
+  }
+  .site-nav.is-open {
+    opacity: 1;
+    pointer-events: auto;
+    transform: translateY(0);
+    visibility: visible;
+  }
+  .site-nav a {
+    display: flex;
+    min-height: 46px;
+    align-items: center;
+    justify-content: center;
+    padding: 0 12px;
+    border-bottom: 1px solid rgba(155, 170, 179, 0.08);
+    color: rgba(231, 226, 214, 0.7);
+    font-size: 9px;
+  }
+  .site-nav a::after { display: none; }
   .pillar-grid,
   .access-grid { grid-template-columns: 1fr; }
   .pillar + .pillar { border-top: 1px solid rgba(155, 170, 179, 0.12); border-left: 0; }
@@ -1480,21 +1617,19 @@ h1 span {
 
 @media (max-width: 700px) {
   .signal-state { display: none; }
-  .header-status { gap: 0; }
-  .site-header { padding: 12px 20px; }
+  .header-status { gap: 6px; }
+  .site-header { min-height: 66px; padding: 12px 14px; }
   .wordmark { font-size: 11px; }
   .wordmark-mark { width: 30px; height: 30px; }
-  .hero-actions { align-items: flex-start; flex-direction: column; gap: 4px; }
+  .site-nav { right: 14px; left: 14px; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .menu-toggle { min-height: 36px; padding-inline: 8px; }
+  .audio-toggle { min-height: 36px; }
+  .hero-actions { align-items: flex-start; flex-direction: column; gap: 9px; }
+  .hero-actions .primary-action,
+  .hero-actions .secondary-action { width: min(100%, 250px); min-height: 48px; justify-content: space-between; }
+  .replay-action { margin-left: 0; }
   .scroll-cue { display: none; }
-  .hero-playtest-cta {
-    right: 20px;
-    bottom: 22px;
-    width: calc(100% - 40px);
-    min-height: 96px;
-    padding: 17px 18px 16px 20px;
-  }
-  .hero-playtest-cta strong { font-size: clamp(23px, 7vw, 30px); }
-  .hero-playtest-cta i { width: 40px; height: 40px; margin-left: 12px; }
+  .hero-playtest-cta { display: none; }
   h1 { font-size: clamp(46px, 15vw, 72px); }
   .archive-secondary { padding-left: 24px; }
   .world-label { display: none; }
@@ -1527,8 +1662,15 @@ h1 span {
   .connection-grid { grid-template-columns: 1fr; }
   .connection-grid button { min-height: 88px; grid-template-columns: auto 1fr; align-items: center; gap: 14px; }
   .connection-grid button small { grid-column: 2; }
-  .account-header { align-items: flex-start; gap: 18px; }
-  .account-header > div { display: none; }
+  .account-header { grid-template-columns: 1fr auto; min-height: 82px; gap: 18px; padding: 18px 20px; }
+  .account-global-nav { gap: 16px; }
+  .account-user-state { display: none; }
+  nav[aria-label="Community navigation"] { gap: 14px; }
+  nav[aria-label="Community navigation"] a {
+    display: flex;
+    min-height: 44px;
+    align-items: center;
+  }
   .account-console { grid-template-columns: 1fr; width: calc(100% - 24px); margin-top: 16px; }
   .account-sidebar { flex-direction: row; overflow-x: auto; padding: 0; border-right: 0; border-bottom: 1px solid rgba(155, 170, 179, .14); }
   .account-sidebar p { display: none; }

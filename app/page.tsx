@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Image from "next/image";
 import { preload } from "react-dom";
 import { HyperspaceIntro } from "./hyperspace-intro";
+import { SiteHeader } from "./site-header";
 
 const BASE_PATH = process.env.NEXT_PUBLIC_BASE_PATH ?? "";
 
@@ -92,32 +93,7 @@ export default function Home() {
   return (
     <main>
       <HyperspaceIntro />
-
-      <header className="site-header">
-        <a className="wordmark" href="#top" aria-label="Black Vector home">
-          <span className="wordmark-mark" aria-hidden="true">BV</span>
-          <span>BLACK VECTOR</span>
-        </a>
-
-        <nav className="site-nav" aria-label="Primary navigation">
-          <a href="#game">THE GAME</a>
-          <a href="#universe">UNIVERSE</a>
-          <a href="#development">DEVELOPMENT</a>
-          <a href="#access">ACCESS</a>
-          <a href={`${BASE_PATH}/community`}>COMMUNITY</a>
-          <a href={`${BASE_PATH}/account`}>ACCOUNT</a>
-        </nav>
-
-        <div className="header-status">
-          <button className="audio-toggle" type="button" data-audio-toggle aria-pressed="true">
-            AUDIO // ON
-          </button>
-          <div className="signal-state">
-            <span aria-hidden="true" />
-            V.A.L.O.R. UPLINK // ACTIVE
-          </div>
-        </div>
-      </header>
+      <SiteHeader basePath={BASE_PATH} />
 
       <section className="hero" id="top" aria-labelledby="hero-title">
 
@@ -147,8 +123,8 @@ export default function Home() {
             <a className="primary-action" href="#game">
               EXPLORE THE GAME <span aria-hidden="true">&#8600;</span>
             </a>
-            <a className="text-action" href="#access">
-              PLAYTEST ACCESS
+            <a className="secondary-action" href={`${BASE_PATH}/playtest`}>
+              JOIN THE PLAYTEST <span aria-hidden="true">&#8594;</span>
             </a>
             <button className="text-action replay-action" type="button" data-replay-jump>
               REPLAY JUMP
@@ -164,7 +140,7 @@ export default function Home() {
         </a>
 
         <a className="scroll-cue" href="#game">
-          <span>SCROLL TO DECRYPT</span>
+          <span>SCROLL TO EXPLORE</span>
           <i aria-hidden="true" />
         </a>
       </section>
@@ -343,7 +319,9 @@ export default function Home() {
         <div>
           <a href="#game">GAME</a>
           <a href="#universe">UNIVERSE</a>
+          <a href="#development">DEVELOPMENT</a>
           <a href="#access">ACCESS</a>
+          <a href={`${BASE_PATH}/community`}>COMMUNITY</a>
           <a href={`${BASE_PATH}/account`}>ACCOUNT</a>
         </div>
       </footer>

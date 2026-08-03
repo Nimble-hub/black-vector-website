@@ -183,7 +183,11 @@ export function CommunityConsole({ currentUser }: { currentUser: CurrentUser | n
       <header className={styles.header}>
         <Link className={styles.wordmark} href="/"><span>BV</span><strong>BLACK VECTOR</strong></Link>
         <div className={styles.title}><small>PUBLIC NETWORK // COMMUNITY NODE</small><b>THE UPLINK</b></div>
-        <nav><Link href="/">GAME</Link><Link href="/account">ACCOUNT</Link></nav>
+        <nav aria-label="Community navigation">
+          <Link href="/">HOME</Link>
+          <Link href="/playtest">PLAYTEST</Link>
+          <Link href="/account">ACCOUNT</Link>
+        </nav>
       </header>
 
       <section className={styles.console}>

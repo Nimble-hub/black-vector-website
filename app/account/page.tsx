@@ -54,7 +54,11 @@ export default async function AccountPage({
     <main className="account-shell">
       <header className="account-header">
         <Link className="auth-wordmark" href="/"><span>BV</span> BLACK VECTOR</Link>
-        <div><span>IDENTITY NODE // AUTHENTICATED</span><strong>{session.user.name}</strong></div>
+        <nav className="account-global-nav" aria-label="Account navigation">
+          <Link href="/">HOME</Link>
+          <Link href="/community">COMMUNITY</Link>
+        </nav>
+        <div className="account-user-state"><span>IDENTITY NODE // AUTHENTICATED</span><strong>{session.user.name}</strong></div>
       </header>
       <AccountSettings
         user={{
