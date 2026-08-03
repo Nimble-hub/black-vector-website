@@ -121,6 +121,49 @@
   text-align: left;
 }
 
+.memberSearch {
+  position: sticky;
+  z-index: 2;
+  top: 0;
+  display: grid;
+  gap: 7px;
+  padding: 12px 13px;
+  border-bottom: 1px solid rgba(126, 190, 195, 0.13);
+  background: rgba(3, 11, 15, 0.98);
+}
+
+.memberSearch label {
+  color: #60777d;
+  font:
+    700 6px/1 Consolas,
+    monospace;
+  letter-spacing: 0.16em;
+}
+
+.memberSearch input {
+  width: 100%;
+  min-height: 34px;
+  border: 1px solid rgba(100, 210, 217, 0.22);
+  border-radius: 0;
+  outline: 0;
+  background: #061218;
+  color: #edeae1;
+  padding: 0 10px;
+  font:
+    9px/1 Consolas,
+    monospace;
+  letter-spacing: 0.06em;
+}
+
+.memberSearch input:focus {
+  border-color: rgba(100, 210, 217, 0.72);
+  box-shadow: 0 0 0 1px rgba(100, 210, 217, 0.12);
+}
+
+.memberSearch input::placeholder {
+  color: #42565d;
+}
+
 .memberList img,
 .memberList i,
 .conversation img,

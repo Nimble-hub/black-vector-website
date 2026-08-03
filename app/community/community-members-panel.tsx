@@ -72,6 +72,8 @@ export function CommunityMembersPanel({
   const [selected, setSelected] = useState<Conversation | null>(null);
   const [messages, setMessages] = useState<CommunityChatMessage[]>([]);
   const [text, setText] = useState("");
+  const [friendSearch, setFriendSearch] = useState("");
+  const [directSearch, setDirectSearch] = useState("");
   const [busy, setBusy] = useState<string | null>(null);
   const dmFeed = useRef<HTMLDivElement>(null);
 
@@ -204,6 +206,20 @@ export function CommunityMembersPanel({
     () => new Set(incoming.map((item) => item.id)),
     [incoming],
   );
+  const friendSearchResults = useMemo(() => {
+    const query = friendSearch.trim().toLocaleLowerCase();
+    if (!query) return [];
+    return members
+      .filter((member) => member.name.toLocaleLowerCase().includes(query))
+      .slice(0, 20);
+  }, [friendSearch, members]);
+  const directSearchResults = useMemo(() => {
+    const query = directSearch.trim().toLocaleLowerCase();
+    if (!query) return [];
+    return members
+      .filter((member) => member.name.toLocaleLowerCase().includes(query))
+      .slice(0, 20);
+  }, [directSearch, members]);
 
   async function requestFriend(targetUserId: string) {
     setBusy(`friend:${targetUserId}`);
@@ -470,7 +486,74 @@ export function CommunityMembersPanel({
         </div>
       ) : tab === "friends" ? (
         <div className={social.memberList}>
-          {incoming.map((member) => (
+          <div className={social.memberSearch}>
+            <label htmlFor="friend-member-search">FIND CREW TO ADD</label>
+            <input
+              id="friend-member-search"
+              type="search"
+              value={friendSearch}
+              onChange={(event) => setFriendSearch(event.target.value)}
+              placeholder="SEARCH MEMBERSâ€¦"
+              autoComplete="off"
+            />
+          </div>
+          {friendSearch.trim() &&
+            friendSearchResults.map((member) => (
+              <article key={`friend-search:${member.id}`}>
+                <Avatar member={member} />
+                <span>
+                  <b>{member.name}</b>
+                  <small className={member.online ? social.online : ""}>
+                    {incomingIds.has(member.id)
+                      ? "INCOMING REQUEST"
+                      : outgoingIds.has(member.id)
+                        ? "REQUEST SENT"
+                        : friendIds.has(member.id)
+                          ? "FRIEND"
+                          : member.presenceStatus === "dnd"
+                            ? "DO NOT DISTURB"
+                            : member.online
+                              ? "ONLINE"
+                              : "OFFLINE"}
+                  </small>
+                </span>
+                <div>
+                  {friendIds.has(member.id) ? (
+                    <button
+                      disabled={busy !== null}
+                      onClick={() => void openDirect(member)}
+                    >
+                      DM
+                    </button>
+                  ) : incomingIds.has(member.id) ? (
+                    <button
+                      disabled={busy !== null}
+                      onClick={() => void changeFriend(member.id, "accept")}
+                    >
+                      ACCEPT
+                    </button>
+                  ) : outgoingIds.has(member.id) ? (
+                    <button
+                      disabled={busy !== null}
+                      onClick={() => void changeFriend(member.id, "cancel")}
+                    >
+                      CANCEL
+                    </button>
+                  ) : (
+                    <button
+                      disabled={busy !== null}
+                      onClick={() => void requestFriend(member.id)}
+                    >
+                      ADD
+                    </button>
+                  )}
+                </div>
+              </article>
+            ))}
+          {friendSearch.trim() && !friendSearchResults.length && (
+            <p className={social.emptySocial}>NO MATCHING CREW FOUND.</p>
+          )}
+          {!friendSearch.trim() && incoming.map((member) => (
             <article key={member.id}>
               <Avatar member={member} />
               <span>
@@ -487,7 +570,7 @@ export function CommunityMembersPanel({
               </div>
             </article>
           ))}
-          {friends.map((member) => (
+          {!friendSearch.trim() && friends.map((member) => (
             <article key={member.id}>
               <Avatar member={member} />
               <span>
@@ -511,7 +594,7 @@ export function CommunityMembersPanel({
               </div>
             </article>
           ))}
-          {outgoing.map((member) => (
+          {!friendSearch.trim() && outgoing.map((member) => (
             <article key={member.id}>
               <Avatar member={member} />
               <span>
@@ -525,13 +608,54 @@ export function CommunityMembersPanel({
               </div>
             </article>
           ))}
-          {!friends.length && !incoming.length && !outgoing.length && (
+          {!friendSearch.trim() &&
+            !friends.length &&
+            !incoming.length &&
+            !outgoing.length && (
             <p className={social.emptySocial}>NO FRIEND CONNECTIONS YET.</p>
           )}
         </div>
       ) : (
         <div className={social.memberList}>
-          {conversations.map((conversation) => (
+          <div className={social.memberSearch}>
+            <label htmlFor="direct-member-search">START DIRECT COMMS</label>
+            <input
+              id="direct-member-search"
+              type="search"
+              value={directSearch}
+              onChange={(event) => setDirectSearch(event.target.value)}
+              placeholder="SEARCH MEMBERSâ€¦"
+              autoComplete="off"
+            />
+          </div>
+          {directSearch.trim() &&
+            directSearchResults.map((member) => (
+              <article key={`direct-search:${member.id}`}>
+                <Avatar member={member} />
+                <span>
+                  <b>{member.name}</b>
+                  <small className={member.online ? social.online : ""}>
+                    {member.presenceStatus === "dnd"
+                      ? "DO NOT DISTURB"
+                      : member.online
+                        ? "ONLINE"
+                        : "OFFLINE DELIVERY"}
+                  </small>
+                </span>
+                <div>
+                  <button
+                    disabled={busy !== null}
+                    onClick={() => void openDirect(member)}
+                  >
+                    DM
+                  </button>
+                </div>
+              </article>
+            ))}
+          {directSearch.trim() && !directSearchResults.length && (
+            <p className={social.emptySocial}>NO MATCHING CREW FOUND.</p>
+          )}
+          {!directSearch.trim() && conversations.map((conversation) => (
             <button
               className={social.conversation}
               key={conversation.id}
@@ -552,9 +676,9 @@ export function CommunityMembersPanel({
               </span>
             </button>
           ))}
-          {!conversations.length && (
+          {!directSearch.trim() && !conversations.length && (
             <p className={social.emptySocial}>
-              OPEN A DIRECT CHANNEL FROM THE ONLINE ROSTER.
+              SEARCH FOR A MEMBER TO OPEN A DIRECT CHANNEL.
             </p>
           )}
         </div>

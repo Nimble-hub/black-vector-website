@@ -276,6 +276,9 @@ test("ships authenticated social connections, direct comms, and clan operations"
   assert.match(memberUi, /ONLINE/);
   assert.match(memberUi, /MEMBERS/);
   assert.match(memberUi, /DIRECT COMMS \/\/ OFFLINE DELIVERY/);
+  assert.match(memberUi, /FIND CREW TO ADD/);
+  assert.match(memberUi, /START DIRECT COMMS/);
+  assert.match(memberUi, /NO MATCHING CREW FOUND/);
   assert.match(memberUi, /Friend request sent\. Waiting for acceptance/);
   assert.match(memberUi, /pagehide/);
   assert.match(consoleUi, /DO NOT DISTURB/);
