@@ -2145,20 +2145,33 @@ function createDeepSpaceWorld(isMobile: boolean, balancedQuality: boolean, softw
   stormHeightTexture.magFilter = THREE.LinearFilter;
   textures.push(stormHeightTexture);
   const planetMaterial = trackMaterial(
-    new THREE.MeshPhysicalMaterial({
-      color: 0x7895a0,
-      map: oceanTexture,
-      bumpMap: oceanTexture,
-      bumpScale: 0.055,
-      roughnessMap: oceanTexture,
-      emissive: 0x062936,
-      emissiveMap: oceanTexture,
-      emissiveIntensity: 0.08,
-      roughness: 0.24,
-      metalness: 0.02,
-      clearcoat: 0.72,
-      clearcoatRoughness: 0.12,
-    }),
+    softwareRendering
+      ? new THREE.MeshStandardMaterial({
+          color: 0x7895a0,
+          map: oceanTexture,
+          bumpMap: oceanTexture,
+          bumpScale: 0.055,
+          roughnessMap: oceanTexture,
+          emissive: 0x062936,
+          emissiveMap: oceanTexture,
+          emissiveIntensity: 0.08,
+          roughness: 0.24,
+          metalness: 0.02,
+        })
+      : new THREE.MeshPhysicalMaterial({
+          color: 0x7895a0,
+          map: oceanTexture,
+          bumpMap: oceanTexture,
+          bumpScale: 0.055,
+          roughnessMap: oceanTexture,
+          emissive: 0x062936,
+          emissiveMap: oceanTexture,
+          emissiveIntensity: 0.08,
+          roughness: 0.24,
+          metalness: 0.02,
+          clearcoat: 0.72,
+          clearcoatRoughness: 0.12,
+        }),
   );
   const planetGeometry = trackGeometry(new THREE.SphereGeometry(planetRadius, isMobile ? 64 : softwareRendering ? 80 : balancedQuality ? 112 : 192, isMobile ? 40 : softwareRendering ? 48 : balancedQuality ? 72 : 128));
   const planet = new THREE.Mesh(planetGeometry, planetMaterial);
@@ -2204,7 +2217,10 @@ function createDeepSpaceWorld(isMobile: boolean, balancedQuality: boolean, softw
   stormShadows.rotation.copy(planet.rotation);
   stormShadows.scale.setScalar(1.006);
   stormShadows.renderOrder = 1;
-  group.add(stormShadows);
+  // The authored storm map and the cloud volume shader already carry their
+  // own occlusion. On a software rasterizer this additional full-planet pass
+  // is disproportionately expensive and visually redundant.
+  if (!softwareRendering) group.add(stormShadows);
 
   const lowerStormLayer = createStormLayer(0, 0.00006, isMobile || softwareRendering ? 2 : balancedQuality ? 4 : 6, isMobile ? 0.14 : 0.22);
   const lowerStormClouds = new THREE.Mesh(planetGeometry, lowerStormLayer.material);
@@ -2338,13 +2354,83 @@ function createDeepSpaceWorld(isMobile: boolean, balancedQuality: boolean, softw
     return ship;
   };
 
+  const createInstancedContacts = (
+    contacts: Array<{ scale: number; position: THREE.Vector3; rotationY: number }>,
+  ) => {
+    const hullMatrices: THREE.Matrix4[] = [];
+    const armorMatrices: THREE.Matrix4[] = [];
+    const noseMatrices: THREE.Matrix4[] = [];
+    const engineMatrices: THREE.Matrix4[] = [];
+    const antennaMatrices: THREE.Matrix4[] = [];
+    const shipEuler = new THREE.Euler();
+    const shipQuaternion = new THREE.Quaternion();
+    const partQuaternion = new THREE.Quaternion();
+    const shipScale = new THREE.Vector3();
+    const partScale = new THREE.Vector3();
+    const partPosition = new THREE.Vector3();
+    const rootMatrix = new THREE.Matrix4();
+    const partMatrix = new THREE.Matrix4();
+
+    const addPart = (
+      target: THREE.Matrix4[],
+      root: THREE.Matrix4,
+      position: [number, number, number],
+      scale: [number, number, number],
+      rotationZ = 0,
+    ) => {
+      partPosition.set(...position);
+      partScale.set(...scale);
+      partQuaternion.setFromEuler(new THREE.Euler(0, 0, rotationZ));
+      partMatrix.compose(partPosition, partQuaternion, partScale);
+      target.push(root.clone().multiply(partMatrix));
+    };
+
+    for (const contact of contacts) {
+      shipEuler.set(-0.04, contact.rotationY, -0.035);
+      shipQuaternion.setFromEuler(shipEuler);
+      shipScale.setScalar(contact.scale);
+      rootMatrix.compose(contact.position, shipQuaternion, shipScale);
+
+      addPart(hullMatrices, rootMatrix, [0, 0, 0], [4.9, 0.62, 1.58]);
+      addPart(armorMatrices, rootMatrix, [-0.35, 0.51, 0.12], [2.65, 0.34, 0.82]);
+      addPart(armorMatrices, rootMatrix, [-2.55, -0.08, 0.18], [2.55, 0.18, 1.86], -0.1);
+      addPart(armorMatrices, rootMatrix, [2.55, -0.08, 0.18], [2.55, 0.18, 1.86], 0.1);
+      addPart(noseMatrices, rootMatrix, [0, 0, -2.85], [1.55, 1.55, 1.05]);
+      for (const x of [-2.1, 0, 2.1]) {
+        const engineScale = x === 0 ? 0.34 : 0.27;
+        addPart(engineMatrices, rootMatrix, [x, -0.05, 1.605], [engineScale, engineScale, engineScale]);
+      }
+      addPart(antennaMatrices, rootMatrix, [-0.55, 1.08, 0.05], [1, 1.35, 1]);
+    }
+
+    const addBatch = (
+      geometry: THREE.BufferGeometry,
+      material: THREE.Material,
+      matrices: THREE.Matrix4[],
+    ) => {
+      const batch = new THREE.InstancedMesh(geometry, material, matrices.length);
+      matrices.forEach((matrix, index) => batch.setMatrixAt(index, matrix));
+      batch.instanceMatrix.setUsage(THREE.StaticDrawUsage);
+      batch.frustumCulled = false;
+      fleet.add(batch);
+    };
+
+    addBatch(hullGeometry, hullMaterial, hullMatrices);
+    addBatch(hullGeometry, armorMaterial, armorMatrices);
+    addBatch(noseGeometry, hullMaterial, noseMatrices);
+    addBatch(engineGeometry, engineMaterial, engineMatrices);
+    addBatch(antennaGeometry, armorMaterial, antennaMatrices);
+  };
+
   // Foreground contacts occupy their own depth band, well clear of the
   // planetary sphere. Smaller silhouettes deeper in frame sell orbital scale
   // without making a carrier look comparable to a world.
   const flagship = createShip(0.72, new THREE.Vector3(-7.2, flagshipBaseY, -27), 0.18);
-  createShip(0.22, new THREE.Vector3(2.5, 4.8, -39), -0.2);
-  createShip(0.17, new THREE.Vector3(-3.2, -4.2, -45), 0.28);
-  createShip(0.15, new THREE.Vector3(-13.5, 3.5, -43), 0.08);
+  createInstancedContacts([
+    { scale: 0.22, position: new THREE.Vector3(2.5, 4.8, -39), rotationY: -0.2 },
+    { scale: 0.17, position: new THREE.Vector3(-3.2, -4.2, -45), rotationY: 0.28 },
+    { scale: 0.15, position: new THREE.Vector3(-13.5, 3.5, -43), rotationY: 0.08 },
+  ]);
   group.add(fleet);
 
   let assetLoadCancelled = false;
