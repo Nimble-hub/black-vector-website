@@ -27,6 +27,16 @@ export function HyperspaceIntro2D() {
   const [runId, setRunId] = useState(0);
   const [visible, setVisible] = useState(true);
 
+  useEffect(() => {
+    document.documentElement.classList.toggle(
+      "hyperspace-scroll-lock",
+      visible,
+    );
+    return () => {
+      document.documentElement.classList.remove("hyperspace-scroll-lock");
+    };
+  }, [visible]);
+
   const finish = useCallback(() => {
     window.sessionStorage.setItem(SEEN_KEY, "true");
     document.documentElement.classList.add("experience-landed");

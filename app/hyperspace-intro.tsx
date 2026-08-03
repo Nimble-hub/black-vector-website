@@ -2307,6 +2307,31 @@ export function HyperspaceIntro() {
   const [needsEngagement, setNeedsEngagement] = useState(false);
   const [mobileVisitor, setMobileVisitor] = useState(false);
 
+  useEffect(() => {
+    // The fallback renderer owns the same class while it is mounted.
+    if (fallback) return;
+    let unlockTimer: number | null = null;
+    if (jumping) {
+      document.documentElement.classList.add("hyperspace-scroll-lock");
+    } else {
+      // Hold the viewport through the brief arrival handoff so the scrollbar
+      // cannot appear mid-transition and nudge the composition.
+      unlockTimer = window.setTimeout(() => {
+        document.documentElement.classList.remove("hyperspace-scroll-lock");
+      }, 260);
+    }
+    return () => {
+      if (unlockTimer !== null) window.clearTimeout(unlockTimer);
+    };
+  }, [fallback, jumping]);
+
+  useEffect(
+    () => () => {
+      document.documentElement.classList.remove("hyperspace-scroll-lock");
+    },
+    [],
+  );
+
   const engage = useCallback((audioEnabled: boolean) => {
     audioRef.current?.setMuted(!audioEnabled);
     window.localStorage.setItem("black-vector-audio-muted", String(!audioEnabled));

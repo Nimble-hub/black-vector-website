@@ -27,6 +27,11 @@ html {
   scrollbar-gutter: stable;
 }
 
+html.hyperspace-scroll-lock,
+html.hyperspace-scroll-lock body {
+  overflow: hidden;
+}
+
 body {
   margin: 0;
   background: var(--void);

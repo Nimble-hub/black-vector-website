@@ -321,6 +321,8 @@ test("resolves the hyperspace camera, FOV, and interface on one handoff curve", 
   assert.match(intro, /const EXIT_SETTLE_DURATION = 3000/);
   assert.match(intro, /landingElapsed >= EXIT_SETTLE_DURATION/);
   assert.match(intro, /finish\(0\.7\)/);
+  assert.match(intro, /hyperspace-scroll-lock/);
+  assert.match(styles, /html\.hyperspace-scroll-lock/);
   assert.match(
     styles,
     /\.experience-arriving \.space-experience\.is-jumping\s*\{\s*z-index:\s*0/,
