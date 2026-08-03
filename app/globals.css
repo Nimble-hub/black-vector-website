@@ -135,6 +135,19 @@ a:focus-visible {
 .cinema-gate button:hover,
 .cinema-gate .cinema-gate-primary { background: var(--cyan); color: #02080b; }
 .cinema-gate .cinema-gate-primary { margin: 8px 0; }
+.cinema-gate .cinema-gate-skip {
+  min-height: 30px;
+  padding: 0 8px;
+  border-color: transparent;
+  color: rgba(231, 226, 214, 0.48);
+  font-weight: 400;
+}
+.cinema-gate .cinema-gate-skip:hover,
+.cinema-gate .cinema-gate-skip:focus-visible {
+  border-color: transparent;
+  background: transparent;
+  color: var(--ivory);
+}
 
 .header-status {
   display: flex;

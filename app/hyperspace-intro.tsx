@@ -2608,6 +2608,12 @@ export function HyperspaceIntro() {
     setJumping(false);
   }, []);
 
+  const skipIntro = useCallback(() => {
+    setNeedsEngagement(false);
+    setExperienceReady(true);
+    finish();
+  }, [finish]);
+
   const replay = useCallback(() => {
     skipJumpRef.current = false;
     setExperienceReady(true);
@@ -3753,6 +3759,7 @@ export function HyperspaceIntro() {
           ) : (
             <button className="cinema-gate-primary" type="button" onClick={() => engage(true)}>ENTER WITH AUDIO</button>
           )}
+          <button className="cinema-gate-skip" type="button" onClick={skipIntro}>SKIP HYPERSPACE</button>
           <small>{mobileVisitor ? "AUDIO IS OFF BY DEFAULT ON MOBILE" : "HEADPHONES RECOMMENDED"}</small>
         </div>
       )}

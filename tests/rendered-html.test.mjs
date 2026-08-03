@@ -131,6 +131,8 @@ test("presents the production game pitch and cleanly hands transit audio to the 
   assert.match(layout, /https:\/\/blackvector\.win/);
   assert.match(intro, /audioRef\.current\?\.finishTransit\(\)/);
   assert.match(intro, /void audio\.startMusic\(\)/);
+  assert.match(intro, /SKIP HYPERSPACE/);
+  assert.match(intro, /const skipIntro = useCallback/);
   assert.match(audio, /playbackEpoch/);
   assert.match(audio, /finishTransit/);
   assert.match(styles, /\.site-header\s*\{[\s\S]*position:\s*fixed/);
