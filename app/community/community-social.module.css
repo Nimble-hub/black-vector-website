@@ -227,10 +227,21 @@
   content: "";
 }
 
+.selfBadge {
+  justify-self: start;
+  padding: 3px 5px;
+  border: 1px solid rgba(105, 215, 221, 0.28);
+  color: #71d6dc;
+  font: 700 6px/1 Consolas, monospace;
+  font-style: normal;
+  letter-spacing: 0.12em;
+}
+
 .memberList article > div {
   display: flex;
   gap: 4px;
 }
+.memberList article > div[hidden] { display: none; }
 
 .memberList article > div button,
 .membersPanel > header > button {

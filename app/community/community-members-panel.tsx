@@ -15,6 +15,7 @@ import { submitChatOnEnter } from "@/lib/chat-input";
 
 interface Member {
   id: string;
+  isSelf: boolean;
   name: string;
   image: string | null;
   role: CommunityRole;
@@ -211,14 +212,20 @@ export function CommunityMembersPanel({
     const query = friendSearch.trim().toLocaleLowerCase();
     if (!query) return [];
     return members
-      .filter((member) => member.name.toLocaleLowerCase().includes(query))
+      .filter(
+        (member) =>
+          !member.isSelf && member.name.toLocaleLowerCase().includes(query),
+      )
       .slice(0, 20);
   }, [friendSearch, members]);
   const directSearchResults = useMemo(() => {
     const query = directSearch.trim().toLocaleLowerCase();
     if (!query) return [];
     return members
-      .filter((member) => member.name.toLocaleLowerCase().includes(query))
+      .filter(
+        (member) =>
+          !member.isSelf && member.name.toLocaleLowerCase().includes(query),
+      )
       .slice(0, 20);
   }, [directSearch, members]);
 
@@ -420,8 +427,9 @@ export function CommunityMembersPanel({
                       ? ` · ${member.role.toUpperCase()}`
                       : ""}
                   </small>
+                  {member.isSelf && <em className={social.selfBadge}>YOU</em>}
                 </span>
-                <div>
+                <div hidden={member.isSelf}>
                   <button
                     disabled={busy !== null}
                     onClick={() => void openDirect(member)}
@@ -450,7 +458,7 @@ export function CommunityMembersPanel({
               </article>
             ))}
           {!members.some((member) => member.online) && (
-            <p className={social.emptySocial}>NO OTHER CREW ONLINE.</p>
+            <p className={social.emptySocial}>NO CREW ONLINE.</p>
           )}
         </div>
       ) : tab === "members" ? (
@@ -470,8 +478,9 @@ export function CommunityMembersPanel({
                     ? ` · ${member.role.toUpperCase()}`
                     : ""}
                 </small>
+                {member.isSelf && <em className={social.selfBadge}>YOU</em>}
               </span>
-              <div>
+              <div hidden={member.isSelf}>
                 <button
                   disabled={busy !== null}
                   onClick={() => void openDirect(member)}

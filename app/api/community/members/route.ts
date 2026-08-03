@@ -47,7 +47,6 @@ export async function GET() {
     FROM user u
     LEFT JOIN community_staff_role sr ON sr.user_id = u.id
     LEFT JOIN community_presence p ON p.user_id = u.id
-    WHERE u.id != ?
     ORDER BY
       CASE WHEN p.last_seen_at >= ? THEN 0 ELSE 1 END,
       p.last_seen_at DESC,
@@ -55,13 +54,14 @@ export async function GET() {
     LIMIT 120
   `,
     )
-    .bind(session.user.id, onlineThreshold)
+    .bind(onlineThreshold)
     .all<MemberRow>();
 
   return Response.json({
     selfStatus: selfPresence?.status ?? "online",
     members: result.results.map((member) => ({
       id: member.id,
+      isSelf: member.id === session.user.id,
       name: member.name,
       image: member.image,
       role: member.role,

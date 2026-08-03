@@ -258,6 +258,8 @@ test("ships authenticated social connections, direct comms, and clan operations"
   assert.match(members, /export async function PATCH/);
   assert.match(members, /presence_status !== "invisible"/);
   assert.match(members, /COMMUNITY_ONLINE_WINDOW_MS/);
+  assert.doesNotMatch(members, /WHERE u\.id != \?/);
+  assert.match(members, /isSelf: member\.id === session\.user\.id/);
   assert.match(friends, /orderedPair/);
   assert.match(friends, /already sent you a request\. Accept it from Friends/);
   assert.doesNotMatch(
@@ -274,6 +276,7 @@ test("ships authenticated social connections, direct comms, and clan operations"
   assert.match(clanForum, /Clan access required/);
   assert.match(consoleUi, /CLAN NETWORK/);
   assert.match(memberUi, /ONLINE/);
+  assert.match(memberUi, /social\.selfBadge/);
   assert.match(memberUi, /MEMBERS/);
   assert.match(memberUi, /DIRECT COMMS \/\/ OFFLINE DELIVERY/);
   assert.match(memberUi, /FIND CREW TO ADD/);
