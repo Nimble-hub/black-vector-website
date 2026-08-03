@@ -2,14 +2,24 @@
   "$schema": "./node_modules/wrangler/config-schema.json",
   "name": "black-vector-website",
   "main": "./dist/server/index.js",
-  "compatibility_date": "2026-05-15",
+  "compatibility_date": "2026-08-03",
   "compatibility_flags": ["nodejs_compat"],
   "workers_dev": true,
   "preview_urls": true,
   "vars": {
-    "BETTER_AUTH_URL": "https://black-vector-website.curtisl-conrad.workers.dev",
-    "BETTER_AUTH_TRUSTED_ORIGINS": "https://black-vector-website.curtisl-conrad.workers.dev"
+    "BETTER_AUTH_URL": "https://blackvector.win",
+    "BETTER_AUTH_TRUSTED_ORIGINS": "https://blackvector.win,https://www.blackvector.win,https://black-vector-website.curtisl-conrad.workers.dev"
   },
+  "routes": [
+    {
+      "pattern": "blackvector.win",
+      "custom_domain": true
+    },
+    {
+      "pattern": "www.blackvector.win",
+      "custom_domain": true
+    }
+  ],
   "assets": {
     "directory": "./dist/client"
   },
