@@ -2340,7 +2340,7 @@ export function HyperspaceIntro() {
     window.dispatchEvent(new Event(AUDIO_SYNC_EVENT));
     setNeedsEngagement(false);
     setExperienceReady(true);
-    if (audioEnabled) void audioRef.current?.start();
+    void audioRef.current?.start();
   }, []);
 
   const finish = useCallback((audioFadeSeconds = 0.1) => {
@@ -2421,7 +2421,6 @@ export function HyperspaceIntro() {
     const toggleAudio = () => {
       const muted = !audio.isMuted;
       audio.setMuted(muted);
-      if (!muted) void audio.startMusic();
       window.localStorage.setItem("black-vector-audio-muted", String(muted));
       updateButton();
     };
@@ -2448,7 +2447,7 @@ export function HyperspaceIntro() {
       control.addEventListener("input", changeVolume),
     );
     window.addEventListener(AUDIO_SYNC_EVENT, syncAudioControls);
-    if ((hasSeenJump || reducedMotion) && !storedMuted) {
+    if (hasSeenJump || reducedMotion) {
       void audio.startMusic();
       window.addEventListener("pointerdown", startScoreOnGesture, {
         once: true,

@@ -59,7 +59,6 @@ export class HyperspaceAudio {
   }
 
   async start() {
-    if (this.muted) return;
     const playbackEpoch = ++this.playbackEpoch;
     const context = this.getContext();
     if (!context) return;
@@ -69,7 +68,6 @@ export class HyperspaceAudio {
     const jumpBuffer = await this.jumpBufferPromise;
     if (
       !jumpBuffer ||
-      this.muted ||
       !this.master ||
       playbackEpoch !== this.playbackEpoch
     )
@@ -104,7 +102,6 @@ export class HyperspaceAudio {
     const musicBuffer = await this.musicBufferPromise;
     if (
       musicBuffer &&
-      !this.muted &&
       this.jumpSource === jumpSource &&
       playbackEpoch === this.playbackEpoch
     ) {
@@ -117,16 +114,15 @@ export class HyperspaceAudio {
   }
 
   async startMusic() {
-    if (this.muted || this.musicSource) return;
     const playbackEpoch = this.playbackEpoch;
     const context = this.getContext();
     if (!context) return;
     this.prepare();
     await context.resume();
+    if (this.musicSource) return;
     const musicBuffer = await this.musicBufferPromise;
     if (
       !musicBuffer ||
-      this.muted ||
       !this.master ||
       this.musicSource ||
       playbackEpoch !== this.playbackEpoch
@@ -140,17 +136,15 @@ export class HyperspaceAudio {
     this.playbackEpoch += 1;
     this.stopJump(fadeSeconds);
     this.stopStructural(fadeSeconds);
-    if (!this.muted) void this.startMusic();
+    void this.startMusic();
   }
 
   setMuted(muted: boolean) {
     this.muted = muted;
     this.updateMasterGain();
-    if (muted) {
-      this.stop(0.08);
-      return;
+    if (!muted && this.context?.state === "suspended") {
+      void this.context.resume();
     }
-    this.prepare();
   }
 
   setVolume(volume: number) {

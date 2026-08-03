@@ -199,6 +199,10 @@ test("presents the production game pitch and cleanly hands transit audio to the 
   assert.match(intro, /const skipIntro = useCallback/);
   assert.match(audio, /playbackEpoch/);
   assert.match(audio, /finishTransit/);
+  assert.doesNotMatch(audio, /if \(muted\) \{\s*this\.stop/);
+  assert.match(audio, /this\.updateMasterGain\(\)/);
+  assert.match(intro, /void audioRef\.current\?\.start\(\)/);
+  assert.doesNotMatch(intro, /if \(!muted\) void audio\.startMusic\(\)/);
   assert.match(styles, /\.site-header\s*\{[\s\S]*position:\s*fixed/);
   assert.match(header, /aria-expanded=\{menuOpen\}/);
   assert.match(header, /SKIP TO GAME OVERVIEW/);
