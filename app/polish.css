@@ -188,6 +188,25 @@ p {
   text-align: right;
 }
 
+.transit-audio-controls {
+  position: fixed;
+  z-index: 115;
+  top: max(18px, env(safe-area-inset-top));
+  right: max(18px, env(safe-area-inset-right));
+  box-shadow: 0 14px 38px rgba(0, 0, 0, 0.42);
+}
+
+.transit-audio-controls[hidden] {
+  display: none;
+}
+
+.transit-audio-controls .audio-toggle,
+.transit-audio-controls .audio-volume-control {
+  border-color: rgba(106, 225, 232, 0.42);
+  background: rgba(2, 8, 12, 0.76);
+  backdrop-filter: blur(10px);
+}
+
 .hero-content {
   width: min(760px, calc(100vw - 48px));
 }
@@ -735,6 +754,10 @@ h1 span {
 }
 
 @media (max-width: 700px) {
+  .transit-audio-controls {
+    top: max(12px, env(safe-area-inset-top));
+    right: max(12px, env(safe-area-inset-right));
+  }
   :root {
     --section-pad: 76px;
   }

@@ -19,6 +19,7 @@ const SCENE_RIM_BASE = 48;
 const EXIT_RIM_BOOST = 86;
 const SEEN_KEY = "black-vector-jump-seen-3d-v23";
 const AUDIO_VOLUME_KEY = "black-vector-audio-volume";
+const AUDIO_SYNC_EVENT = "black-vector-audio-sync";
 const BASE_PATH = process.env.NEXT_PUBLIC_BASE_PATH ?? "";
 const CRUISE_PULSE_STARTS = [0.47, 0.62, 0.75] as const;
 
@@ -2306,6 +2307,7 @@ export function HyperspaceIntro() {
   const [experienceReady, setExperienceReady] = useState(false);
   const [needsEngagement, setNeedsEngagement] = useState(false);
   const [mobileVisitor, setMobileVisitor] = useState(false);
+  const [captureActive, setCaptureActive] = useState(false);
 
   useEffect(() => {
     // The fallback renderer owns the same class while it is mounted.
@@ -2335,6 +2337,7 @@ export function HyperspaceIntro() {
   const engage = useCallback((audioEnabled: boolean) => {
     audioRef.current?.setMuted(!audioEnabled);
     window.localStorage.setItem("black-vector-audio-muted", String(!audioEnabled));
+    window.dispatchEvent(new Event(AUDIO_SYNC_EVENT));
     setNeedsEngagement(false);
     setExperienceReady(true);
     if (audioEnabled) void audioRef.current?.start();
@@ -2383,27 +2386,37 @@ export function HyperspaceIntro() {
     audioRef.current = audio;
     if (!storedMuted) audio.prepare();
     const readinessTimer = window.setTimeout(() => {
+      setCaptureActive(captureMode);
       setMobileVisitor(isMobileVisitor);
       setNeedsEngagement(captureMode ? false : !hasSeenJump && !reducedMotion);
       setExperienceReady(captureMode || hasSeenJump || reducedMotion);
     }, 0);
 
-    const button = document.querySelector<HTMLButtonElement>("[data-audio-toggle]");
-    const volumeControl = document.querySelector<HTMLInputElement>("[data-audio-volume]");
-    const volumeValue = document.querySelector<HTMLOutputElement>("[data-audio-volume-value]");
+    const buttons = Array.from(
+      document.querySelectorAll<HTMLButtonElement>("[data-audio-toggle]"),
+    );
+    const volumeControls = Array.from(
+      document.querySelectorAll<HTMLInputElement>("[data-audio-volume]"),
+    );
+    const volumeValues = Array.from(
+      document.querySelectorAll<HTMLOutputElement>("[data-audio-volume-value]"),
+    );
     const updateButton = () => {
-      if (!button) return;
-      button.textContent = audio.isMuted ? "AUDIO // OFF" : "AUDIO // ON";
-      button.setAttribute("aria-pressed", String(!audio.isMuted));
+      for (const button of buttons) {
+        button.textContent = audio.isMuted ? "AUDIO // OFF" : "AUDIO // ON";
+        button.setAttribute("aria-pressed", String(!audio.isMuted));
+      }
     };
     const updateVolumeControl = () => {
       const percentage = Math.round(audio.currentVolume * 100);
-      if (volumeControl) {
+      for (const volumeControl of volumeControls) {
         volumeControl.value = String(percentage);
         volumeControl.style.setProperty("--audio-volume", `${percentage}%`);
         volumeControl.setAttribute("aria-valuetext", `${percentage} percent`);
       }
-      if (volumeValue) volumeValue.value = String(percentage).padStart(3, "0");
+      for (const volumeValue of volumeValues) {
+        volumeValue.value = String(percentage).padStart(3, "0");
+      }
     };
     const toggleAudio = () => {
       const muted = !audio.isMuted;
@@ -2412,11 +2425,15 @@ export function HyperspaceIntro() {
       window.localStorage.setItem("black-vector-audio-muted", String(muted));
       updateButton();
     };
-    const changeVolume = () => {
-      if (!volumeControl) return;
+    const changeVolume = (event: Event) => {
+      const volumeControl = event.currentTarget as HTMLInputElement;
       const volume = clamp01(Number(volumeControl.value) / 100);
       audio.setVolume(volume);
       window.localStorage.setItem(AUDIO_VOLUME_KEY, String(volume));
+      updateVolumeControl();
+    };
+    const syncAudioControls = () => {
+      updateButton();
       updateVolumeControl();
     };
     const startScoreOnGesture = () => {
@@ -2426,8 +2443,11 @@ export function HyperspaceIntro() {
     };
     updateButton();
     updateVolumeControl();
-    button?.addEventListener("click", toggleAudio);
-    volumeControl?.addEventListener("input", changeVolume);
+    buttons.forEach((button) => button.addEventListener("click", toggleAudio));
+    volumeControls.forEach((control) =>
+      control.addEventListener("input", changeVolume),
+    );
+    window.addEventListener(AUDIO_SYNC_EVENT, syncAudioControls);
     if ((hasSeenJump || reducedMotion) && !storedMuted) {
       void audio.startMusic();
       window.addEventListener("pointerdown", startScoreOnGesture, {
@@ -2437,8 +2457,13 @@ export function HyperspaceIntro() {
     }
     return () => {
       window.clearTimeout(readinessTimer);
-      button?.removeEventListener("click", toggleAudio);
-      volumeControl?.removeEventListener("input", changeVolume);
+      buttons.forEach((button) =>
+        button.removeEventListener("click", toggleAudio),
+      );
+      volumeControls.forEach((control) =>
+        control.removeEventListener("input", changeVolume),
+      );
+      window.removeEventListener(AUDIO_SYNC_EVENT, syncAudioControls);
       window.removeEventListener("pointerdown", startScoreOnGesture);
       window.removeEventListener("keydown", startScoreOnGesture);
       audio.dispose();
@@ -3259,6 +3284,35 @@ export function HyperspaceIntro() {
           <small>{mobileVisitor ? "AUDIO IS OFF BY DEFAULT ON MOBILE" : "HEADPHONES RECOMMENDED"}</small>
         </div>
       )}
+      <div
+        className="audio-controls transit-audio-controls"
+        hidden={!jumping || !experienceReady || needsEngagement || captureActive}
+        aria-label="Hyperspace audio controls"
+      >
+        <button
+          className="audio-toggle"
+          type="button"
+          data-audio-toggle
+          aria-pressed="true"
+        >
+          AUDIO // ON
+        </button>
+        <label className="audio-volume-control">
+          <span>VOL</span>
+          <input
+            type="range"
+            min="0"
+            max="100"
+            step="5"
+            defaultValue="50"
+            aria-label="Hyperspace audio volume"
+            data-audio-volume
+          />
+          <output data-audio-volume-value aria-hidden="true">
+            050
+          </output>
+        </label>
+      </div>
       <div className={`space-experience${jumping ? " is-jumping" : " is-landed"}`} aria-label={jumping ? "Hyperspace transit sequence" : "Black Vector fleet command environment"}>
         <canvas ref={canvasRef} aria-hidden="true" />
       </div>

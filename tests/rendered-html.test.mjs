@@ -343,10 +343,14 @@ test("exposes a persistent cinematic master volume beside the audio toggle", asy
   assert.match(audio, /linearRampToValueAtTime\(1, start \+ JUMP_FADE_IN_SECONDS\)/);
   assert.match(intro, /black-vector-audio-volume/);
   assert.match(intro, /AUDIO_VOLUME_KEY\) \?\? "0\.5"/);
+  assert.match(intro, /Hyperspace audio controls/);
+  assert.match(intro, /querySelectorAll<HTMLButtonElement>/);
+  assert.match(intro, /querySelectorAll<HTMLInputElement>/);
+  assert.match(intro, /AUDIO_SYNC_EVENT/);
   assert.match(header, /defaultValue="50"/);
   assert.match(
     intro,
-    /volumeControl\?\.addEventListener\("input", changeVolume\)/,
+    /control\.addEventListener\("input", changeVolume\)/,
   );
   assert.match(header, /data-audio-volume/);
   assert.match(header, /Cinematic audio volume/);
