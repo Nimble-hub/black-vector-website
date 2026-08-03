@@ -184,10 +184,13 @@ a:focus-visible {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: clamp(24px, 3.4vw, 52px) clamp(24px, 5vw, 78px);
+  padding: 18px clamp(24px, 5vw, 78px);
+  background: linear-gradient(180deg, rgba(2, 5, 8, 0.92), rgba(2, 5, 8, 0.62) 72%, transparent);
+  backdrop-filter: blur(14px);
   opacity: 0;
   transform: translate3d(0, -22px, 72px);
   transition: opacity 700ms 180ms ease, transform 1100ms 120ms cubic-bezier(.16,.72,.26,1);
+  will-change: opacity, transform;
 }
 
 .site-header::after {
@@ -200,14 +203,6 @@ a:focus-visible {
   background: linear-gradient(90deg, rgba(68, 202, 209, 0.3), rgba(155, 170, 179, 0.08) 42%, transparent);
   opacity: 0;
   transition: opacity 500ms ease;
-}
-
-.experience-arriving .site-header,
-.experience-landed .site-header {
-  padding-top: 18px;
-  padding-bottom: 18px;
-  background: linear-gradient(180deg, rgba(2, 5, 8, 0.92), rgba(2, 5, 8, 0.62) 72%, transparent);
-  backdrop-filter: blur(14px);
 }
 
 .experience-arriving .site-header::after,

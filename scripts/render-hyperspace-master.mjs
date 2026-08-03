@@ -21,7 +21,10 @@ const captureUrl =
   process.env.BV_CAPTURE_URL ??
   "https://blackvector.win/?capture=hyperspace&master=4k60";
 
-const viewportWidth = 1920;
+// Headless Chrome reserves a 15px layout gutter even with scrollbars hidden.
+// Supplying a 1935px emulated viewport yields an exact 1920px capture canvas,
+// which the scene renders at 2x for a true 3840px backing surface.
+const viewportWidth = 1935;
 const viewportHeight = 1080;
 const outputWidth = 3840;
 const outputHeight = 2160;
@@ -201,6 +204,24 @@ async function main() {
     await session.connect();
     await session.send("Page.enable");
     await session.send("Runtime.enable");
+    await session.send("Page.addScriptToEvaluateOnNewDocument", {
+      source: `(() => {
+        const lockCaptureViewport = () => {
+          if (document.documentElement) {
+            document.documentElement.style.setProperty("overflow", "hidden", "important");
+            document.documentElement.style.setProperty("width", "100%", "important");
+            document.documentElement.style.setProperty("height", "100%", "important");
+          }
+          if (document.body) {
+            document.body.style.setProperty("overflow", "hidden", "important");
+            document.body.style.setProperty("width", "100%", "important");
+            document.body.style.setProperty("height", "100%", "important");
+          }
+        };
+        lockCaptureViewport();
+        document.addEventListener("DOMContentLoaded", lockCaptureViewport, { once: true });
+      })();`,
+    });
     await session.send("Emulation.setDeviceMetricsOverride", {
       width: viewportWidth,
       height: viewportHeight,
