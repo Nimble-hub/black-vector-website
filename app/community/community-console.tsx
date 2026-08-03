@@ -56,6 +56,7 @@ interface StaffUser {
   email: string;
   role: CommunityRole;
 }
+type PresenceStatus = "online" | "dnd" | "invisible";
 
 function formatTime(value: string | number) {
   const date = new Date(value);
@@ -144,7 +145,10 @@ export function CommunityConsole({
   const [editingReplyId, setEditingReplyId] = useState<string | null>(null);
   const [editingReplyBody, setEditingReplyBody] = useState("");
   const [staffQuery, setStaffQuery] = useState("");
+  const [activeStaffQuery, setActiveStaffQuery] = useState("");
   const [staffUsers, setStaffUsers] = useState<StaffUser[]>([]);
+  const [presenceStatus, setPresenceStatus] =
+    useState<PresenceStatus>("online");
   const feedRef = useRef<HTMLDivElement>(null);
   const isModerator =
     currentUser?.role === "moderator" || currentUser?.role === "admin";
@@ -375,6 +379,48 @@ export function CommunityConsole({
       return setNotice(data.error ?? "Staff records could not be loaded.");
     setStaffUsers(data.users ?? []);
   }, []);
+
+  useEffect(() => {
+    if (!currentUser) return;
+    void fetch("/api/community/members", { cache: "no-store" })
+      .then(
+        async (response) =>
+          (await response.json()) as { selfStatus?: PresenceStatus },
+      )
+      .then((data) => setPresenceStatus(data.selfStatus ?? "online"));
+  }, [currentUser]);
+
+  useEffect(() => {
+    if (mode !== "staff" || currentUser?.role !== "admin") return;
+    queueMicrotask(() => void loadStaff(activeStaffQuery));
+    const timer = window.setInterval(
+      () => void loadStaff(activeStaffQuery),
+      15_000,
+    );
+    return () => window.clearInterval(timer);
+  }, [activeStaffQuery, currentUser?.role, loadStaff, mode]);
+
+  async function changePresenceStatus(status: PresenceStatus) {
+    const previous = presenceStatus;
+    setPresenceStatus(status);
+    setBusyAction("presence");
+    const response = await fetch("/api/community/members", {
+      method: "PATCH",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ status }),
+    });
+    const data = (await response.json()) as {
+      status?: PresenceStatus;
+      error?: string;
+    };
+    setBusyAction(null);
+    if (!response.ok || !data.status) {
+      setPresenceStatus(previous);
+      setNotice(data.error ?? "Presence status could not be changed.");
+      return;
+    }
+    setPresenceStatus(data.status);
+  }
 
   const activeChannel = useMemo(
     () => CHAT_CHANNELS.find((item) => item.id === channel)!,
@@ -685,10 +731,7 @@ export function CommunityConsole({
           {currentUser?.role === "admin" && (
             <button
               className={mode === "staff" ? styles.active : ""}
-              onClick={() => {
-                setMode("staff");
-                void loadStaff();
-              }}
+              onClick={() => setMode("staff")}
             >
               <span>04</span>
               <b>STAFF CONTROL</b>
@@ -696,10 +739,32 @@ export function CommunityConsole({
             </button>
           )}
           <div className={styles.identity}>
-            <i>{currentUser ? initials(currentUser.name) : "--"}</i>
+            <i
+              className={currentUser ? styles[presenceStatus] : styles.offline}
+            >
+              {currentUser ? initials(currentUser.name) : "--"}
+            </i>
             <span>
               <small>IDENTITY</small>
               <b>{currentUser?.name ?? "OBSERVER"}</b>
+              {currentUser ? (
+                <select
+                  aria-label="Presence status"
+                  value={presenceStatus}
+                  disabled={busyAction === "presence"}
+                  onChange={(event) =>
+                    void changePresenceStatus(
+                      event.target.value as PresenceStatus,
+                    )
+                  }
+                >
+                  <option value="online">ONLINE</option>
+                  <option value="dnd">DO NOT DISTURB</option>
+                  <option value="invisible">INVISIBLE</option>
+                </select>
+              ) : (
+                <small>OFFLINE</small>
+              )}
               <RoleBadge role={currentUser?.role ?? "member"} />
             </span>
           </div>
@@ -1252,7 +1317,9 @@ export function CommunityConsole({
               className={controls.staffSearch}
               onSubmit={(event) => {
                 event.preventDefault();
-                void loadStaff(staffQuery.trim());
+                const query = staffQuery.trim();
+                setActiveStaffQuery(query);
+                void loadStaff(query);
               }}
             >
               <input
@@ -1266,8 +1333,8 @@ export function CommunityConsole({
             <div className={controls.staffList}>
               {!staffUsers.length && (
                 <div className={styles.empty}>
-                  <span>NO STAFF RECORDS</span>
-                  <p>Search for a member to assign their first role.</p>
+                  <span>NO REGISTERED MEMBERS FOUND</span>
+                  <p>Try another name or email address.</p>
                 </div>
               )}
               {staffUsers.map((item) => (

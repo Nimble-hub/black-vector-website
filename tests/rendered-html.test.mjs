@@ -162,6 +162,8 @@ test("enforces community ownership and staff moderation roles", async () => {
   assert.match(forumRoute, /Moderator access required/);
   assert.match(staffRoute, /Administrator access required/);
   assert.match(staffRoute, /final administrator/);
+  assert.match(staffRoute, /orderBy\(desc\(user\.createdAt\)\)/);
+  assert.match(staffRoute, /limit\(80\)/);
   assert.match(community, /STAFF CONTROL/);
   assert.match(community, /EDIT THREAD/);
   assert.match(community, /CONFIRM DELETE/);
@@ -242,11 +244,14 @@ test("ships authenticated social connections, direct comms, and clan operations"
   ]);
 
   assert.match(schema, /communityPresence/);
+  assert.match(schema, /\["online", "dnd", "invisible"\]/);
   assert.match(schema, /communityFriendship/);
   assert.match(schema, /directConversation/);
   assert.match(schema, /clanForumThread/);
   assert.match(members, /getCommunitySession/);
   assert.match(members, /export async function DELETE/);
+  assert.match(members, /export async function PATCH/);
+  assert.match(members, /presence_status !== "invisible"/);
   assert.match(members, /COMMUNITY_ONLINE_WINDOW_MS/);
   assert.match(friends, /orderedPair/);
   assert.match(friends, /already sent you a request\. Accept it from Friends/);
@@ -266,6 +271,8 @@ test("ships authenticated social connections, direct comms, and clan operations"
   assert.match(memberUi, /ONLINE/);
   assert.match(memberUi, /Friend request sent\. Waiting for acceptance/);
   assert.match(memberUi, /pagehide/);
+  assert.match(consoleUi, /DO NOT DISTURB/);
+  assert.match(consoleUi, /INVISIBLE/);
   assert.match(memberUi, /DIRECT/);
   assert.match(clanUi, /OPERATIONS BOARD/);
   assert.match(migration, /CREATE TABLE `community_friendship`/);

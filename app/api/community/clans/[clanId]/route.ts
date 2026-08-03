@@ -13,6 +13,7 @@ interface ClanMemberRow {
   image: string | null;
   role: "owner" | "officer" | "member";
   last_seen_at: number | null;
+  presence_status: "online" | "dnd" | "invisible" | null;
 }
 
 export async function GET(
@@ -49,7 +50,7 @@ export async function GET(
   const rows = await d1
     .prepare(
       `
-    SELECT u.id, u.name, u.image, cm.role, p.last_seen_at
+    SELECT u.id, u.name, u.image, cm.role, p.last_seen_at, p.status AS presence_status
     FROM clan_member cm
     JOIN user u ON u.id = cm.user_id
     LEFT JOIN community_presence p ON p.user_id = u.id
@@ -74,7 +75,14 @@ export async function GET(
       name: member.name,
       image: member.image,
       role: member.role,
-      online: (member.last_seen_at ?? 0) >= threshold,
+      online:
+        (member.last_seen_at ?? 0) >= threshold &&
+        member.presence_status !== "invisible",
+      presenceStatus:
+        (member.last_seen_at ?? 0) >= threshold &&
+        member.presence_status !== "invisible"
+          ? (member.presence_status ?? "online")
+          : "offline",
     })),
   });
 }

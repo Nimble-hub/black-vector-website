@@ -19,16 +19,20 @@ interface Member {
   role: CommunityRole;
   online: boolean;
   lastSeenAt: number | null;
+  presenceStatus: "online" | "dnd" | "offline";
 }
 
-interface Friend extends Pick<Member, "id" | "name" | "image" | "online"> {
+interface Friend extends Pick<
+  Member,
+  "id" | "name" | "image" | "online" | "presenceStatus"
+> {
   direction?: "incoming" | "outgoing";
 }
 
 interface Conversation {
   id: string;
   updatedAt: number;
-  member: Pick<Member, "id" | "name" | "image" | "online">;
+  member: Pick<Member, "id" | "name" | "image" | "online" | "presenceStatus">;
 }
 
 function initials(name: string) {
@@ -230,7 +234,7 @@ export function CommunityMembersPanel({
   }
 
   async function openDirect(
-    member: Pick<Member, "id" | "name" | "image" | "online">,
+    member: Pick<Member, "id" | "name" | "image" | "online" | "presenceStatus">,
   ) {
     setBusy(`dm:${member.id}`);
     const response = await fetch("/api/community/conversations", {
@@ -356,7 +360,9 @@ export function CommunityMembersPanel({
                 <span>
                   <b>{member.name}</b>
                   <small className={member.online ? social.online : ""}>
-                    {member.online ? "ONLINE" : "OFFLINE"}
+                    {member.presenceStatus === "dnd"
+                      ? "DO NOT DISTURB"
+                      : "ONLINE"}
                     {member.role !== "member"
                       ? ` · ${member.role.toUpperCase()}`
                       : ""}
@@ -419,7 +425,11 @@ export function CommunityMembersPanel({
               <span>
                 <b>{member.name}</b>
                 <small className={member.online ? social.online : ""}>
-                  {member.online ? "ONLINE" : "OFFLINE"}
+                  {member.presenceStatus === "dnd"
+                    ? "DO NOT DISTURB"
+                    : member.online
+                      ? "ONLINE"
+                      : "OFFLINE"}
                 </small>
               </span>
               <div>
@@ -465,7 +475,11 @@ export function CommunityMembersPanel({
                 <small
                   className={conversation.member.online ? social.online : ""}
                 >
-                  {conversation.member.online ? "ONLINE" : "DIRECT CHANNEL"}
+                  {conversation.member.presenceStatus === "dnd"
+                    ? "DO NOT DISTURB"
+                    : conversation.member.online
+                      ? "ONLINE"
+                      : "DIRECT CHANNEL"}
                 </small>
               </span>
             </button>

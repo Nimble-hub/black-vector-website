@@ -22,6 +22,7 @@ interface ClanMember {
   image: string | null;
   role: "owner" | "officer" | "member";
   online: boolean;
+  presenceStatus: "online" | "dnd" | "offline";
 }
 
 interface ClanThread {
@@ -555,7 +556,11 @@ export function ClanConsole({
             <span>
               <b>{member.name}</b>
               <small className={member.online ? social.online : ""}>
-                {member.online ? "ONLINE" : member.role.toUpperCase()}
+                {member.presenceStatus === "dnd"
+                  ? "DO NOT DISTURB"
+                  : member.online
+                    ? "ONLINE"
+                    : member.role.toUpperCase()}
               </small>
             </span>
           </article>

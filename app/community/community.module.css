@@ -195,6 +195,32 @@
     monospace;
   font-style: normal;
 }
+.identity > i {
+  position: relative;
+}
+.identity > i::after {
+  position: absolute;
+  right: -2px;
+  bottom: -2px;
+  width: 8px;
+  height: 8px;
+  border: 2px solid #050c10;
+  border-radius: 50%;
+  background: #68747a;
+  content: "";
+}
+.identity > i.online::after {
+  background: #65d7a2;
+  box-shadow: 0 0 9px rgba(101, 215, 162, 0.7);
+}
+.identity > i.dnd::after {
+  background: #dd6b62;
+  box-shadow: 0 0 9px rgba(221, 107, 98, 0.55);
+}
+.identity > i.invisible::after,
+.identity > i.offline::after {
+  background: #5c686e;
+}
 .identity span {
   display: grid;
   gap: 5px;
@@ -214,6 +240,23 @@
     8px/1 Consolas,
     monospace;
   text-overflow: ellipsis;
+}
+.identity select {
+  width: min(100%, 142px);
+  padding: 0;
+  border: 0;
+  outline: 0;
+  background: transparent;
+  color: #67c9d0;
+  cursor: pointer;
+  font:
+    700 7px/1 Consolas,
+    monospace;
+  letter-spacing: 0.08em;
+}
+.identity select option {
+  background: #071116;
+  color: #d9dbd5;
 }
 .workspace {
   display: grid;

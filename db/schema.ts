@@ -220,6 +220,9 @@ export const communityPresence = sqliteTable(
       .primaryKey()
       .references(() => user.id, { onDelete: "cascade" }),
     lastSeenAt: integer("last_seen_at", { mode: "timestamp_ms" }).notNull(),
+    status: text("status", { enum: ["online", "dnd", "invisible"] })
+      .default("online")
+      .notNull(),
   },
   (table) => [index("idx_community_presence_last_seen").on(table.lastSeenAt)],
 );

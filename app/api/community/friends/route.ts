@@ -22,6 +22,7 @@ interface FriendRow {
   status: "pending" | "accepted";
   requested_by_id: string;
   last_seen_at: number | null;
+  presence_status: "online" | "dnd" | "invisible" | null;
 }
 
 export async function GET() {
@@ -42,6 +43,7 @@ export async function GET() {
       f.status,
       f.requested_by_id,
       p.last_seen_at
+      ,p.status AS presence_status
     FROM community_friendship f
     JOIN user other ON other.id = CASE WHEN f.user_low_id = ? THEN f.user_high_id ELSE f.user_low_id END
     LEFT JOIN community_presence p ON p.user_id = other.id
@@ -59,7 +61,14 @@ export async function GET() {
     status: row.status,
     direction:
       row.requested_by_id === session.user.id ? "outgoing" : "incoming",
-    online: (row.last_seen_at ?? 0) >= threshold,
+    online:
+      (row.last_seen_at ?? 0) >= threshold &&
+      row.presence_status !== "invisible",
+    presenceStatus:
+      (row.last_seen_at ?? 0) >= threshold &&
+      row.presence_status !== "invisible"
+        ? (row.presence_status ?? "online")
+        : "offline",
   }));
   return Response.json({
     friends: entries.filter((item) => item.status === "accepted"),

@@ -1,0 +1,1 @@
+ALTER TABLE `community_presence` ADD `status` text DEFAULT 'online' NOT NULL;

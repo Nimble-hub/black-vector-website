@@ -18,6 +18,7 @@ interface ConversationRow {
   member_name: string;
   member_image: string | null;
   last_seen_at: number | null;
+  presence_status: "online" | "dnd" | "invisible" | null;
 }
 
 export async function GET() {
@@ -38,6 +39,7 @@ export async function GET() {
       other.name AS member_name,
       other.image AS member_image,
       p.last_seen_at
+      ,p.status AS presence_status
     FROM direct_conversation c
     JOIN user other ON other.id = CASE WHEN c.user_low_id = ? THEN c.user_high_id ELSE c.user_low_id END
     LEFT JOIN community_presence p ON p.user_id = other.id
@@ -56,7 +58,14 @@ export async function GET() {
         id: row.member_id,
         name: row.member_name,
         image: row.member_image,
-        online: (row.last_seen_at ?? 0) >= onlineThreshold,
+        online:
+          (row.last_seen_at ?? 0) >= onlineThreshold &&
+          row.presence_status !== "invisible",
+        presenceStatus:
+          (row.last_seen_at ?? 0) >= onlineThreshold &&
+          row.presence_status !== "invisible"
+            ? (row.presence_status ?? "online")
+            : "offline",
       },
     })),
   });
