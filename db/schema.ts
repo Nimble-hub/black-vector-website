@@ -104,6 +104,23 @@ export const playtestProfile = sqliteTable("playtest_profile", {
     .notNull(),
 });
 
+export const communityStaffRole = sqliteTable(
+  "community_staff_role",
+  {
+    userId: text("user_id")
+      .primaryKey()
+      .references(() => user.id, { onDelete: "cascade" }),
+    role: text("role", { enum: ["moderator", "admin"] }).notNull(),
+    assignedBy: text("assigned_by").references(() => user.id, { onDelete: "set null" }),
+    createdAt: integer("created_at", { mode: "timestamp_ms" }).default(now).notNull(),
+    updatedAt: integer("updated_at", { mode: "timestamp_ms" })
+      .default(now)
+      .$onUpdate(() => new Date())
+      .notNull(),
+  },
+  (table) => [index("idx_community_staff_role").on(table.role)],
+);
+
 export const forumThread = sqliteTable(
   "forum_thread",
   {

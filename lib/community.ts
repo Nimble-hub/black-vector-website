@@ -13,6 +13,7 @@ export const FORUM_CATEGORIES = [
 
 export type ChatChannelId = (typeof CHAT_CHANNELS)[number]["id"];
 export type ForumCategoryId = (typeof FORUM_CATEGORIES)[number]["id"];
+export type CommunityRole = "member" | "moderator" | "admin";
 
 export function isChatChannel(value: string): value is ChatChannelId {
   return CHAT_CHANNELS.some((channel) => channel.id === value);
@@ -30,4 +31,5 @@ export interface CommunityChatMessage {
   avatarUrl: string | null;
   content: string;
   createdAt: number;
+  updatedAt: number | null;
 }

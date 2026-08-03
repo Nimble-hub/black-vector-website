@@ -114,6 +114,37 @@ test("ships the realtime community hub and account profile media controls", asyn
   ]);
 });
 
+test("enforces community ownership and staff moderation roles", async () => {
+  const [schema, permissions, chatRoom, chatRoute, forumRoute, staffRoute, community, migration] = await Promise.all([
+    readFile(new URL("db/schema.ts", root), "utf8"),
+    readFile(new URL("lib/community-permissions.ts", root), "utf8"),
+    readFile(new URL("worker/chat-room.ts", root), "utf8"),
+    readFile(new URL("app/api/community/chat/[channel]/route.ts", root), "utf8"),
+    readFile(new URL("app/api/community/forum/[threadId]/route.ts", root), "utf8"),
+    readFile(new URL("app/api/community/staff/route.ts", root), "utf8"),
+    readFile(new URL("app/community/community-console.tsx", root), "utf8"),
+    readFile(new URL("drizzle/0002_broad_the_renegades.sql", root), "utf8"),
+  ]);
+
+  assert.match(schema, /communityStaffRole/);
+  assert.match(schema, /"moderator", "admin"/);
+  assert.match(permissions, /canModerate/);
+  assert.match(chatRoom, /message-updated/);
+  assert.match(chatRoom, /message-deleted/);
+  assert.match(chatRoom, /existing\.user_id !== input\.actorUserId/);
+  assert.match(chatRoute, /export async function PATCH/);
+  assert.match(chatRoute, /export async function DELETE/);
+  assert.match(forumRoute, /Only the author can edit this thread/);
+  assert.match(forumRoute, /Moderator access required/);
+  assert.match(staffRoute, /Administrator access required/);
+  assert.match(staffRoute, /final administrator/);
+  assert.match(community, /STAFF CONTROL/);
+  assert.match(community, /EDIT THREAD/);
+  assert.match(community, /CONFIRM DELETE/);
+  assert.match(migration, /CREATE TABLE `community_staff_role`/);
+  assert.match(migration, /PRAGMA optimize/);
+});
+
 test("presents the production game pitch and cleanly hands transit audio to the site", async () => {
   const [home, layout, intro, audio, styles, header] = await Promise.all([
     readFile(new URL("app/page.tsx", root), "utf8"),

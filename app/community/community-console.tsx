@@ -8,11 +8,13 @@ import {
   FORUM_CATEGORIES,
   type ChatChannelId,
   type CommunityChatMessage,
+  type CommunityRole,
   type ForumCategoryId,
 } from "@/lib/community";
 import styles from "./community.module.css";
+import controls from "./community-controls.module.css";
 
-interface CurrentUser { id: string; name: string }
+interface CurrentUser { id: string; name: string; role: CommunityRole }
 interface ForumThread {
   id: string;
   category: ForumCategoryId;
@@ -22,6 +24,7 @@ interface ForumThread {
   replyCount: number;
   createdAt: string | number;
   updatedAt: string | number;
+  authorId: string;
   authorName: string;
   authorImage: string | null;
 }
@@ -30,8 +33,15 @@ interface ForumReply {
   body: string;
   createdAt: string | number;
   updatedAt: string | number;
+  authorId: string;
   authorName: string;
   authorImage: string | null;
+}
+interface StaffUser {
+  id: string;
+  name: string;
+  email: string;
+  role: CommunityRole;
 }
 
 function formatTime(value: string | number) {
@@ -49,13 +59,22 @@ function Avatar({ name, image }: { name: string; image?: string | null }) {
     : <i>{initials(name)}</i>;
 }
 
+function RoleBadge({ role }: { role: CommunityRole }) {
+  if (role === "member") return null;
+  return <span className={`${controls.roleBadge} ${controls[role]}`}>{role.toUpperCase()}</span>;
+}
+
 export function CommunityConsole({ currentUser }: { currentUser: CurrentUser | null }) {
-  const [mode, setMode] = useState<"chat" | "forum">("chat");
+  const [mode, setMode] = useState<"chat" | "forum" | "staff">("chat");
   const [channel, setChannel] = useState<ChatChannelId>("general");
   const [messages, setMessages] = useState<CommunityChatMessage[]>([]);
   const [connection, setConnection] = useState<"connecting" | "live" | "offline">("connecting");
   const [chatText, setChatText] = useState("");
   const [notice, setNotice] = useState("");
+  const [busyAction, setBusyAction] = useState<string | null>(null);
+  const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
+  const [editingMessageId, setEditingMessageId] = useState<string | null>(null);
+  const [editingMessageText, setEditingMessageText] = useState("");
   const [category, setCategory] = useState<ForumCategoryId>("feedback");
   const [threads, setThreads] = useState<ForumThread[]>([]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -65,7 +84,15 @@ export function CommunityConsole({ currentUser }: { currentUser: CurrentUser | n
   const [threadTitle, setThreadTitle] = useState("");
   const [threadBody, setThreadBody] = useState("");
   const [replyBody, setReplyBody] = useState("");
+  const [editingThread, setEditingThread] = useState(false);
+  const [editingThreadTitle, setEditingThreadTitle] = useState("");
+  const [editingThreadBody, setEditingThreadBody] = useState("");
+  const [editingReplyId, setEditingReplyId] = useState<string | null>(null);
+  const [editingReplyBody, setEditingReplyBody] = useState("");
+  const [staffQuery, setStaffQuery] = useState("");
+  const [staffUsers, setStaffUsers] = useState<StaffUser[]>([]);
   const feedRef = useRef<HTMLDivElement>(null);
+  const isModerator = currentUser?.role === "moderator" || currentUser?.role === "admin";
 
   useEffect(() => {
     let socket: WebSocket | undefined;
@@ -80,10 +107,17 @@ export function CommunityConsole({ currentUser }: { currentUser: CurrentUser | n
       socket.addEventListener("message", (event) => {
         const payload = JSON.parse(String(event.data)) as
           | { type: "snapshot"; messages: CommunityChatMessage[] }
-          | { type: "message"; message: CommunityChatMessage };
+          | { type: "message" | "message-updated"; message: CommunityChatMessage }
+          | { type: "message-deleted"; id: string };
         if (payload.type === "snapshot") setMessages(payload.messages);
         if (payload.type === "message") {
           setMessages((current) => [...current.filter((item) => item.id !== payload.message.id), payload.message].slice(-100));
+        }
+        if (payload.type === "message-updated") {
+          setMessages((current) => current.map((item) => item.id === payload.message.id ? payload.message : item));
+        }
+        if (payload.type === "message-deleted") {
+          setMessages((current) => current.filter((item) => item.id !== payload.id));
         }
       });
       socket.addEventListener("close", () => {
@@ -110,6 +144,17 @@ export function CommunityConsole({ currentUser }: { currentUser: CurrentUser | n
     setThreads(data.threads ?? []);
   }, [category]);
 
+  const loadThread = useCallback(async (threadId: string) => {
+    const response = await fetch(`/api/community/forum/${threadId}`, { cache: "no-store" });
+    const data = await response.json() as { thread?: ForumThread; replies?: ForumReply[]; error?: string };
+    if (!response.ok || !data.thread) {
+      setNotice(data.error ?? "Thread could not be loaded.");
+      return;
+    }
+    setSelectedThread(data.thread);
+    setReplies(data.replies ?? []);
+  }, []);
+
   useEffect(() => {
     let ignore = false;
     void fetch(`/api/community/forum?category=${category}`, { cache: "no-store" })
@@ -118,17 +163,12 @@ export function CommunityConsole({ currentUser }: { currentUser: CurrentUser | n
     return () => { ignore = true; };
   }, [category]);
 
-  useEffect(() => {
-    if (!selectedId) {
-      return;
-    }
-    void fetch(`/api/community/forum/${selectedId}`, { cache: "no-store" })
-      .then(async (response) => await response.json() as { thread?: ForumThread; replies?: ForumReply[] })
-      .then((data) => {
-        setSelectedThread(data.thread ?? null);
-        setReplies(data.replies ?? []);
-      });
-  }, [selectedId]);
+  const loadStaff = useCallback(async (query = "") => {
+    const response = await fetch(`/api/community/staff${query ? `?q=${encodeURIComponent(query)}` : ""}`, { cache: "no-store" });
+    const data = await response.json() as { users?: StaffUser[]; error?: string };
+    if (!response.ok) return setNotice(data.error ?? "Staff records could not be loaded.");
+    setStaffUsers(data.users ?? []);
+  }, []);
 
   const activeChannel = useMemo(() => CHAT_CHANNELS.find((item) => item.id === channel)!, [channel]);
   const activeCategory = useMemo(() => FORUM_CATEGORIES.find((item) => item.id === category)!, [category]);
@@ -150,6 +190,35 @@ export function CommunityConsole({ currentUser }: { currentUser: CurrentUser | n
     }
   }
 
+  async function saveMessage(messageId: string) {
+    if (!editingMessageText.trim()) return;
+    setBusyAction(`chat-edit:${messageId}`);
+    const response = await fetch(`/api/community/chat/${channel}`, {
+      method: "PATCH",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ id: messageId, content: editingMessageText }),
+    });
+    const data = await response.json() as { message?: CommunityChatMessage; error?: string };
+    setBusyAction(null);
+    if (!response.ok || !data.message) return setNotice(data.error ?? "Message could not be edited.");
+    setMessages((current) => current.map((item) => item.id === messageId ? data.message! : item));
+    setEditingMessageId(null);
+  }
+
+  async function deleteMessage(messageId: string) {
+    setBusyAction(`chat-delete:${messageId}`);
+    const response = await fetch(`/api/community/chat/${channel}`, {
+      method: "DELETE",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ id: messageId }),
+    });
+    const data = await response.json() as { error?: string };
+    setBusyAction(null);
+    setConfirmDelete(null);
+    if (!response.ok) return setNotice(data.error ?? "Message could not be deleted.");
+    setMessages((current) => current.filter((item) => item.id !== messageId));
+  }
+
   async function createThread(event: FormEvent) {
     event.preventDefault();
     const response = await fetch("/api/community/forum", {
@@ -159,8 +228,12 @@ export function CommunityConsole({ currentUser }: { currentUser: CurrentUser | n
     });
     const data = await response.json() as { error?: string; thread?: ForumThread };
     if (!response.ok || !data.thread) return setNotice(data.error ?? "Unable to open thread.");
-    setThreadTitle(""); setThreadBody(""); setNewThreadOpen(false);
-    await loadThreads(); setSelectedId(data.thread.id);
+    setThreadTitle("");
+    setThreadBody("");
+    setNewThreadOpen(false);
+    await loadThreads();
+    setSelectedId(data.thread.id);
+    void loadThread(data.thread.id);
   }
 
   async function reply(event: FormEvent) {
@@ -173,9 +246,104 @@ export function CommunityConsole({ currentUser }: { currentUser: CurrentUser | n
     });
     const data = await response.json() as { error?: string; reply?: ForumReply };
     if (!response.ok || !data.reply) return setNotice(data.error ?? "Reply failed.");
-    setReplyBody(""); setReplies((current) => [...current, data.reply!]);
+    setReplyBody("");
+    setReplies((current) => [...current, data.reply!]);
     setSelectedThread((current) => current ? { ...current, replyCount: current.replyCount + 1 } : current);
     void loadThreads();
+  }
+
+  async function saveThread() {
+    if (!selectedThread || !editingThreadTitle.trim() || !editingThreadBody.trim()) return;
+    setBusyAction(`thread-edit:${selectedThread.id}`);
+    const response = await fetch(`/api/community/forum/${selectedThread.id}`, {
+      method: "PATCH",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ kind: "thread", title: editingThreadTitle, body: editingThreadBody }),
+    });
+    const data = await response.json() as { thread?: Pick<ForumThread, "title" | "body" | "updatedAt">; error?: string };
+    setBusyAction(null);
+    if (!response.ok || !data.thread) return setNotice(data.error ?? "Thread could not be edited.");
+    setSelectedThread((current) => current ? { ...current, ...data.thread } : current);
+    setEditingThread(false);
+    void loadThreads();
+  }
+
+  async function deleteThread() {
+    if (!selectedThread) return;
+    setBusyAction(`thread-delete:${selectedThread.id}`);
+    const response = await fetch(`/api/community/forum/${selectedThread.id}`, {
+      method: "DELETE",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ kind: "thread" }),
+    });
+    const data = await response.json() as { error?: string };
+    setBusyAction(null);
+    setConfirmDelete(null);
+    if (!response.ok) return setNotice(data.error ?? "Thread could not be deleted.");
+    setSelectedId(null);
+    setSelectedThread(null);
+    setReplies([]);
+    void loadThreads();
+  }
+
+  async function saveReply(replyId: string) {
+    if (!selectedThread || !editingReplyBody.trim()) return;
+    setBusyAction(`reply-edit:${replyId}`);
+    const response = await fetch(`/api/community/forum/${selectedThread.id}`, {
+      method: "PATCH",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ kind: "reply", replyId, body: editingReplyBody }),
+    });
+    const data = await response.json() as { reply?: Pick<ForumReply, "id" | "body" | "updatedAt">; error?: string };
+    setBusyAction(null);
+    if (!response.ok || !data.reply) return setNotice(data.error ?? "Reply could not be edited.");
+    setReplies((current) => current.map((item) => item.id === replyId ? { ...item, ...data.reply! } : item));
+    setEditingReplyId(null);
+  }
+
+  async function deleteReply(replyId: string) {
+    if (!selectedThread) return;
+    setBusyAction(`reply-delete:${replyId}`);
+    const response = await fetch(`/api/community/forum/${selectedThread.id}`, {
+      method: "DELETE",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ kind: "reply", replyId }),
+    });
+    const data = await response.json() as { error?: string };
+    setBusyAction(null);
+    setConfirmDelete(null);
+    if (!response.ok) return setNotice(data.error ?? "Reply could not be deleted.");
+    setReplies((current) => current.filter((item) => item.id !== replyId));
+    setSelectedThread((current) => current ? { ...current, replyCount: Math.max(0, current.replyCount - 1) } : current);
+    void loadThreads();
+  }
+
+  async function updateThreadStatus(status: ForumThread["status"]) {
+    if (!selectedThread) return;
+    setBusyAction(`thread-status:${selectedThread.id}`);
+    const response = await fetch(`/api/community/forum/${selectedThread.id}`, {
+      method: "PATCH",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ kind: "status", status }),
+    });
+    const data = await response.json() as { status?: ForumThread["status"]; updatedAt?: string | number; error?: string };
+    setBusyAction(null);
+    if (!response.ok || !data.status) return setNotice(data.error ?? "Thread status could not be changed.");
+    setSelectedThread((current) => current ? { ...current, status: data.status!, updatedAt: data.updatedAt ?? current.updatedAt } : current);
+    void loadThreads();
+  }
+
+  async function assignRole(userId: string, role: CommunityRole) {
+    setBusyAction(`staff:${userId}`);
+    const response = await fetch("/api/community/staff", {
+      method: "PATCH",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ userId, role }),
+    });
+    const data = await response.json() as { user?: StaffUser; error?: string };
+    setBusyAction(null);
+    if (!response.ok || !data.user) return setNotice(data.error ?? "Role could not be assigned.");
+    setStaffUsers((current) => current.map((item) => item.id === userId ? data.user! : item));
   }
 
   return (
@@ -183,102 +351,84 @@ export function CommunityConsole({ currentUser }: { currentUser: CurrentUser | n
       <header className={styles.header}>
         <Link className={styles.wordmark} href="/"><span>BV</span><strong>BLACK VECTOR</strong></Link>
         <div className={styles.title}><small>PUBLIC NETWORK // COMMUNITY NODE</small><b>THE UPLINK</b></div>
-        <nav aria-label="Community navigation">
-          <Link href="/">HOME</Link>
-          <Link href="/playtest">PLAYTEST</Link>
-          <Link href="/account">ACCOUNT</Link>
-        </nav>
+        <nav aria-label="Community navigation"><Link href="/">HOME</Link><Link href="/playtest">PLAYTEST</Link><Link href="/account">ACCOUNT</Link></nav>
       </header>
 
       <section className={styles.console}>
-        <aside className={styles.modeRail}>
+        <aside className={`${styles.modeRail} ${currentUser?.role === "admin" ? controls.threeModes : ""}`}>
           <p>NETWORK MODES</p>
-          <button className={mode === "chat" ? styles.active : ""} onClick={() => setMode("chat")}>
-            <span>01</span><b>LIVE COMMS</b><small>REALTIME CHANNELS</small>
-          </button>
-          <button className={mode === "forum" ? styles.active : ""} onClick={() => setMode("forum")}>
-            <span>02</span><b>FORUM ARCHIVE</b><small>FEEDBACK & REPORTS</small>
-          </button>
+          <button className={mode === "chat" ? styles.active : ""} onClick={() => setMode("chat")}><span>01</span><b>LIVE COMMS</b><small>REALTIME CHANNELS</small></button>
+          <button className={mode === "forum" ? styles.active : ""} onClick={() => setMode("forum")}><span>02</span><b>FORUM ARCHIVE</b><small>FEEDBACK &amp; REPORTS</small></button>
+          {currentUser?.role === "admin" && <button className={mode === "staff" ? styles.active : ""} onClick={() => { setMode("staff"); void loadStaff(); }}><span>03</span><b>STAFF CONTROL</b><small>ROLES &amp; AUTHORITY</small></button>}
           <div className={styles.identity}>
             <i>{currentUser ? initials(currentUser.name) : "--"}</i>
-            <span><small>IDENTITY</small><b>{currentUser?.name ?? "OBSERVER"}</b></span>
+            <span><small>IDENTITY</small><b>{currentUser?.name ?? "OBSERVER"}</b><RoleBadge role={currentUser?.role ?? "member"} /></span>
           </div>
         </aside>
 
-        {mode === "chat" ? (
+        {mode === "chat" && (
           <div className={styles.workspace}>
-            <aside className={styles.channelRail}>
-              <p>COMMS CHANNELS</p>
-              {CHAT_CHANNELS.map((item) => (
-                <button key={item.id} className={channel === item.id ? styles.active : ""} onClick={() => setChannel(item.id)}>
-                  <span>#</span><b>{item.label}</b><small>{item.description}</small>
-                </button>
-              ))}
-            </aside>
+            <aside className={styles.channelRail}><p>COMMS CHANNELS</p>{CHAT_CHANNELS.map((item) => <button key={item.id} className={channel === item.id ? styles.active : ""} onClick={() => setChannel(item.id)}><span>#</span><b>{item.label}</b><small>{item.description}</small></button>)}</aside>
             <section className={styles.chatPanel}>
-              <header className={styles.panelHeader}>
-                <div><small>OPEN CHANNEL</small><h1># {activeChannel.label}</h1><p>{activeChannel.description}</p></div>
-                <span className={`${styles.liveState} ${styles[connection]}`}><i />{connection.toUpperCase()}</span>
-              </header>
+              <header className={styles.panelHeader}><div><small>OPEN CHANNEL</small><h1># {activeChannel.label}</h1><p>{activeChannel.description}</p></div><span className={`${styles.liveState} ${styles[connection]}`}><i />{connection.toUpperCase()}</span></header>
               <div className={styles.feed} ref={feedRef} aria-live="polite">
                 {!messages.length && <div className={styles.empty}><span>NO SIGNAL HISTORY</span><p>Be the first voice on this channel.</p></div>}
-                {messages.map((message) => (
-                  <article className={styles.message} key={message.id}>
-                    <Avatar name={message.displayName} image={message.avatarUrl} />
-                    <div><header><b>{message.displayName}</b><time>{formatTime(message.createdAt)}</time></header><p>{message.content}</p></div>
-                  </article>
-                ))}
+                {messages.map((message) => {
+                  const ownsMessage = currentUser?.id === message.userId;
+                  const canDelete = Boolean(ownsMessage || isModerator);
+                  return (
+                    <article className={styles.message} key={message.id}>
+                      <Avatar name={message.displayName} image={message.avatarUrl} />
+                      <div>
+                        <header className={controls.actionHeader}><b>{message.displayName}</b><time>{formatTime(message.createdAt)}{message.updatedAt ? " · EDITED" : ""}</time>{(ownsMessage || canDelete) && <div className={controls.itemActions}>{ownsMessage && <button onClick={() => { setEditingMessageId(message.id); setEditingMessageText(message.content); setConfirmDelete(null); }}>EDIT</button>}{canDelete && <button className={confirmDelete === `chat:${message.id}` ? controls.confirm : controls.danger} disabled={busyAction !== null} onClick={() => confirmDelete === `chat:${message.id}` ? void deleteMessage(message.id) : setConfirmDelete(`chat:${message.id}`)}>{confirmDelete === `chat:${message.id}` ? "CONFIRM" : "DELETE"}</button>}</div>}</header>
+                        {editingMessageId === message.id ? <div className={controls.inlineEditor}><textarea value={editingMessageText} onChange={(event) => setEditingMessageText(event.target.value)} maxLength={500} autoFocus /><div><button onClick={() => setEditingMessageId(null)}>CANCEL</button><button className={controls.primary} disabled={busyAction !== null} onClick={() => void saveMessage(message.id)}>SAVE</button></div></div> : <p>{message.content}</p>}
+                      </div>
+                    </article>
+                  );
+                })}
               </div>
-              {currentUser ? (
-                <form className={styles.composer} onSubmit={transmit}>
-                  <textarea value={chatText} onChange={(event) => setChatText(event.target.value)} maxLength={500} placeholder={`Transmit to #${activeChannel.label.toLowerCase()}…`} />
-                  <span>{chatText.length}/500</span><button>TRANSMIT <i>↗</i></button>
-                </form>
-              ) : (
-                <Link className={styles.signinPrompt} href="/login?returnTo=%2Fcommunity">SIGN IN TO TRANSMIT <span>→</span></Link>
-              )}
+              {currentUser ? <form className={styles.composer} onSubmit={transmit}><textarea value={chatText} onChange={(event) => setChatText(event.target.value)} maxLength={500} placeholder={`Transmit to #${activeChannel.label.toLowerCase()}…`} /><span>{chatText.length}/500</span><button>TRANSMIT <i>↗</i></button></form> : <Link className={styles.signinPrompt} href="/login?returnTo=%2Fcommunity">SIGN IN TO TRANSMIT <span>→</span></Link>}
             </section>
           </div>
-        ) : (
+        )}
+
+        {mode === "forum" && (
           <div className={styles.workspace}>
-            <aside className={styles.channelRail}>
-              <p>FORUM CATEGORIES</p>
-              {FORUM_CATEGORIES.map((item) => (
-                <button key={item.id} className={category === item.id ? styles.active : ""} onClick={() => { setCategory(item.id); setSelectedId(null); setSelectedThread(null); setReplies([]); }}>
-                  <span>{item.id === "feedback" ? "◫" : item.id === "suggestions" ? "◇" : "△"}</span><b>{item.label}</b><small>{item.description}</small>
-                </button>
-              ))}
-            </aside>
+            <aside className={styles.channelRail}><p>FORUM CATEGORIES</p>{FORUM_CATEGORIES.map((item) => <button key={item.id} className={category === item.id ? styles.active : ""} onClick={() => { setCategory(item.id); setSelectedId(null); setSelectedThread(null); setReplies([]); }}><span>{item.id === "feedback" ? "◫" : item.id === "suggestions" ? "◇" : "△"}</span><b>{item.label}</b><small>{item.description}</small></button>)}</aside>
             <section className={styles.forumPanel}>
               {selectedThread ? (
                 <div className={styles.threadView}>
-                  <button className={styles.back} onClick={() => { setSelectedId(null); setSelectedThread(null); setReplies([]); }}>← BACK TO {activeCategory.label}</button>
+                  <button className={styles.back} onClick={() => { setSelectedId(null); setSelectedThread(null); setReplies([]); setEditingThread(false); }}>← BACK TO {activeCategory.label}</button>
                   <article className={styles.originalPost}>
-                    <header><span>{activeCategory.label}</span><time>{formatTime(selectedThread.createdAt)}</time></header>
-                    <h1>{selectedThread.title}</h1><div className={styles.author}><Avatar name={selectedThread.authorName} image={selectedThread.authorImage} /><b>{selectedThread.authorName}</b></div>
-                    <p>{selectedThread.body}</p>
+                    <header><span>{activeCategory.label}{" // "}{selectedThread.status.toUpperCase()}</span><time>{formatTime(selectedThread.createdAt)}{selectedThread.updatedAt !== selectedThread.createdAt ? " · EDITED" : ""}</time></header>
+                    {editingThread ? <div className={controls.threadEditor}><input value={editingThreadTitle} onChange={(event) => setEditingThreadTitle(event.target.value)} maxLength={100} /><textarea value={editingThreadBody} onChange={(event) => setEditingThreadBody(event.target.value)} maxLength={4000} /><div><button onClick={() => setEditingThread(false)}>CANCEL</button><button className={controls.primary} disabled={busyAction !== null} onClick={() => void saveThread()}>SAVE THREAD</button></div></div> : <><h1>{selectedThread.title}</h1><div className={styles.author}><Avatar name={selectedThread.authorName} image={selectedThread.authorImage} /><b>{selectedThread.authorName}</b></div><p>{selectedThread.body}</p></>}
+                    <div className={controls.threadActions}>
+                      {currentUser?.id === selectedThread.authorId && !editingThread && <button onClick={() => { setEditingThread(true); setEditingThreadTitle(selectedThread.title); setEditingThreadBody(selectedThread.body); }}>EDIT THREAD</button>}
+                      {(currentUser?.id === selectedThread.authorId || isModerator) && <button className={confirmDelete === `thread:${selectedThread.id}` ? controls.confirm : controls.danger} disabled={busyAction !== null} onClick={() => confirmDelete === `thread:${selectedThread.id}` ? void deleteThread() : setConfirmDelete(`thread:${selectedThread.id}`)}>{confirmDelete === `thread:${selectedThread.id}` ? "CONFIRM DELETE" : "DELETE THREAD"}</button>}
+                      {isModerator && <><button disabled={busyAction !== null || selectedThread.status === "open"} onClick={() => void updateThreadStatus("open")}>OPEN</button><button disabled={busyAction !== null || selectedThread.status === "resolved"} onClick={() => void updateThreadStatus("resolved")}>RESOLVE</button><button disabled={busyAction !== null || selectedThread.status === "locked"} onClick={() => void updateThreadStatus("locked")}>LOCK</button></>}
+                    </div>
                   </article>
                   <div className={styles.replyList}>
                     <h2>{replies.length.toString().padStart(2, "0")} RESPONSES</h2>
-                    {replies.map((item) => <article key={item.id}><header><Avatar name={item.authorName} image={item.authorImage} /><b>{item.authorName}</b><time>{formatTime(item.createdAt)}</time></header><p>{item.body}</p></article>)}
+                    {replies.map((item) => {
+                      const ownsReply = currentUser?.id === item.authorId;
+                      const canDelete = Boolean(ownsReply || isModerator);
+                      return <article key={item.id}><header className={controls.actionHeader}><Avatar name={item.authorName} image={item.authorImage} /><b>{item.authorName}</b><time>{formatTime(item.createdAt)}{item.updatedAt !== item.createdAt ? " · EDITED" : ""}</time>{(ownsReply || canDelete) && <div className={controls.itemActions}>{ownsReply && <button onClick={() => { setEditingReplyId(item.id); setEditingReplyBody(item.body); }}>EDIT</button>}{canDelete && <button className={confirmDelete === `reply:${item.id}` ? controls.confirm : controls.danger} disabled={busyAction !== null} onClick={() => confirmDelete === `reply:${item.id}` ? void deleteReply(item.id) : setConfirmDelete(`reply:${item.id}`)}>{confirmDelete === `reply:${item.id}` ? "CONFIRM" : "DELETE"}</button>}</div>}</header>{editingReplyId === item.id ? <div className={controls.inlineEditor}><textarea value={editingReplyBody} onChange={(event) => setEditingReplyBody(event.target.value)} maxLength={3000} autoFocus /><div><button onClick={() => setEditingReplyId(null)}>CANCEL</button><button className={controls.primary} disabled={busyAction !== null} onClick={() => void saveReply(item.id)}>SAVE</button></div></div> : <p>{item.body}</p>}</article>;
+                    })}
                   </div>
-                  {currentUser && selectedThread.status !== "locked" ? <form className={styles.replyComposer} onSubmit={reply}><textarea value={replyBody} onChange={(event) => setReplyBody(event.target.value)} maxLength={3000} placeholder="Add to this transmission…"/><button>POST RESPONSE</button></form> : !currentUser ? <Link className={styles.signinPrompt} href="/login?returnTo=%2Fcommunity">SIGN IN TO RESPOND <span>→</span></Link> : null}
+                  {currentUser && selectedThread.status !== "locked" ? <form className={styles.replyComposer} onSubmit={reply}><textarea value={replyBody} onChange={(event) => setReplyBody(event.target.value)} maxLength={3000} placeholder="Add to this transmission…"/><button>POST RESPONSE</button></form> : !currentUser ? <Link className={styles.signinPrompt} href="/login?returnTo=%2Fcommunity">SIGN IN TO RESPOND <span>→</span></Link> : <p className={controls.lockedNotice}>THREAD LOCKED BY MODERATION</p>}
                 </div>
-              ) : (
-                <>
-                  <header className={styles.panelHeader}>
-                    <div><small>COMMUNITY ARCHIVE</small><h1>{activeCategory.label}</h1><p>{activeCategory.description}</p></div>
-                    {currentUser ? <button className={styles.newThread} onClick={() => setNewThreadOpen((open) => !open)}>+ NEW THREAD</button> : <Link className={styles.newThread} href="/login?returnTo=%2Fcommunity">SIGN IN TO POST</Link>}
-                  </header>
-                  {newThreadOpen && <form className={styles.threadComposer} onSubmit={createThread}><label>TRANSMISSION SUBJECT<input value={threadTitle} onChange={(event) => setThreadTitle(event.target.value)} minLength={4} maxLength={100} required /></label><label>DETAILS<textarea value={threadBody} onChange={(event) => setThreadBody(event.target.value)} minLength={10} maxLength={4000} required /></label><div><button type="button" onClick={() => setNewThreadOpen(false)}>CANCEL</button><button>OPEN THREAD</button></div></form>}
-                  <div className={styles.threadList}>
-                    {!threads.length && <div className={styles.empty}><span>ARCHIVE EMPTY</span><p>Open the first thread in this category.</p></div>}
-                    {threads.map((thread) => <button key={thread.id} onClick={() => setSelectedId(thread.id)}><Avatar name={thread.authorName} image={thread.authorImage} /><div><span>{thread.category.replace("-", " ").toUpperCase()}{" // "}{thread.status.toUpperCase()}</span><h2>{thread.title}</h2><p>{thread.body}</p><small>{thread.authorName} · {formatTime(thread.updatedAt)}</small></div><strong>{thread.replyCount.toString().padStart(2, "0")}<small>REPLIES</small></strong></button>)}
-                  </div>
-                </>
-              )}
+              ) : <><header className={styles.panelHeader}><div><small>COMMUNITY ARCHIVE</small><h1>{activeCategory.label}</h1><p>{activeCategory.description}</p></div>{currentUser ? <button className={styles.newThread} onClick={() => setNewThreadOpen((open) => !open)}>+ NEW THREAD</button> : <Link className={styles.newThread} href="/login?returnTo=%2Fcommunity">SIGN IN TO POST</Link>}</header>{newThreadOpen && <form className={styles.threadComposer} onSubmit={createThread}><label>TRANSMISSION SUBJECT<input value={threadTitle} onChange={(event) => setThreadTitle(event.target.value)} minLength={4} maxLength={100} required /></label><label>DETAILS<textarea value={threadBody} onChange={(event) => setThreadBody(event.target.value)} minLength={10} maxLength={4000} required /></label><div><button type="button" onClick={() => setNewThreadOpen(false)}>CANCEL</button><button>OPEN THREAD</button></div></form>}<div className={styles.threadList}>{!threads.length && <div className={styles.empty}><span>ARCHIVE EMPTY</span><p>Open the first thread in this category.</p></div>}{threads.map((thread) => <button key={thread.id} onClick={() => { setSelectedId(thread.id); void loadThread(thread.id); }}><Avatar name={thread.authorName} image={thread.authorImage} /><div><span>{thread.category.replace("-", " ").toUpperCase()}{" // "}{thread.status.toUpperCase()}</span><h2>{thread.title}</h2><p>{thread.body}</p><small>{thread.authorName} · {formatTime(thread.updatedAt)}</small></div><strong>{thread.replyCount.toString().padStart(2, "0")}<small>REPLIES</small></strong></button>)}</div></>}
             </section>
           </div>
+        )}
+
+        {mode === "staff" && currentUser?.role === "admin" && (
+          <section className={controls.staffPanel}>
+            <header><small>ADMINISTRATION // STAFF AUTHORITY</small><h1>COMMUNITY STAFF.</h1><p>Search registered members and assign moderation access. Admins can manage staff; moderators can manage content.</p></header>
+            <form className={controls.staffSearch} onSubmit={(event) => { event.preventDefault(); void loadStaff(staffQuery.trim()); }}><input value={staffQuery} onChange={(event) => setStaffQuery(event.target.value)} placeholder="Search name or email" minLength={2} /><button>SEARCH MEMBERS</button></form>
+            <div className={controls.staffList}>{!staffUsers.length && <div className={styles.empty}><span>NO STAFF RECORDS</span><p>Search for a member to assign their first role.</p></div>}{staffUsers.map((item) => <article key={item.id}><div><strong>{item.name}</strong><small>{item.email}</small></div><select aria-label={`Role for ${item.name}`} value={item.role} disabled={busyAction !== null} onChange={(event) => void assignRole(item.id, event.target.value as CommunityRole)}><option value="member">Member</option><option value="moderator">Moderator</option><option value="admin">Administrator</option></select></article>)}</div>
+          </section>
         )}
       </section>
       <footer className={styles.footer}><span>COMMUNITY RELAY // PUBLIC</span><span>RESPECT THE CREW. REPORT CLEARLY. ARGUE THE IDEA.</span></footer>

@@ -29,6 +29,7 @@ export async function GET(request: Request) {
       replyCount: forumThread.replyCount,
       createdAt: forumThread.createdAt,
       updatedAt: forumThread.updatedAt,
+      authorId: forumThread.authorId,
       authorName: user.name,
       authorImage: user.image,
     })
