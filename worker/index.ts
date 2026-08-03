@@ -106,7 +106,7 @@ const worker = {
       response.ok
     ) {
       const headers = new Headers(response.headers);
-      headers.set("cache-control", "public, max-age=31536000, immutable");
+      headers.set("cache-control", "public, max-age=86400, stale-while-revalidate=604800");
       return new Response(response.body, {
         status: response.status,
         statusText: response.statusText,

@@ -3195,9 +3195,13 @@ export function HyperspaceIntro() {
         const lensRelease = launchImpulse + warpRelease * lensTravelFade * 0.42;
         const cruiseLens = visualLaunch * (1 - braking);
         const cruiseBreath = 0.2 + Math.sin(elapsed * 0.00072) * 0.008;
-        const lensStrength = (warpTension * 2.2 + lensRelease * 2.05 + streakStretch * 0.95 + crashZoom * 3.35 + launchSnap * 3.1 + cruiseLens * cruiseBreath) * (1 - braking);
+        const opticalEventStrength = (warpTension * 2.2 + lensRelease * 2.05 + streakStretch * 0.95 + crashZoom * 3.35 + launchSnap * 3.1) * (1 - braking);
+        const lensStrength = opticalEventStrength + cruiseLens * cruiseBreath * (1 - braking);
         const sceneWarp = Math.min(1, (warpTension * (0.34 + sequencePressure * 0.66) + streakStretch * 0.4 + crashZoom * 0.3 + launchImpulse * 0.2 + launchSnap * 0.46 + pressurePulse * 0.06 + cruiseLens * 0.08) * (1 - braking));
-        lensPass.enabled = lensStrength > 0.002;
+        // The 3D bubble mesh already carries the steady cruise distortion.
+        // Avoid a second native-resolution fullscreen pass on software
+        // rasterizers once the actual compression/launch event has cleared.
+        lensPass.enabled = (softwareRendering ? opticalEventStrength : lensStrength) > 0.002;
         lensPass.uniforms.uStrength.value = lensStrength;
         lensPass.uniforms.uSceneWarp.value = sceneWarp;
         lensPass.uniforms.uBowWave.value = bowWave;
