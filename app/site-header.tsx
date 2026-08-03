@@ -34,12 +34,19 @@ export function SiteHeader({ basePath = "" }: { basePath?: string }) {
       .filter((section): section is HTMLElement => Boolean(section));
     if (!sections.length) return;
 
-    const observer = new IntersectionObserver((entries) => {
-      const visible = entries
-        .filter((entry) => entry.isIntersecting)
-        .sort((a, b) => Math.abs(a.boundingClientRect.top) - Math.abs(b.boundingClientRect.top));
-      if (visible[0]) setActiveSection(visible[0].target.id);
-    }, { rootMargin: "-18% 0px -68% 0px", threshold: 0 });
+    const observer = new IntersectionObserver(
+      (entries) => {
+        const visible = entries
+          .filter((entry) => entry.isIntersecting)
+          .sort(
+            (a, b) =>
+              Math.abs(a.boundingClientRect.top) -
+              Math.abs(b.boundingClientRect.top),
+          );
+        if (visible[0]) setActiveSection(visible[0].target.id);
+      },
+      { rootMargin: "-18% 0px -68% 0px", threshold: 0 },
+    );
 
     sections.forEach((section) => observer.observe(section));
     return () => observer.disconnect();
@@ -49,14 +56,27 @@ export function SiteHeader({ basePath = "" }: { basePath?: string }) {
 
   return (
     <>
-      <a className="skip-link" href="#game">SKIP TO GAME OVERVIEW</a>
+      <a className="skip-link" href="#game">
+        SKIP TO GAME OVERVIEW
+      </a>
       <header className="site-header">
-        <a className="wordmark" href="#top" aria-label="Black Vector home" onClick={closeMenu}>
-          <span className="wordmark-mark" aria-hidden="true">BV</span>
+        <a
+          className="wordmark"
+          href="#top"
+          aria-label="Black Vector home"
+          onClick={closeMenu}
+        >
+          <span className="wordmark-mark" aria-hidden="true">
+            BV
+          </span>
           <span>BLACK VECTOR</span>
         </a>
 
-        <nav className={`site-nav${menuOpen ? " is-open" : ""}`} id="primary-navigation" aria-label="Primary navigation">
+        <nav
+          className={`site-nav${menuOpen ? " is-open" : ""}`}
+          id="primary-navigation"
+          aria-label="Primary navigation"
+        >
           {sectionLinks.map((item) => (
             <a
               href={`#${item.id}`}
@@ -67,8 +87,12 @@ export function SiteHeader({ basePath = "" }: { basePath?: string }) {
               {item.label}
             </a>
           ))}
-          <a href={`${basePath}/community`} onClick={closeMenu}>COMMUNITY</a>
-          <a href={`${basePath}/account`} onClick={closeMenu}>ACCOUNT</a>
+          <a href={`${basePath}/community`} onClick={closeMenu}>
+            COMMUNITY
+          </a>
+          <a href={`${basePath}/account`} onClick={closeMenu}>
+            ACCOUNT
+          </a>
         </nav>
 
         <div className="header-status">
@@ -77,15 +101,39 @@ export function SiteHeader({ basePath = "" }: { basePath?: string }) {
             type="button"
             aria-controls="primary-navigation"
             aria-expanded={menuOpen}
-            aria-label={menuOpen ? "Close navigation menu" : "Open navigation menu"}
+            aria-label={
+              menuOpen ? "Close navigation menu" : "Open navigation menu"
+            }
             onClick={() => setMenuOpen((open) => !open)}
           >
             <span aria-hidden="true" />
             {menuOpen ? "CLOSE" : "MENU"}
           </button>
-          <button className="audio-toggle" type="button" data-audio-toggle aria-pressed="true">
-            AUDIO // ON
-          </button>
+          <div className="audio-controls">
+            <button
+              className="audio-toggle"
+              type="button"
+              data-audio-toggle
+              aria-pressed="true"
+            >
+              AUDIO // ON
+            </button>
+            <label className="audio-volume-control">
+              <span>VOL</span>
+              <input
+                type="range"
+                min="0"
+                max="100"
+                step="5"
+                defaultValue="100"
+                aria-label="Cinematic audio volume"
+                data-audio-volume
+              />
+              <output data-audio-volume-value aria-hidden="true">
+                100
+              </output>
+            </label>
+          </div>
           <div className="signal-state">
             <span aria-hidden="true" />
             UPLINK // ACTIVE

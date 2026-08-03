@@ -185,7 +185,7 @@ test("presents the production game pitch and cleanly hands transit audio to the 
   assert.doesNotMatch(home, /Fight the delay/);
   assert.doesNotMatch(home, /LIVE THEATER|PROCEDURAL 3D/);
   assert.match(layout, /https:\/\/blackvector\.win/);
-  assert.match(intro, /audioRef\.current\?\.finishTransit\(\)/);
+  assert.match(intro, /audioRef\.current\?\.finishTransit\(audioFadeSeconds\)/);
   assert.match(intro, /void audio\.startMusic\(\)/);
   assert.match(intro, /SKIP HYPERSPACE/);
   assert.match(intro, /const skipIntro = useCallback/);
@@ -277,4 +277,27 @@ test("resolves the hyperspace camera, FOV, and interface on one handoff curve", 
     intro,
     /world\.interfaceAnchor\.position\.lerpVectors\(\s*interfaceFar,\s*interfaceNear,\s*handoffBlend,?\s*\)/,
   );
+  assert.match(intro, /const EXIT_SETTLE_DURATION = 3000/);
+  assert.match(intro, /landingElapsed >= EXIT_SETTLE_DURATION/);
+  assert.match(intro, /finish\(0\.7\)/);
+});
+
+test("exposes a persistent cinematic master volume beside the audio toggle", async () => {
+  const [audio, intro, header, polish] = await Promise.all([
+    readFile(new URL("app/hyperspace-audio.ts", root), "utf8"),
+    readFile(new URL("app/hyperspace-intro.tsx", root), "utf8"),
+    readFile(new URL("app/site-header.tsx", root), "utf8"),
+    readFile(new URL("app/polish.css", root), "utf8"),
+  ]);
+
+  assert.match(audio, /setVolume\(volume: number\)/);
+  assert.match(audio, /PLAYBACK_GAIN \* this\.volume/);
+  assert.match(intro, /black-vector-audio-volume/);
+  assert.match(
+    intro,
+    /volumeControl\?\.addEventListener\("input", changeVolume\)/,
+  );
+  assert.match(header, /data-audio-volume/);
+  assert.match(header, /Cinematic audio volume/);
+  assert.match(polish, /\.audio-volume-control/);
 });

@@ -10,6 +10,7 @@ import { HyperspaceIntro2D } from "./hyperspace-intro-2d";
 import { HyperspaceAudio } from "./hyperspace-audio";
 
 const DURATION = 16500;
+const EXIT_SETTLE_DURATION = 3000;
 const LAUNCH_PROGRESS = 0.35;
 const DEPTH = 132;
 const NEAR = 0.68;
@@ -17,6 +18,7 @@ const SCENE_EXPOSURE = 1.18;
 const SCENE_RIM_BASE = 48;
 const EXIT_RIM_BOOST = 86;
 const SEEN_KEY = "black-vector-jump-seen-3d-v23";
+const AUDIO_VOLUME_KEY = "black-vector-audio-volume";
 const BASE_PATH = process.env.NEXT_PUBLIC_BASE_PATH ?? "";
 const CRUISE_PULSE_STARTS = [0.47, 0.62, 0.75] as const;
 
@@ -2510,9 +2512,9 @@ export function HyperspaceIntro() {
     if (audioEnabled) void audioRef.current?.start();
   }, []);
 
-  const finish = useCallback(() => {
+  const finish = useCallback((audioFadeSeconds = 0.1) => {
     skipJumpRef.current = true;
-    audioRef.current?.finishTransit();
+    audioRef.current?.finishTransit(audioFadeSeconds);
     window.sessionStorage.setItem(SEEN_KEY, "true");
     document.documentElement.classList.add("experience-arriving");
     if (interfaceTimerRef.current) window.clearTimeout(interfaceTimerRef.current);
@@ -2526,7 +2528,7 @@ export function HyperspaceIntro() {
   const skipIntro = useCallback(() => {
     setNeedsEngagement(false);
     setExperienceReady(true);
-    finish();
+    finish(0.08);
   }, [finish]);
 
   const replay = useCallback(() => {
@@ -2547,7 +2549,9 @@ export function HyperspaceIntro() {
     const isMobileVisitor = window.matchMedia("(pointer: coarse)").matches || window.innerWidth <= 760;
     const storedAudioPreference = window.localStorage.getItem("black-vector-audio-muted");
     const storedMuted = storedAudioPreference === null ? isMobileVisitor : storedAudioPreference === "true";
-    const audio = new HyperspaceAudio(storedMuted);
+    const storedVolumePreference = Number.parseFloat(window.localStorage.getItem(AUDIO_VOLUME_KEY) ?? "1");
+    const storedVolume = Number.isFinite(storedVolumePreference) ? clamp01(storedVolumePreference) : 1;
+    const audio = new HyperspaceAudio(storedMuted, storedVolume);
     audioRef.current = audio;
     if (!storedMuted) audio.prepare();
     const readinessTimer = window.setTimeout(() => {
@@ -2557,10 +2561,21 @@ export function HyperspaceIntro() {
     }, 0);
 
     const button = document.querySelector<HTMLButtonElement>("[data-audio-toggle]");
+    const volumeControl = document.querySelector<HTMLInputElement>("[data-audio-volume]");
+    const volumeValue = document.querySelector<HTMLOutputElement>("[data-audio-volume-value]");
     const updateButton = () => {
       if (!button) return;
       button.textContent = audio.isMuted ? "AUDIO // OFF" : "AUDIO // ON";
       button.setAttribute("aria-pressed", String(!audio.isMuted));
+    };
+    const updateVolumeControl = () => {
+      const percentage = Math.round(audio.currentVolume * 100);
+      if (volumeControl) {
+        volumeControl.value = String(percentage);
+        volumeControl.style.setProperty("--audio-volume", `${percentage}%`);
+        volumeControl.setAttribute("aria-valuetext", `${percentage} percent`);
+      }
+      if (volumeValue) volumeValue.value = String(percentage).padStart(3, "0");
     };
     const toggleAudio = () => {
       const muted = !audio.isMuted;
@@ -2569,13 +2584,22 @@ export function HyperspaceIntro() {
       window.localStorage.setItem("black-vector-audio-muted", String(muted));
       updateButton();
     };
+    const changeVolume = () => {
+      if (!volumeControl) return;
+      const volume = clamp01(Number(volumeControl.value) / 100);
+      audio.setVolume(volume);
+      window.localStorage.setItem(AUDIO_VOLUME_KEY, String(volume));
+      updateVolumeControl();
+    };
     const startScoreOnGesture = () => {
       void audio.startMusic();
       window.removeEventListener("pointerdown", startScoreOnGesture);
       window.removeEventListener("keydown", startScoreOnGesture);
     };
     updateButton();
+    updateVolumeControl();
     button?.addEventListener("click", toggleAudio);
+    volumeControl?.addEventListener("input", changeVolume);
     if ((hasSeenJump || reducedMotion) && !storedMuted) {
       void audio.startMusic();
       window.addEventListener("pointerdown", startScoreOnGesture, {
@@ -2586,6 +2610,7 @@ export function HyperspaceIntro() {
     return () => {
       window.clearTimeout(readinessTimer);
       button?.removeEventListener("click", toggleAudio);
+      volumeControl?.removeEventListener("input", changeVolume);
       window.removeEventListener("pointerdown", startScoreOnGesture);
       window.removeEventListener("keydown", startScoreOnGesture);
       audio.dispose();
@@ -2601,7 +2626,7 @@ export function HyperspaceIntro() {
 
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key === "Escape" && jumping) finish();
+      if (event.key === "Escape" && jumping) finish(0.08);
     };
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
@@ -3203,17 +3228,17 @@ export function HyperspaceIntro() {
           lensPass.enabled = false;
           world.setOpacity(captureMode ? 0 : worldAssetFade);
           renderer.toneMappingExposure = SCENE_EXPOSURE;
-          if (!finishQueued && worldAssetFade >= 0.25) {
-            finishQueued = true;
-            if (!captureMode) finish();
-          }
         }
       } else {
         const landingElapsed = landingStartTime === null ? 1600 : Math.max(0, time - landingStartTime);
         world.setOpacity(captureMode ? 0 : worldAssetFade);
-        if (!finishQueued && worldAssetFade >= 0.25) {
+        // The soundtrack carries a deliberate exit decay well beyond the
+        // tunnel collapse. Hold the cinematic state through that tail so the
+        // diamond-dust veil, score crossfade, and final camera lock can settle
+        // together instead of cutting at the first fully landed frame.
+        if (!finishQueued && landingElapsed >= EXIT_SETTLE_DURATION && worldAssetFade >= 0.25) {
           finishQueued = true;
-          if (!captureMode) finish();
+          if (!captureMode) finish(0.7);
         }
         const wakeFade = 1 - smoothstep(landingElapsed / 3500);
         const dustFade = 1 - smoothstep(landingElapsed / 4200);
