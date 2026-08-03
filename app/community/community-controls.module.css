@@ -256,3 +256,63 @@
     width: 100%;
   }
 }
+
+/* Keep moderation controls legible without overpowering community content. */
+.itemActions button,
+.threadActions button,
+.inlineEditor button,
+.threadEditor button {
+  min-height: 32px;
+  border-color: rgba(113, 194, 200, 0.32);
+  color: #8ea0a6;
+  font-size: 8px;
+}
+
+.itemActions button:hover,
+.threadActions button:hover,
+.inlineEditor button:hover,
+.threadEditor button:hover {
+  border-color: #65d4da;
+  color: #eae6dc;
+}
+
+.roleBadge {
+  padding: 4px 6px;
+  font-size: 7px;
+}
+
+.staffPanel {
+  background:
+    radial-gradient(
+      circle at 86% 0%,
+      rgba(74, 174, 184, 0.09),
+      transparent 34%
+    ),
+    rgba(2, 8, 11, 0.8);
+}
+
+.staffPanel > header small,
+.staffList small {
+  font-size: 8px;
+}
+
+.staffPanel > header p {
+  color: #89989d;
+  font-size: 14px;
+}
+
+.staffList {
+  border-color: rgba(113, 194, 200, 0.22);
+  background: rgba(5, 14, 19, 0.62);
+}
+
+.staffList strong {
+  color: #eae6dc;
+  font-size: 14px;
+}
+
+.staffList select,
+.staffSearch input {
+  border-color: rgba(113, 194, 200, 0.3);
+  background: rgba(3, 10, 14, 0.92);
+}

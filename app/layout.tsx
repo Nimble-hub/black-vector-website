@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import "./globals.css";
+import "./polish.css";
 
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? "https://blackvector.win";
 const SITE_ROOT = SITE_URL.endsWith("/") ? SITE_URL : `${SITE_URL}/`;
@@ -14,18 +15,26 @@ export const metadata: Metadata = {
   description:
     "Build fleets, capture strategic territory, grow a wartime economy, and command massive real-time battles across human space.",
   applicationName: "Black Vector",
-  keywords: ["Black Vector", "fleet-command RTS", "large-scale RTS", "space strategy game", "science fiction game"],
+  keywords: [
+    "Black Vector",
+    "fleet-command RTS",
+    "large-scale RTS",
+    "space strategy game",
+    "science fiction game",
+  ],
   openGraph: {
     type: "website",
     title: "Black Vector",
     description: "The machines left. The war began.",
     siteName: "Black Vector",
-    images: [{
-      url: SOCIAL_IMAGE,
-      width: 1200,
-      height: 630,
-      alt: "Black Vector carrier group above a storm world",
-    }],
+    images: [
+      {
+        url: SOCIAL_IMAGE,
+        width: 1200,
+        height: 630,
+        alt: "Black Vector carrier group above a storm world",
+      },
+    ],
   },
   twitter: {
     card: "summary_large_image",
@@ -36,6 +45,8 @@ export const metadata: Metadata = {
 };
 
 export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
   themeColor: "#05070a",
   colorScheme: "dark",
 };

@@ -19,7 +19,9 @@ const accessOptions = [
     title: "Join the playtest",
     description:
       "Help shape command readability, pacing, fleet behavior, and the decisions that define Black Vector.",
-    href: process.env.NEXT_PUBLIC_PLAYTEST_URL || `${BASE_PATH}/register?returnTo=%2Faccount&intent=playtest`,
+    href:
+      process.env.NEXT_PUBLIC_PLAYTEST_URL ||
+      `${BASE_PATH}/register?returnTo=%2Faccount&intent=playtest`,
     readyLabel: "REGISTER FOR ACCESS",
     pendingLabel: "INTAKE PREPARING",
     status: "PRE-RELEASE TESTING",
@@ -86,9 +88,16 @@ const timeline = [
 
 export default function Home() {
   preload(`${BASE_PATH}/textures/bv-abyssal-ocean.webp`, { as: "image" });
-  preload(`${BASE_PATH}/textures/bv-planetary-storm-clouds-v3.webp`, { as: "image" });
-  preload(`${BASE_PATH}/textures/bv-planetary-storm-cloud-height-v3.webp`, { as: "image" });
-  preload(`${BASE_PATH}/models/Carrier.glb`, { as: "fetch", crossOrigin: "anonymous" });
+  preload(`${BASE_PATH}/textures/bv-planetary-storm-clouds-v3.webp`, {
+    as: "image",
+  });
+  preload(`${BASE_PATH}/textures/bv-planetary-storm-cloud-height-v3.webp`, {
+    as: "image",
+  });
+  preload(`${BASE_PATH}/models/Carrier.glb`, {
+    as: "fetch",
+    crossOrigin: "anonymous",
+  });
 
   return (
     <main>
@@ -96,14 +105,21 @@ export default function Home() {
       <SiteHeader basePath={BASE_PATH} />
 
       <section className="hero" id="top" aria-labelledby="hero-title">
-
-        <div className="world-label world-label-planet" data-world-anchor="planet" aria-hidden="true">
+        <div
+          className="world-label world-label-planet"
+          data-world-anchor="planet"
+          aria-hidden="true"
+        >
           <span>CELESTIAL CONTACT // PRIMARY</span>
           <strong>UNREGISTERED STORMWORLD</strong>
           <small>ORBITAL SOLUTION LOCKED</small>
         </div>
 
-        <div className="world-label world-label-flagship" data-world-anchor="flagship" aria-hidden="true">
+        <div
+          className="world-label world-label-flagship"
+          data-world-anchor="flagship"
+          aria-hidden="true"
+        >
           <span>FLEET CONTACT // 01</span>
           <strong>CARRIER GROUP</strong>
           <small>FORMATION HOLDING</small>
@@ -126,9 +142,18 @@ export default function Home() {
             <a className="secondary-action" href={`${BASE_PATH}/playtest`}>
               JOIN THE PLAYTEST <span aria-hidden="true">&#8594;</span>
             </a>
-            <button className="text-action replay-action" type="button" data-replay-jump>
+            <button
+              className="text-action replay-action"
+              type="button"
+              data-replay-jump
+            >
               REPLAY JUMP
             </button>
+          </div>
+          <div className="hero-facts" aria-label="Black Vector game features">
+            <span>SYSTEM-SCALE SKIRMISHES</span>
+            <span>REAL-TIME FLEET COMMAND</span>
+            <span>WARTIME ECONOMY</span>
           </div>
         </div>
 
@@ -145,18 +170,23 @@ export default function Home() {
         </a>
       </section>
 
-      <section className="site-section game-overview" id="game" aria-labelledby="game-title">
+      <section
+        className="site-section game-overview"
+        id="game"
+        aria-labelledby="game-title"
+      >
         <div className="section-rail" aria-hidden="true">
           <span>01</span>
           <i />
           <small>GAME SYSTEMS</small>
         </div>
         <div className="section-heading">
-          <p className="eyebrow">ARCHIVE NODE 01 // STRATEGIC OVERVIEW</p>
-          <h2 id="game-title">COMMAND THE FRACTURE.</h2>
+          <p className="eyebrow">GAMEPLAY // STRATEGIC OVERVIEW</p>
+          <h2 id="game-title">BUILD AN ARMADA. BREAK THE LINE.</h2>
           <p className="section-lede">
             Black Vector is a large-scale space RTS built around territorial
-            expansion, fleet production, and real-time battles for control of entire star systems.
+            expansion, fleet production, and real-time battles for control of
+            entire star systems.
           </p>
         </div>
 
@@ -200,7 +230,7 @@ export default function Home() {
         </div>
         <div className="section-heading split-heading">
           <div>
-            <p className="eyebrow">ARCHIVE NODE 02 // THE HUMAN EXODUS</p>
+            <p className="eyebrow">THE UNIVERSE // THE HUMAN EXODUS</p>
             <h2 id="universe-title">WE OUTLIVED EARTH. NOT OUR MISTAKES.</h2>
           </div>
           <p className="section-lede">
@@ -222,30 +252,56 @@ export default function Home() {
         </div>
 
         <blockquote className="valor-quote">
-          <span>V.A.L.O.R. // VIRTUAL AUTONOMOUS LOGISTICS &amp; OPERATIONAL RESPONSE</span>
+          <span>
+            V.A.L.O.R. // VIRTUAL AUTONOMOUS LOGISTICS &amp; OPERATIONAL
+            RESPONSE
+          </span>
           <p>&ldquo;Freedom and peace for all bot and android kind.&rdquo;</p>
         </blockquote>
       </section>
 
-      <section className="site-section signal-section" aria-labelledby="signal-title">
+      <section
+        className="site-section signal-section"
+        aria-labelledby="signal-title"
+      >
         <div className="signal-copy">
-          <p className="eyebrow">ARCHIVE NODE 03 // STRATEGIC ESCALATION</p>
+          <p className="eyebrow">THE WAR AT SCALE // STRATEGIC ESCALATION</p>
           <h2 id="signal-title">FROM FOOTHOLD TO ARMADA.</h2>
           <p className="section-lede">
             Every skirmish begins with limited reach. Claim territory, grow your
-            industrial base, and field the fleet that will decide control of the system.
+            industrial base, and field the fleet that will decide control of the
+            system.
           </p>
         </div>
-        <div className="signal-diagram" aria-label="Strategic escalation sequence">
-          <div><span>01</span><strong>EXPAND</strong><small>SECURE TERRITORY</small></div>
+        <div
+          className="signal-diagram"
+          aria-label="Strategic escalation sequence"
+        >
+          <div>
+            <span>01</span>
+            <strong>EXPAND</strong>
+            <small>SECURE TERRITORY</small>
+          </div>
           <i aria-hidden="true" />
-          <div><span>02</span><strong>PRODUCE</strong><small>BUILD THE FLEET</small></div>
+          <div>
+            <span>02</span>
+            <strong>PRODUCE</strong>
+            <small>BUILD THE FLEET</small>
+          </div>
           <i aria-hidden="true" />
-          <div><span>03</span><strong>CONQUER</strong><small>CONTROL THE SYSTEM</small></div>
+          <div>
+            <span>03</span>
+            <strong>CONQUER</strong>
+            <small>CONTROL THE SYSTEM</small>
+          </div>
         </div>
       </section>
 
-      <section className="site-section development-section" id="development" aria-labelledby="development-title">
+      <section
+        className="site-section development-section"
+        id="development"
+        aria-labelledby="development-title"
+      >
         <div className="section-rail" aria-hidden="true">
           <span>03</span>
           <i />
@@ -253,29 +309,47 @@ export default function Home() {
         </div>
         <div className="development-grid">
           <div>
-            <p className="eyebrow">DEVELOPMENT TRANSMISSION // ACTIVE</p>
+            <p className="eyebrow">IN ACTIVE DEVELOPMENT</p>
             <h2 id="development-title">THE FLEET IS STILL FORMING.</h2>
             <p className="section-lede">
               Black Vector is in active independent development. Systems,
-              presentation, and the larger universe are being assembled for the first external players.
+              presentation, and the larger universe are being assembled for the
+              first external players.
             </p>
           </div>
           <dl className="status-deck">
-            <div><dt>PROJECT</dt><dd>BLACK VECTOR</dd></div>
-            <div><dt>GENRE</dt><dd>FLEET-COMMAND RTS</dd></div>
-            <div><dt>STATUS</dt><dd>IN DEVELOPMENT</dd></div>
-            <div><dt>ACCESS</dt><dd>PRE-RELEASE</dd></div>
+            <div>
+              <dt>PROJECT</dt>
+              <dd>BLACK VECTOR</dd>
+            </div>
+            <div>
+              <dt>GENRE</dt>
+              <dd>FLEET-COMMAND RTS</dd>
+            </div>
+            <div>
+              <dt>STATUS</dt>
+              <dd>IN DEVELOPMENT</dd>
+            </div>
+            <div>
+              <dt>ACCESS</dt>
+              <dd>PRE-RELEASE</dd>
+            </div>
           </dl>
         </div>
       </section>
 
-      <section className="site-section access-section" id="access" aria-labelledby="access-title">
+      <section
+        className="site-section access-section"
+        id="access"
+        aria-labelledby="access-title"
+      >
         <div className="access-heading">
-          <p className="eyebrow">ACCESS TERMINAL // CONNECTIONS STAGED</p>
-          <h2 id="access-title">ENTER THE NEXT PHASE.</h2>
+          <p className="eyebrow">PLAYTEST &amp; RELEASE ACCESS</p>
+          <h2 id="access-title">TAKE YOUR PLACE IN THE FLEET.</h2>
           <p>
             Playtest, storefront, and build delivery have distinct channels.
-            Each terminal below activates as its official destination comes online.
+            Each terminal below activates as its official destination comes
+            online.
           </p>
         </div>
 
@@ -292,12 +366,20 @@ export default function Home() {
                 <a
                   className="access-action"
                   href={option.href}
-                  {...(option.href.startsWith("http") ? { target: "_blank", rel: "noreferrer" } : {})}
+                  {...(option.href.startsWith("http")
+                    ? { target: "_blank", rel: "noreferrer" }
+                    : {})}
                 >
-                  {option.readyLabel} <span aria-hidden="true">{option.href.startsWith("http") ? "↗" : "→"}</span>
+                  {option.readyLabel}{" "}
+                  <span aria-hidden="true">
+                    {option.href.startsWith("http") ? "↗" : "→"}
+                  </span>
                 </a>
               ) : (
-                <span className="access-action is-disabled" aria-disabled="true">
+                <span
+                  className="access-action is-disabled"
+                  aria-disabled="true"
+                >
                   {option.pendingLabel}
                 </span>
               )}
@@ -306,13 +388,20 @@ export default function Home() {
         </div>
 
         <p className="access-note">
-          No public build or purchase destination is connected yet. Official links will appear here only when ready.
+          No public build or purchase destination is connected yet. Official
+          links will appear here only when ready.
         </p>
       </section>
 
       <footer className="site-footer">
-        <a className="wordmark footer-wordmark" href="#top" aria-label="Return to Black Vector home">
-          <span className="wordmark-mark" aria-hidden="true">BV</span>
+        <a
+          className="wordmark footer-wordmark"
+          href="#top"
+          aria-label="Return to Black Vector home"
+        >
+          <span className="wordmark-mark" aria-hidden="true">
+            BV
+          </span>
           <span>BLACK VECTOR</span>
         </a>
         <p>A large-scale fleet-command RTS from Nimble Games Studio.</p>
