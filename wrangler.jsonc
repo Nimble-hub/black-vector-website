@@ -22,13 +22,7 @@
     }
   ],
   "assets": {
-    "directory": "./dist/client",
-    "run_worker_first": [
-      "/textures/*",
-      "/models/*",
-      "/art/*",
-      "/audio/*"
-    ]
+    "directory": "./dist/client"
   },
   "d1_databases": [
     {

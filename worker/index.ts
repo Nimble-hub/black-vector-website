@@ -99,21 +99,7 @@ const worker = {
       }, allowedWidths);
     }
 
-    const response = await handler.fetch(request, env, ctx);
-    if (
-      request.method === "GET" &&
-      /^\/(?:textures|models|art|audio)\//.test(url.pathname) &&
-      response.ok
-    ) {
-      const headers = new Headers(response.headers);
-      headers.set("cache-control", "public, max-age=86400, stale-while-revalidate=604800");
-      return new Response(response.body, {
-        status: response.status,
-        statusText: response.statusText,
-        headers,
-      });
-    }
-    return response;
+    return handler.fetch(request, env, ctx);
   },
 };
 
