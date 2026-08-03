@@ -274,6 +274,8 @@ test("ships authenticated social connections, direct comms, and clan operations"
   assert.match(clanForum, /Clan access required/);
   assert.match(consoleUi, /CLAN NETWORK/);
   assert.match(memberUi, /ONLINE/);
+  assert.match(memberUi, /MEMBERS/);
+  assert.match(memberUi, /DIRECT COMMS \/\/ OFFLINE DELIVERY/);
   assert.match(memberUi, /Friend request sent\. Waiting for acceptance/);
   assert.match(memberUi, /pagehide/);
   assert.match(consoleUi, /DO NOT DISTURB/);

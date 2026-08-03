@@ -61,7 +61,9 @@ export function CommunityMembersPanel({
   currentUser: { id: string; name: string } | null;
   onNotice: (message: string) => void;
 }) {
-  const [tab, setTab] = useState<"online" | "friends" | "direct">("online");
+  const [tab, setTab] = useState<"online" | "members" | "friends" | "direct">(
+    "online",
+  );
   const [members, setMembers] = useState<Member[]>([]);
   const [friends, setFriends] = useState<Friend[]>([]);
   const [incoming, setIncoming] = useState<Friend[]>([]);
@@ -296,7 +298,13 @@ export function CommunityMembersPanel({
   return (
     <aside className={social.membersPanel} aria-label="Community members">
       <header>
-        <small>CREW NETWORK</small>
+        <small>
+          {selected
+            ? selected.member.online
+              ? "DIRECT COMMS // ONLINE"
+              : "DIRECT COMMS // OFFLINE DELIVERY"
+            : "CREW NETWORK"}
+        </small>
         <strong>{selected ? selected.member.name : "MEMBERS"}</strong>
         {selected && <button onClick={() => setSelected(null)}>BACK</button>}
       </header>
@@ -307,6 +315,12 @@ export function CommunityMembersPanel({
             onClick={() => setTab("online")}
           >
             ONLINE <b>{members.filter((item) => item.online).length}</b>
+          </button>
+          <button
+            className={tab === "members" ? social.active : ""}
+            onClick={() => setTab("members")}
+          >
+            MEMBERS <b>{members.length}</b>
           </button>
           <button
             className={tab === "friends" ? social.active : ""}
@@ -402,6 +416,56 @@ export function CommunityMembersPanel({
             ))}
           {!members.some((member) => member.online) && (
             <p className={social.emptySocial}>NO OTHER CREW ONLINE.</p>
+          )}
+        </div>
+      ) : tab === "members" ? (
+        <div className={social.memberList}>
+          {members.map((member) => (
+            <article key={member.id}>
+              <Avatar member={member} />
+              <span>
+                <b>{member.name}</b>
+                <small className={member.online ? social.online : ""}>
+                  {member.presenceStatus === "dnd"
+                    ? "DO NOT DISTURB"
+                    : member.online
+                      ? "ONLINE"
+                      : "OFFLINE"}
+                  {member.role !== "member"
+                    ? ` · ${member.role.toUpperCase()}`
+                    : ""}
+                </small>
+              </span>
+              <div>
+                <button
+                  disabled={busy !== null}
+                  onClick={() => void openDirect(member)}
+                >
+                  DM
+                </button>
+                {incomingIds.has(member.id) && (
+                  <button
+                    disabled={busy !== null}
+                    onClick={() => void changeFriend(member.id, "accept")}
+                  >
+                    ACCEPT
+                  </button>
+                )}
+                {!friendIds.has(member.id) &&
+                  !outgoingIds.has(member.id) &&
+                  !incomingIds.has(member.id) && (
+                    <button
+                      disabled={busy !== null}
+                      onClick={() => void requestFriend(member.id)}
+                    >
+                      +
+                    </button>
+                  )}
+              </div>
+            </article>
+          ))}
+          {!members.length && (
+            <p className={social.emptySocial}>NO REGISTERED CREW FOUND.</p>
           )}
         </div>
       ) : tab === "friends" ? (
