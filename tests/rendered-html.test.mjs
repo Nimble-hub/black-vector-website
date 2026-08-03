@@ -303,6 +303,38 @@ test("ships authenticated social connections, direct comms, and clan operations"
   assert.match(chatRoom, /SELECT id, name, image FROM user/);
 });
 
+test("ships durable message replies and an account notification inbox", async () => {
+  const [schema, chatRoom, notifications, notificationUi, consoleUi, migration] =
+    await Promise.all([
+      readFile(new URL("db/schema.ts", root), "utf8"),
+      readFile(new URL("worker/chat-room.ts", root), "utf8"),
+      readFile(
+        new URL("app/api/community/notifications/route.ts", root),
+        "utf8",
+      ),
+      readFile(
+        new URL("app/community/community-notifications.tsx", root),
+        "utf8",
+      ),
+      readFile(new URL("app/community/community-console.tsx", root), "utf8"),
+      readFile(
+        new URL("drizzle/0005_jazzy_mikhail_rasputin.sql", root),
+        "utf8",
+      ),
+    ]);
+
+  assert.match(schema, /communityNotification/);
+  assert.match(chatRoom, /reply_to_id/);
+  assert.match(chatRoom, /replyToId/);
+  assert.match(notifications, /export async function GET/);
+  assert.match(notifications, /read-all/);
+  assert.match(notificationUi, /10_000/);
+  assert.match(notificationUi, /MARK ALL READ/);
+  assert.match(consoleUi, /REPLYING TO/);
+  assert.match(consoleUi, /replyToId/);
+  assert.match(migration, /CREATE TABLE `community_notification`/);
+});
+
 test("resolves the hyperspace camera, FOV, and interface on one handoff curve", async () => {
   const [intro, styles] = await Promise.all([
     readFile(new URL("app/hyperspace-intro.tsx", root), "utf8"),
@@ -342,12 +374,12 @@ test("exposes a persistent cinematic master volume beside the audio toggle", asy
   assert.match(audio, /const JUMP_FADE_IN_SECONDS = 1/);
   assert.match(audio, /linearRampToValueAtTime\(1, start \+ JUMP_FADE_IN_SECONDS\)/);
   assert.match(intro, /black-vector-audio-volume/);
-  assert.match(intro, /AUDIO_VOLUME_KEY\) \?\? "0\.5"/);
+  assert.match(intro, /AUDIO_VOLUME_KEY\) \?\? "0\.3"/);
   assert.match(intro, /Hyperspace audio controls/);
   assert.match(intro, /querySelectorAll<HTMLButtonElement>/);
   assert.match(intro, /querySelectorAll<HTMLInputElement>/);
   assert.match(intro, /AUDIO_SYNC_EVENT/);
-  assert.match(header, /defaultValue="50"/);
+  assert.match(header, /defaultValue="30"/);
   assert.match(
     intro,
     /control\.addEventListener\("input", changeVolume\)/,

@@ -6,6 +6,7 @@ import { forumPost, forumThread, user } from "@/db/schema";
 import { getAuth } from "@/lib/auth";
 import { canModerate, getCommunityRole } from "@/lib/community-permissions";
 import { isSameOriginRequest } from "@/lib/request-security";
+import { createCommunityNotification } from "@/lib/community-notifications";
 
 export const dynamic = "force-dynamic";
 
@@ -92,7 +93,11 @@ export async function POST(
   if (!parsed.success) return Response.json({ error: "Reply must be 1–3000 characters." }, { status: 400 });
 
   const db = getDb();
-  const [thread] = await db.select({ status: forumThread.status }).from(forumThread).where(eq(forumThread.id, threadId)).limit(1);
+  const [thread] = await db.select({
+    status: forumThread.status,
+    authorId: forumThread.authorId,
+    title: forumThread.title,
+  }).from(forumThread).where(eq(forumThread.id, threadId)).limit(1);
   if (!thread) return Response.json({ error: "Thread not found." }, { status: 404 });
   if (thread.status === "locked") return Response.json({ error: "This thread is locked." }, { status: 409 });
   const tooRecent = await db
@@ -111,6 +116,14 @@ export async function POST(
     d1.prepare(`UPDATE forum_thread SET reply_count = reply_count + 1, updated_at = ? WHERE id = ?`)
       .bind(now, threadId),
   ]);
+  await createCommunityNotification({
+    userId: thread.authorId,
+    actorId: identity.session.user.id,
+    type: "forum-reply",
+    title: `New reply: ${thread.title}`,
+    body: parsed.data.body,
+    href: `/community?thread=${threadId}`,
+  });
   return Response.json({
     reply: {
       id,

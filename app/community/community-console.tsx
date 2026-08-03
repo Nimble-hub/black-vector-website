@@ -23,6 +23,7 @@ import controls from "./community-controls.module.css";
 import { CommunityMembersPanel } from "./community-members-panel";
 import { ClanConsole } from "./clan-console";
 import { submitChatOnEnter } from "@/lib/chat-input";
+import { CommunityNotifications } from "./community-notifications";
 
 interface CurrentUser {
   id: string;
@@ -124,6 +125,7 @@ export function CommunityConsole({
     "connecting" | "live" | "offline"
   >("connecting");
   const [chatText, setChatText] = useState("");
+  const [replyingTo, setReplyingTo] = useState<CommunityChatMessage | null>(null);
   const [notice, setNotice] = useState("");
   const [busyAction, setBusyAction] = useState<string | null>(null);
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
@@ -454,7 +456,7 @@ export function CommunityConsole({
     const response = await fetch(`/api/community/chat/${channel}`, {
       method: "POST",
       headers: { "content-type": "application/json" },
-      body: JSON.stringify({ content }),
+      body: JSON.stringify({ content, replyToId: replyingTo?.id ?? null }),
     });
     const data = (await response.json()) as {
       message?: CommunityChatMessage;
@@ -466,6 +468,7 @@ export function CommunityConsole({
       return;
     }
     if (data.message) {
+      setReplyingTo(null);
       setMessages((current) =>
         [
           ...current.filter((item) => item.id !== data.message!.id),
@@ -708,6 +711,7 @@ export function CommunityConsole({
           <b>THE UPLINK</b>
         </div>
         <nav aria-label="Community navigation">
+          <CommunityNotifications enabled={Boolean(currentUser)} />
           <Link href="/">HOME</Link>
           <Link href="/playtest">PLAYTEST</Link>
           <Link href="/account">ACCOUNT</Link>
@@ -824,7 +828,11 @@ export function CommunityConsole({
                   const ownsMessage = currentUser?.id === message.userId;
                   const canDelete = Boolean(ownsMessage || isModerator);
                   return (
-                    <article className={styles.message} key={message.id}>
+                    <article
+                      className={styles.message}
+                      id={`message-${message.id}`}
+                      key={message.id}
+                    >
                       <Avatar
                         name={message.displayName}
                         image={message.avatarUrl}
@@ -836,20 +844,25 @@ export function CommunityConsole({
                             {formatTime(message.createdAt)}
                             {message.updatedAt ? " · EDITED" : ""}
                           </time>
-                          {(ownsMessage || canDelete) && (
-                            <div className={controls.itemActions}>
-                              {ownsMessage && (
-                                <button
-                                  onClick={() => {
-                                    setEditingMessageId(message.id);
-                                    setEditingMessageText(message.content);
-                                    setConfirmDelete(null);
-                                  }}
-                                >
-                                  EDIT
-                                </button>
-                              )}
-                              {canDelete && (
+                          <div className={controls.itemActions}>
+                            {currentUser && (
+                              <button onClick={() => setReplyingTo(message)}>
+                                REPLY
+                              </button>
+                            )}
+                            {canDelete && (
+                              <>
+                                {ownsMessage && (
+                                  <button
+                                    onClick={() => {
+                                      setEditingMessageId(message.id);
+                                      setEditingMessageText(message.content);
+                                      setConfirmDelete(null);
+                                    }}
+                                  >
+                                    EDIT
+                                  </button>
+                                )}
                                 <button
                                   className={
                                     confirmDelete === `chat:${message.id}`
@@ -867,9 +880,9 @@ export function CommunityConsole({
                                     ? "CONFIRM"
                                     : "DELETE"}
                                 </button>
-                              )}
-                            </div>
-                          )}
+                              </>
+                            )}
+                          </div>
                         </header>
                         {editingMessageId === message.id ? (
                           <div className={controls.inlineEditor}>
@@ -895,7 +908,22 @@ export function CommunityConsole({
                             </div>
                           </div>
                         ) : (
-                          <p>{message.content}</p>
+                          <>
+                            {message.replyTo && (
+                              <button
+                                className={styles.replyQuote}
+                                onClick={() =>
+                                  document
+                                    .getElementById(`message-${message.replyTo!.id}`)
+                                    ?.scrollIntoView({ behavior: "smooth", block: "center" })
+                                }
+                              >
+                                <b>{message.replyTo.displayName}</b>
+                                <span>{message.replyTo.content}</span>
+                              </button>
+                            )}
+                            <p>{message.content}</p>
+                          </>
                         )}
                       </div>
                     </article>
@@ -904,6 +932,16 @@ export function CommunityConsole({
               </div>
               {currentUser ? (
                 <form className={styles.composer} onSubmit={transmit}>
+                  {replyingTo && (
+                    <div className={styles.replyingBanner}>
+                      <span>
+                        REPLYING TO <b>{replyingTo.displayName}</b>
+                      </span>
+                      <button type="button" onClick={() => setReplyingTo(null)}>
+                        CANCEL
+                      </button>
+                    </div>
+                  )}
                   <textarea
                     value={chatText}
                     onChange={(event) => setChatText(event.target.value)}

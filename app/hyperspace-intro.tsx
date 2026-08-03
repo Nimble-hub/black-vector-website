@@ -2380,8 +2380,8 @@ export function HyperspaceIntro() {
     const isMobileVisitor = window.matchMedia("(pointer: coarse)").matches || window.innerWidth <= 760;
     const storedAudioPreference = window.localStorage.getItem("black-vector-audio-muted");
     const storedMuted = storedAudioPreference === null ? isMobileVisitor : storedAudioPreference === "true";
-    const storedVolumePreference = Number.parseFloat(window.localStorage.getItem(AUDIO_VOLUME_KEY) ?? "0.5");
-    const storedVolume = Number.isFinite(storedVolumePreference) ? clamp01(storedVolumePreference) : 0.5;
+    const storedVolumePreference = Number.parseFloat(window.localStorage.getItem(AUDIO_VOLUME_KEY) ?? "0.3");
+    const storedVolume = Number.isFinite(storedVolumePreference) ? clamp01(storedVolumePreference) : 0.3;
     const audio = new HyperspaceAudio(storedMuted, storedVolume);
     audioRef.current = audio;
     if (!storedMuted) audio.prepare();
@@ -3304,12 +3304,12 @@ export function HyperspaceIntro() {
             min="0"
             max="100"
             step="5"
-            defaultValue="50"
+            defaultValue="30"
             aria-label="Hyperspace audio volume"
             data-audio-volume
           />
           <output data-audio-volume-value aria-hidden="true">
-            050
+            030
           </output>
         </label>
       </div>

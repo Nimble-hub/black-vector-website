@@ -5,6 +5,7 @@ import {
   requireClanMembership,
 } from "@/lib/community-social";
 import { isSameOriginRequest } from "@/lib/request-security";
+import { createCommunityNotification } from "@/lib/community-notifications";
 
 export const dynamic = "force-dynamic";
 
@@ -131,10 +132,10 @@ export async function POST(
   }
   const thread = await d1
     .prepare(
-      "SELECT id, status FROM clan_forum_thread WHERE id = ? AND clan_id = ? LIMIT 1",
+      "SELECT id, status, author_id, title FROM clan_forum_thread WHERE id = ? AND clan_id = ? LIMIT 1",
     )
     .bind(parsed.data.threadId, clanId)
-    .first<{ id: string; status: string }>();
+    .first<{ id: string; status: string; author_id: string; title: string }>();
   if (!thread)
     return Response.json({ error: "Clan thread not found." }, { status: 404 });
   if (thread.status === "locked")
@@ -154,5 +155,13 @@ export async function POST(
       )
       .bind(now, thread.id),
   ]);
+  await createCommunityNotification({
+    userId: thread.author_id,
+    actorId: session.user.id,
+    type: "clan-reply",
+    title: `Clan board reply: ${thread.title}`,
+    body: parsed.data.body,
+    href: "/community?mode=clans",
+  });
   return Response.json({ id }, { status: 201 });
 }

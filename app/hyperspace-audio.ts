@@ -27,9 +27,9 @@ export class HyperspaceAudio {
   private structuralNoiseBuffer: AudioBuffer | null = null;
   private playbackEpoch = 0;
   private muted = false;
-  private volume = 0.5;
+  private volume = 0.3;
 
-  constructor(muted = false, volume = 0.5) {
+  constructor(muted = false, volume = 0.3) {
     this.muted = muted;
     this.volume = Math.max(0, Math.min(1, volume));
   }

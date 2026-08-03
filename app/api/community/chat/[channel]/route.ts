@@ -3,7 +3,8 @@ import { headers } from "next/headers";
 import { z } from "zod";
 import { getAuth } from "@/lib/auth";
 import { getD1 } from "@/db";
-import { isChatChannel } from "@/lib/community";
+import { isChatChannel, type CommunityChatMessage } from "@/lib/community";
+import { createCommunityNotification } from "@/lib/community-notifications";
 import { canModerate, getCommunityRole } from "@/lib/community-permissions";
 import { isSameOriginRequest } from "@/lib/request-security";
 
@@ -11,6 +12,7 @@ export const dynamic = "force-dynamic";
 
 const messageInput = z.object({
   content: z.string().trim().min(1).max(500),
+  replyToId: z.string().uuid().nullable().optional(),
 });
 const mutationInput = z.object({
   id: z.string().uuid(),
@@ -100,10 +102,31 @@ export async function POST(
         displayName: identity.profile?.name ?? identity.session.user.name,
         avatarUrl: identity.profile?.image ?? null,
         content: parsed.data.content,
+        replyToId: parsed.data.replyToId ?? null,
       }),
     },
   );
-  return forwardMutation(response);
+  const payload = (await response.json()) as {
+    message?: CommunityChatMessage;
+    error?: string;
+  };
+  if (!response.ok || !payload.message) {
+    return Response.json(
+      { error: friendlyError(payload.error) },
+      { status: response.status },
+    );
+  }
+  if (payload.message.replyTo) {
+    await createCommunityNotification({
+      userId: payload.message.replyTo.userId,
+      actorId: identity.session.user.id,
+      type: "reply",
+      title: `${payload.message.displayName} replied to you`,
+      body: payload.message.content,
+      href: `/community?channel=${channel}`,
+    });
+  }
+  return Response.json(payload, { status: response.status });
 }
 
 export async function PATCH(

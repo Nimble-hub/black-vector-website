@@ -268,6 +268,24 @@
   color: #68d4da;
   font-size: 7px;
 }
+.dmFeed article > header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.dmFeed article > header button,
+.clanFeed article header button {
+  min-height: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: #6b858b;
+  cursor: pointer;
+  font: 700 6px/1 Consolas, monospace;
+  letter-spacing: .08em;
+}
+.dmFeed article > header button:hover,
+.clanFeed article header button:hover { color: #72d9df; }
 
 .dmFeed article p {
   margin: 5px 0 0;
@@ -530,6 +548,45 @@
 
 .clanComposer textarea {
   min-height: 60px;
+}
+
+.messageReplyQuote {
+  display: grid;
+  gap: 3px;
+  margin: 7px 0 4px;
+  padding: 7px 9px;
+  border-left: 2px solid rgba(103, 209, 216, 0.66);
+  background: rgba(88, 186, 194, 0.08);
+  color: #8c9ba0;
+}
+.messageReplyQuote b { color: #6dd2d8; font-size: 7px; }
+.messageReplyQuote span {
+  overflow: hidden;
+  font-size: 10px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.replyingTo {
+  display: flex;
+  grid-column: 1 / -1;
+  align-items: center;
+  justify-content: space-between;
+  min-height: 28px;
+  padding: 0 8px;
+  border-left: 2px solid #65d4da;
+  background: rgba(80, 183, 191, 0.09);
+  color: #7f9096;
+  font: 7px/1 Consolas, monospace;
+  letter-spacing: .07em;
+}
+.replyingTo b { color: #73d9df; }
+.directThread form .replyingTo button,
+.clanComposer .replyingTo button {
+  min-height: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: #a4b1b5;
 }
 
 .clanForum,

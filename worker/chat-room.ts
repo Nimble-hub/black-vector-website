@@ -7,6 +7,7 @@ interface PublishInput {
   displayName: string;
   avatarUrl: string | null;
   content: string;
+  replyToId?: string | null;
 }
 
 interface MutationInput {
@@ -30,6 +31,10 @@ interface MessageRow extends Record<string, string | number | null> {
   content: string;
   created_at: number;
   updated_at: number | null;
+  reply_to_id: string | null;
+  reply_to_user_id: string | null;
+  reply_to_display_name: string | null;
+  reply_to_content: string | null;
 }
 
 interface ProfileRow {
@@ -48,6 +53,18 @@ function toMessage(row: MessageRow): CommunityChatMessage {
     content: row.content,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
+    replyTo:
+      row.reply_to_id &&
+      row.reply_to_user_id &&
+      row.reply_to_display_name &&
+      row.reply_to_content
+        ? {
+            id: row.reply_to_id,
+            userId: row.reply_to_user_id,
+            displayName: row.reply_to_display_name,
+            content: row.reply_to_content,
+          }
+        : null,
   };
 }
 
@@ -88,6 +105,18 @@ export class ChatRoom extends DurableObject<Env> {
           "ALTER TABLE messages ADD COLUMN updated_at INTEGER",
         );
       }
+      for (const [name, definition] of [
+        ["reply_to_id", "TEXT"],
+        ["reply_to_user_id", "TEXT"],
+        ["reply_to_display_name", "TEXT"],
+        ["reply_to_content", "TEXT"],
+      ] as const) {
+        if (!columns.some((column) => column.name === name)) {
+          this.ctx.storage.sql.exec(
+            `ALTER TABLE messages ADD COLUMN ${name} ${definition}`,
+          );
+        }
+      }
     });
   }
 
@@ -107,7 +136,8 @@ export class ChatRoom extends DurableObject<Env> {
     return [
       ...this.ctx.storage.sql.exec<MessageRow>(
         `
-      SELECT id, channel, user_id, display_name, avatar_url, content, created_at, updated_at
+      SELECT id, channel, user_id, display_name, avatar_url, content, created_at, updated_at,
+             reply_to_id, reply_to_user_id, reply_to_display_name, reply_to_content
       FROM messages WHERE id = ? LIMIT 1
     `,
         id,
@@ -144,7 +174,8 @@ export class ChatRoom extends DurableObject<Env> {
     const rows = [
       ...this.ctx.storage.sql.exec<MessageRow>(
         `
-      SELECT id, channel, user_id, display_name, avatar_url, content, created_at, updated_at
+      SELECT id, channel, user_id, display_name, avatar_url, content, created_at, updated_at,
+             reply_to_id, reply_to_user_id, reply_to_display_name, reply_to_content
       FROM messages
       ORDER BY created_at DESC
       LIMIT ?
@@ -172,6 +203,11 @@ export class ChatRoom extends DurableObject<Env> {
     if (recent[0] && now - recent[0].created_at < 1500)
       throw new Error("RATE_LIMITED");
 
+    const repliedMessage = input.replyToId
+      ? this.findMessage(input.replyToId)
+      : undefined;
+    if (input.replyToId && !repliedMessage) throw new Error("MESSAGE_NOT_FOUND");
+
     const message: CommunityChatMessage = {
       id: crypto.randomUUID(),
       channel: input.channel,
@@ -181,10 +217,21 @@ export class ChatRoom extends DurableObject<Env> {
       content,
       createdAt: now,
       updatedAt: null,
+      replyTo: repliedMessage
+        ? {
+            id: repliedMessage.id,
+            userId: repliedMessage.user_id,
+            displayName: repliedMessage.display_name,
+            content: repliedMessage.content.slice(0, 240),
+          }
+        : null,
     };
 
     this.ctx.storage.sql.exec(
-      `INSERT INTO messages (id, channel, user_id, display_name, avatar_url, content, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, NULL)`,
+      `INSERT INTO messages
+        (id, channel, user_id, display_name, avatar_url, content, created_at, updated_at,
+         reply_to_id, reply_to_user_id, reply_to_display_name, reply_to_content)
+       VALUES (?, ?, ?, ?, ?, ?, ?, NULL, ?, ?, ?, ?)`,
       message.id,
       message.channel,
       message.userId,
@@ -192,6 +239,10 @@ export class ChatRoom extends DurableObject<Env> {
       message.avatarUrl,
       message.content,
       message.createdAt,
+      message.replyTo?.id ?? null,
+      message.replyTo?.userId ?? null,
+      message.replyTo?.displayName ?? null,
+      message.replyTo?.content ?? null,
     );
     this.ctx.storage.sql.exec(`
       DELETE FROM messages WHERE id IN (

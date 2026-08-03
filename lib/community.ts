@@ -56,4 +56,30 @@ export interface CommunityChatMessage {
   content: string;
   createdAt: number;
   updatedAt: number | null;
+  replyTo: {
+    id: string;
+    userId: string;
+    displayName: string;
+    content: string;
+  } | null;
+}
+
+export type CommunityNotificationType =
+  | "reply"
+  | "direct-message"
+  | "friend-request"
+  | "friend-accepted"
+  | "forum-reply"
+  | "clan-reply";
+
+export interface CommunityNotification {
+  id: string;
+  type: CommunityNotificationType;
+  title: string;
+  body: string;
+  href: string;
+  actorName: string | null;
+  actorImage: string | null;
+  readAt: number | null;
+  createdAt: number;
 }

@@ -400,6 +400,46 @@ export const clanForumPost = sqliteTable(
   ],
 );
 
+export const communityNotification = sqliteTable(
+  "community_notification",
+  {
+    id: text("id").primaryKey(),
+    userId: text("user_id")
+      .notNull()
+      .references(() => user.id, { onDelete: "cascade" }),
+    actorId: text("actor_id").references(() => user.id, {
+      onDelete: "set null",
+    }),
+    type: text("type", {
+      enum: [
+        "reply",
+        "direct-message",
+        "friend-request",
+        "friend-accepted",
+        "forum-reply",
+        "clan-reply",
+      ],
+    }).notNull(),
+    title: text("title").notNull(),
+    body: text("body").notNull(),
+    href: text("href").notNull(),
+    readAt: integer("read_at", { mode: "timestamp_ms" }),
+    createdAt: integer("created_at", { mode: "timestamp_ms" })
+      .default(now)
+      .notNull(),
+  },
+  (table) => [
+    index("idx_community_notification_user_created").on(
+      table.userId,
+      table.createdAt,
+    ),
+    index("idx_community_notification_user_read").on(
+      table.userId,
+      table.readAt,
+    ),
+  ],
+);
+
 export const userRelations = relations(user, ({ many, one }) => ({
   sessions: many(session),
   accounts: many(account),

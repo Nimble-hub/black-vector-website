@@ -6,10 +6,15 @@ import {
   requireClanMembership,
 } from "@/lib/community-social";
 import { isSameOriginRequest } from "@/lib/request-security";
+import type { CommunityChatMessage } from "@/lib/community";
+import { createCommunityNotification } from "@/lib/community-notifications";
 
 export const dynamic = "force-dynamic";
 
-const messageInput = z.object({ content: z.string().trim().min(1).max(1000) });
+const messageInput = z.object({
+  content: z.string().trim().min(1).max(1000),
+  replyToId: z.string().uuid().nullable().optional(),
+});
 
 export async function GET(
   _request: Request,
@@ -65,8 +70,23 @@ export async function POST(
         displayName: profile?.name ?? session.user.name,
         avatarUrl: profile?.image ?? null,
         content: parsed.data.content,
+        replyToId: parsed.data.replyToId ?? null,
       }),
     },
   );
-  return Response.json(await response.json(), { status: response.status });
+  const payload = (await response.json()) as {
+    message?: CommunityChatMessage;
+    error?: string;
+  };
+  if (response.ok && payload.message?.replyTo) {
+    await createCommunityNotification({
+      userId: payload.message.replyTo.userId,
+      actorId: session.user.id,
+      type: "clan-reply",
+      title: `${payload.message.displayName} replied in clan comms`,
+      body: payload.message.content,
+      href: "/community?mode=clans",
+    });
+  }
+  return Response.json(payload, { status: response.status });
 }

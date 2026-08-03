@@ -72,6 +72,7 @@ export function CommunityMembersPanel({
   const [selected, setSelected] = useState<Conversation | null>(null);
   const [messages, setMessages] = useState<CommunityChatMessage[]>([]);
   const [text, setText] = useState("");
+  const [replyingTo, setReplyingTo] = useState<CommunityChatMessage | null>(null);
   const [friendSearch, setFriendSearch] = useState("");
   const [directSearch, setDirectSearch] = useState("");
   const [busy, setBusy] = useState<string | null>(null);
@@ -281,7 +282,7 @@ export function CommunityMembersPanel({
     const response = await fetch(`/api/community/dm/${selected.id}`, {
       method: "POST",
       headers: { "content-type": "application/json" },
-      body: JSON.stringify({ content }),
+      body: JSON.stringify({ content, replyToId: replyingTo?.id ?? null }),
     });
     const data = (await response.json()) as {
       message?: CommunityChatMessage;
@@ -295,6 +296,7 @@ export function CommunityMembersPanel({
       ...current.filter((item) => item.id !== data.message!.id),
       data.message!,
     ]);
+    setReplyingTo(null);
   }
 
   if (!currentUser) {
@@ -366,12 +368,29 @@ export function CommunityMembersPanel({
                 key={message.id}
                 className={message.userId === currentUser.id ? social.mine : ""}
               >
-                <b>{message.displayName}</b>
+                <header>
+                  <b>{message.displayName}</b>
+                  <button type="button" onClick={() => setReplyingTo(message)}>
+                    REPLY
+                  </button>
+                </header>
+                {message.replyTo && (
+                  <blockquote className={social.messageReplyQuote}>
+                    <b>{message.replyTo.displayName}</b>
+                    <span>{message.replyTo.content}</span>
+                  </blockquote>
+                )}
                 <p>{message.content}</p>
               </article>
             ))}
           </div>
           <form onSubmit={transmit}>
+            {replyingTo && (
+              <div className={social.replyingTo}>
+                <span>REPLYING TO <b>{replyingTo.displayName}</b></span>
+                <button type="button" onClick={() => setReplyingTo(null)}>CANCEL</button>
+              </div>
+            )}
             <textarea
               value={text}
               onChange={(event) => setText(event.target.value)}

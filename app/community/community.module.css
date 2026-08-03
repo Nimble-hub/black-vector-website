@@ -698,6 +698,150 @@
 .offline {
   color: #af6558;
 }
+
+.replyQuote {
+  display: grid;
+  width: min(100%, 680px);
+  gap: 4px;
+  margin-top: 8px;
+  padding: 9px 12px;
+  border: 0;
+  border-left: 2px solid #58bdc5;
+  background: rgba(67, 177, 186, 0.07);
+  color: #8d9ca1;
+  text-align: left;
+  cursor: pointer;
+}
+.replyQuote b {
+  color: #66cbd2;
+  font: 700 8px/1 Consolas, monospace;
+  letter-spacing: 0.08em;
+}
+.replyQuote span {
+  overflow: hidden;
+  font-size: 11px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.replyingBanner {
+  display: flex;
+  grid-column: 1 / -1;
+  align-items: center;
+  justify-content: space-between;
+  min-height: 30px;
+  padding: 0 10px;
+  border: 1px solid rgba(101, 212, 218, 0.2);
+  border-bottom: 0;
+  background: rgba(17, 42, 51, 0.88);
+  color: #809097;
+  font: 7px/1 Consolas, monospace;
+  letter-spacing: 0.09em;
+}
+.replyingBanner b { color: #72d9df; }
+.replyingBanner button {
+  width: auto;
+  margin: 0;
+  border: 0;
+  background: transparent;
+  color: #a7b3b7;
+}
+
+.notificationRoot { position: relative; }
+.notificationTrigger {
+  position: relative;
+  display: inline-flex;
+  min-height: 42px;
+  align-items: center;
+  gap: 7px;
+  border: 0;
+  background: transparent;
+  color: #9aa8ad;
+  cursor: pointer;
+  font: 700 9px/1 Consolas, monospace;
+  letter-spacing: 0.12em;
+}
+.notificationTrigger > span { color: #66cbd2; font-size: 13px; }
+.notificationTrigger > b {
+  display: grid;
+  min-width: 17px;
+  height: 17px;
+  place-items: center;
+  padding: 0 4px;
+  border-radius: 9px;
+  background: #c65f3b;
+  color: #fff;
+  font-size: 7px;
+  box-shadow: 0 0 14px rgba(198, 95, 59, 0.45);
+}
+.notificationPanel {
+  position: absolute;
+  top: calc(100% + 10px);
+  right: 0;
+  z-index: 20;
+  width: min(390px, calc(100vw - 24px));
+  overflow: hidden;
+  border: 1px solid rgba(105, 207, 214, 0.28);
+  background: rgba(3, 11, 15, 0.98);
+  box-shadow: 0 28px 90px rgba(0, 0, 0, 0.72);
+}
+.notificationPanel > header {
+  display: flex;
+  min-height: 64px;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 14px;
+  border-bottom: 1px solid rgba(105, 207, 214, 0.15);
+  background: linear-gradient(90deg, rgba(60, 160, 170, 0.12), transparent);
+}
+.notificationPanel > header div { display: grid; gap: 6px; }
+.notificationPanel > header small { color: #5ebec5; font: 7px/1 Consolas, monospace; letter-spacing: .12em; }
+.notificationPanel > header strong { color: #eeeae0; font: 700 13px/1 Bahnschrift, sans-serif; letter-spacing: .1em; }
+.notificationPanel > header button {
+  border: 0;
+  background: transparent;
+  color: #72cbd1;
+  cursor: pointer;
+  font: 700 7px/1 Consolas, monospace;
+}
+.notificationPanel > div { max-height: min(520px, 65vh); overflow-y: auto; }
+.notificationPanel a {
+  display: grid;
+  grid-template-columns: 34px 1fr;
+  gap: 11px;
+  padding: 13px 14px;
+  border-bottom: 1px solid rgba(105, 207, 214, 0.08);
+  color: inherit;
+  text-decoration: none;
+}
+.notificationPanel a:hover { background: rgba(79, 183, 191, 0.08); }
+.notificationPanel a > img,
+.notificationPanel a > i {
+  display: grid;
+  width: 34px;
+  height: 34px;
+  place-items: center;
+  border: 1px solid rgba(105, 207, 214, 0.3);
+  object-fit: cover;
+  color: #66cbd2;
+  font: 700 8px/1 Consolas, monospace;
+  font-style: normal;
+}
+.notificationPanel a > span { min-width: 0; }
+.notificationPanel a strong { display: block; color: #dcdad3; font-size: 11px; }
+.notificationPanel a p {
+  overflow: hidden;
+  margin: 5px 0;
+  color: #87959a;
+  font-size: 11px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.notificationPanel a small { color: #52636a; font: 6px/1 Consolas, monospace; letter-spacing: .1em; }
+.notificationUnread { background: linear-gradient(90deg, rgba(72, 182, 191, 0.13), transparent); }
+.notificationUnread::after { align-self: center; width: 4px; height: 4px; border-radius: 50%; background: #6bd7dd; content: ""; }
+.notificationPanel a.notificationUnread { grid-template-columns: 34px 1fr 4px; }
+.notificationRead { opacity: .68; }
+.notificationEmpty { margin: 0; padding: 34px 14px; color: #65747a; text-align: center; font: 7px/1 Consolas, monospace; letter-spacing: .12em; }
 @keyframes pulse {
   50% {
     opacity: 0.25;

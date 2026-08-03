@@ -80,6 +80,7 @@ export function ClanConsole({
   const [view, setView] = useState<"chat" | "forum">("chat");
   const [messages, setMessages] = useState<CommunityChatMessage[]>([]);
   const [chatText, setChatText] = useState("");
+  const [replyingTo, setReplyingTo] = useState<CommunityChatMessage | null>(null);
   const [threads, setThreads] = useState<ClanThread[]>([]);
   const [thread, setThread] = useState<ClanThread | null>(null);
   const [replies, setReplies] = useState<ClanReply[]>([]);
@@ -234,7 +235,7 @@ export function ClanConsole({
     const response = await fetch(`/api/community/clans/${selected.id}/chat`, {
       method: "POST",
       headers: { "content-type": "application/json" },
-      body: JSON.stringify({ content }),
+      body: JSON.stringify({ content, replyToId: replyingTo?.id ?? null }),
     });
     const data = (await response.json()) as {
       message?: CommunityChatMessage;
@@ -248,6 +249,7 @@ export function ClanConsole({
       ...current.filter((item) => item.id !== data.message!.id),
       data.message!,
     ]);
+    setReplyingTo(null);
   }
 
   async function createThread(event: FormEvent) {
@@ -429,13 +431,28 @@ export function ClanConsole({
                             minute: "2-digit",
                           })}
                         </time>
+                        <button type="button" onClick={() => setReplyingTo(message)}>
+                          REPLY
+                        </button>
                       </header>
+                      {message.replyTo && (
+                        <blockquote className={social.messageReplyQuote}>
+                          <b>{message.replyTo.displayName}</b>
+                          <span>{message.replyTo.content}</span>
+                        </blockquote>
+                      )}
                       <p>{message.content}</p>
                     </div>
                   </article>
                 ))}
               </div>
               <form className={social.clanComposer} onSubmit={transmit}>
+                {replyingTo && (
+                  <div className={social.replyingTo}>
+                    <span>REPLYING TO <b>{replyingTo.displayName}</b></span>
+                    <button type="button" onClick={() => setReplyingTo(null)}>CANCEL</button>
+                  </div>
+                )}
                 <textarea
                   value={chatText}
                   onChange={(event) => setChatText(event.target.value)}
