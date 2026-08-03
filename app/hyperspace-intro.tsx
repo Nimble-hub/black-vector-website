@@ -1925,7 +1925,11 @@ function createExitDustGeometry(count: number) {
   return geometry;
 }
 
-function createDeepSpaceWorld(isMobile: boolean, balancedQuality: boolean) {
+function createDeepSpaceWorld(
+  isMobile: boolean,
+  balancedQuality: boolean,
+  softwareRendering: boolean,
+) {
   const group = new THREE.Group();
   const fleet = new THREE.Group();
   const planetRadius = isMobile ? 16 : 18;
@@ -1952,8 +1956,8 @@ function createDeepSpaceWorld(isMobile: boolean, balancedQuality: boolean) {
   // Keep the destination sky richly populated at every depth. This remains a
   // single Points draw call, so the added density costs vertices rather than
   // additional scene objects or materials.
-  const frontStarCount = isMobile ? 5200 : balancedQuality ? 7800 : 10400;
-  const surroundStarCount = isMobile ? 18000 : balancedQuality ? 30000 : 42000;
+  const frontStarCount = isMobile ? 5200 : softwareRendering ? 6200 : balancedQuality ? 7800 : 10400;
+  const surroundStarCount = isMobile ? 18000 : softwareRendering ? 22000 : balancedQuality ? 30000 : 42000;
   const starCount = frontStarCount + surroundStarCount;
   const starPositions = new Float32Array(starCount * 3);
   const starColors = new Float32Array(starCount * 3);
@@ -2083,7 +2087,7 @@ function createDeepSpaceWorld(isMobile: boolean, balancedQuality: boolean) {
   deepStars.renderOrder = -12;
   group.add(deepStars);
 
-  const veilCount = isMobile ? 500 : balancedQuality ? 720 : 980;
+  const veilCount = isMobile ? 500 : softwareRendering ? 600 : balancedQuality ? 720 : 980;
   const veilPositions = new Float32Array(veilCount * 3);
   const veilColors = new Float32Array(veilCount * 3);
   const veilSizes = new Float32Array(veilCount);
@@ -2171,8 +2175,8 @@ function createDeepSpaceWorld(isMobile: boolean, balancedQuality: boolean) {
   }));
   const planetGeometry = trackGeometry(new THREE.SphereGeometry(
     planetRadius,
-    isMobile ? 64 : balancedQuality ? 96 : 128,
-    isMobile ? 40 : balancedQuality ? 60 : 80,
+    isMobile ? 64 : softwareRendering ? 80 : balancedQuality ? 96 : 128,
+    isMobile ? 40 : softwareRendering ? 48 : balancedQuality ? 60 : 80,
   ));
   const planet = new THREE.Mesh(planetGeometry, planetMaterial);
   planet.position.copy(planetPosition);
@@ -2213,7 +2217,7 @@ function createDeepSpaceWorld(isMobile: boolean, balancedQuality: boolean) {
   const stormShadowLayer = createStormLayer(
     0,
     0.00034,
-    isMobile ? 2 : balancedQuality ? 3 : 4,
+    isMobile || softwareRendering ? 2 : balancedQuality ? 3 : 4,
     0,
     1,
   );
@@ -2227,7 +2231,7 @@ function createDeepSpaceWorld(isMobile: boolean, balancedQuality: boolean) {
   const lowerStormLayer = createStormLayer(
     0,
     0.00034,
-    isMobile ? 3 : balancedQuality ? 4 : 6,
+    isMobile || softwareRendering ? 3 : balancedQuality ? 4 : 6,
     isMobile ? 0.1 : 0.18,
   );
   const lowerStormClouds = new THREE.Mesh(planetGeometry, lowerStormLayer.material);
@@ -2240,7 +2244,7 @@ function createDeepSpaceWorld(isMobile: boolean, balancedQuality: boolean) {
   const upperStormLayer = createStormLayer(
     1,
     -0.00022,
-    isMobile ? 2 : balancedQuality ? 3 : 4,
+    isMobile || softwareRendering ? 2 : balancedQuality ? 3 : 4,
     isMobile ? 0.06 : 0.11,
   );
   const upperStormClouds = new THREE.Mesh(planetGeometry, upperStormLayer.material);
@@ -2595,12 +2599,36 @@ export function HyperspaceIntro() {
     const deviceMemory = (navigator as Navigator & { deviceMemory?: number }).deviceMemory ?? 8;
     const hardwareThreads = navigator.hardwareConcurrency || 8;
     const qualityPreference = searchParams.get("quality");
+
+    // Ask the browser whether WebGL would represent a major performance
+    // caveat before creating the production renderer. Browsers backed by
+    // SwiftShader/other software rasterizers commonly reject this probe, and
+    // the debug renderer string catches the implementations that do not.
+    const probeCanvas = document.createElement("canvas");
+    const probeAttributes: WebGLContextAttributes = {
+      failIfMajorPerformanceCaveat: true,
+      powerPreference: "high-performance",
+    };
+    const probeContext = probeCanvas.getContext("webgl2", probeAttributes)
+      ?? probeCanvas.getContext("webgl", probeAttributes);
+    const probeDebugInfo = probeContext?.getExtension("WEBGL_debug_renderer_info");
+    const probeRenderer = probeContext && probeDebugInfo
+      ? String(probeContext.getParameter(probeDebugInfo.UNMASKED_RENDERER_WEBGL))
+      : "";
+    const softwareRendering = !captureMode && (
+      qualityPreference === "software"
+      || probeContext === null
+      || /swiftshader|llvmpipe|softpipe|software raster|microsoft basic render/i.test(probeRenderer)
+    );
+    probeContext?.getExtension("WEBGL_lose_context")?.loseContext();
+
     const balancedQuality = !captureMode && (
       qualityPreference === "balanced"
         || (
           qualityPreference !== "cinematic"
             && (
-              isMobile
+              softwareRendering
+                || isMobile
                 || viewportPixels > 3_000_000
                 || deviceMemory <= 4
                 || hardwareThreads <= 6
@@ -2659,7 +2687,9 @@ export function HyperspaceIntro() {
       uPressurePhase: { value: 0 },
       uResolution: { value: new THREE.Vector2(1, 1) },
     };
-    const geometry = createTunnelGeometry(isMobile ? 1350 : balancedQuality ? 1750 : 2300);
+    const geometry = createTunnelGeometry(
+      isMobile ? 1350 : softwareRendering ? 1500 : balancedQuality ? 1750 : 2300,
+    );
     const material = new THREE.ShaderMaterial({
       uniforms,
       vertexShader,
@@ -2692,7 +2722,7 @@ export function HyperspaceIntro() {
       uPressurePhase: { value: 0 },
     };
     const tunnelDustGeometry = createTunnelDustGeometry(
-      isMobile ? 1150 : balancedQuality ? 2100 : 3000,
+      isMobile ? 1150 : softwareRendering ? 1700 : balancedQuality ? 2100 : 3000,
     );
     const tunnelDustMaterial = new THREE.ShaderMaterial({
       uniforms: tunnelDustUniforms,
@@ -2720,7 +2750,9 @@ export function HyperspaceIntro() {
       uCruise: { value: 0 },
       uImpact: { value: 0 },
     };
-    const warpBubbleGeometry = createWarpBubbleGeometry(isMobile || balancedQuality);
+    const warpBubbleGeometry = createWarpBubbleGeometry(
+      isMobile || softwareRendering || balancedQuality,
+    );
     const warpBubbleMaterial = new THREE.ShaderMaterial({
       uniforms: warpBubbleUniforms,
       vertexShader: warpBubbleVertexShader,
@@ -2746,7 +2778,7 @@ export function HyperspaceIntro() {
       uResolution: { value: new THREE.Vector2(1, 1) },
     };
     const exitWakeGeometry = createExitWakeGeometry(
-      isMobile ? 96 : balancedQuality ? 128 : 192,
+      isMobile ? 96 : softwareRendering ? 112 : balancedQuality ? 128 : 192,
     );
     const exitWakeMaterial = new THREE.ShaderMaterial({
       uniforms: exitWakeUniforms,
@@ -2774,7 +2806,7 @@ export function HyperspaceIntro() {
       uOpacity: { value: 0 },
     };
     const exitCrystalGeometry = createExitCrystalGeometry(
-      isMobile ? 900 : balancedQuality ? 1250 : 1900,
+      isMobile ? 900 : softwareRendering ? 1050 : balancedQuality ? 1250 : 1900,
     );
     const exitCrystalMaterial = new THREE.ShaderMaterial({
       uniforms: exitCrystalUniforms,
@@ -2799,7 +2831,7 @@ export function HyperspaceIntro() {
       uOpacity: { value: 0 },
     };
     const exitDustGeometry = createExitDustGeometry(
-      isMobile ? 12200 : balancedQuality ? 22000 : 34000,
+      isMobile ? 12200 : softwareRendering ? 16000 : balancedQuality ? 22000 : 34000,
     );
     const exitDustMaterial = new THREE.ShaderMaterial({
       uniforms: exitDustUniforms,
@@ -2819,7 +2851,7 @@ export function HyperspaceIntro() {
     exitDust.visible = false;
     scene.add(exitDust);
 
-    const world = createDeepSpaceWorld(isMobile, balancedQuality);
+    const world = createDeepSpaceWorld(isMobile, balancedQuality, softwareRendering);
     world.setOpacity(captureMode || shouldJump ? 0 : 1);
     scene.add(world.group);
 
@@ -2872,25 +2904,15 @@ export function HyperspaceIntro() {
       }
     };
 
-    let adaptivePixelScale = 1;
     const resize = () => {
       const width = window.innerWidth;
       const height = window.innerHeight;
-      const framePixels = Math.max(width * height, 1);
-      const pixelBudget = balancedQuality ? 3_200_000 : 5_200_000;
-      const resolutionBudgetRatio = Math.sqrt(pixelBudget / framePixels);
-      const ratioCap = isMobile ? 1.25 : balancedQuality ? 1.35 : 1.6;
       // The capture route uses a fixed 2x backing surface. With the native
       // 1280x720 viewport this produces a true 2560x1440 canvas that can be
       // read directly, bypassing browser compositor scaling and tile seams.
-      const pixelRatio = captureMode
-        ? 2
-        : THREE.MathUtils.clamp(
-            Math.min(window.devicePixelRatio || 1, resolutionBudgetRatio, ratioCap)
-              * adaptivePixelScale,
-            0.5,
-            ratioCap,
-          );
+      // Interactive playback stays at the display's native backing resolution;
+      // performance tiers reduce scene workload and cadence instead.
+      const pixelRatio = captureMode ? 2 : window.devicePixelRatio || 1;
       renderer.setPixelRatio(pixelRatio);
       renderer.setSize(width, height, false);
       composer.setPixelRatio(pixelRatio);
@@ -2910,9 +2932,7 @@ export function HyperspaceIntro() {
 
     let startTime = 0;
     let previousTime = 0;
-    let frameTimeEma = 1 / 60;
-    let slowFrameDuration = 0;
-    let lastScaleChange = 0;
+    let lastSoftwareFrame = 0;
     let travel = 0;
     let dustTravel = 0;
     let jumpComplete = !shouldJump;
@@ -2924,6 +2944,19 @@ export function HyperspaceIntro() {
     const interfaceFar = new THREE.Vector3(0, 0, -118);
     const interfaceNear = new THREE.Vector3(isMobile ? -7.5 : -13, isMobile ? 0.5 : -0.4, -26);
     const animate = (time: number) => {
+      // A locked 30 fps cadence is substantially smoother than irregularly
+      // missing 60 fps under a software rasterizer. Animation remains based on
+      // elapsed time, so audio and the cinematic timeline stay synchronized.
+      if (
+        softwareRendering
+        && qualityPreference !== "cinematic"
+        && lastSoftwareFrame > 0
+        && time - lastSoftwareFrame < 1000 / 30
+      ) {
+        return;
+      }
+      lastSoftwareFrame = time;
+
       if (!startTime) {
         startTime = time;
         previousTime = time;
@@ -2933,27 +2966,6 @@ export function HyperspaceIntro() {
       const elapsed = time - startTime;
       const delta = Math.min((time - previousTime) / 1000, 0.05);
       previousTime = time;
-
-      // Preserve the cinematic tier when the device can sustain it, but
-      // quietly reduce only the backing resolution when frame pacing remains
-      // poor. Never scale back up during the sequence: reallocating render
-      // targets mid-shot would be more visible than the reduced resolution.
-      if (!captureMode && document.visibilityState === "visible") {
-        frameTimeEma += (delta - frameTimeEma) * 0.05;
-        if (frameTimeEma > 1 / 48) slowFrameDuration += delta;
-        else slowFrameDuration = Math.max(0, slowFrameDuration - delta * 0.5);
-
-        if (
-          slowFrameDuration > 1.5
-          && time - lastScaleChange > 2500
-          && adaptivePixelScale > 0.72
-        ) {
-          adaptivePixelScale = Math.max(0.72, adaptivePixelScale * 0.88);
-          slowFrameDuration = 0;
-          lastScaleChange = time;
-          resize();
-        }
-      }
 
       if (!jumpComplete) {
         const progress = skipJumpRef.current ? 1 : clamp01(elapsed / DURATION);
