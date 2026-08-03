@@ -1711,7 +1711,10 @@ function createDeepSpaceWorld(isMobile: boolean) {
     return material;
   };
 
-  const starCount = isMobile ? 2800 : 5200;
+  // Keep the destination sky richly populated at every depth. This remains a
+  // single Points draw call, so the added density costs vertices rather than
+  // additional scene objects or materials.
+  const starCount = isMobile ? 3900 : 7800;
   const starPositions = new Float32Array(starCount * 3);
   const starColors = new Float32Array(starCount * 3);
   const starSizes = new Float32Array(starCount);
@@ -1817,7 +1820,7 @@ function createDeepSpaceWorld(isMobile: boolean) {
   deepStars.renderOrder = -12;
   group.add(deepStars);
 
-  const veilCount = isMobile ? 360 : 680;
+  const veilCount = isMobile ? 500 : 980;
   const veilPositions = new Float32Array(veilCount * 3);
   const veilColors = new Float32Array(veilCount * 3);
   const veilSizes = new Float32Array(veilCount);
