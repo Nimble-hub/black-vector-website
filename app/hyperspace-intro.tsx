@@ -3264,24 +3264,30 @@ export function HyperspaceIntro() {
         <div className="cinema-gate">
           <span>BLACK VECTOR // SECURE TRANSIT</span>
           <strong>INITIATE TRANSIT</strong>
-          {mobileVisitor ? (
-            <div className="cinema-gate-options">
-              <button type="button" onClick={() => engage(false)}>
-                CONTINUE SILENT
-              </button>
-              <button type="button" onClick={() => engage(true)}>
-                ENABLE AUDIO
-              </button>
-            </div>
-          ) : (
-            <button className="cinema-gate-primary" type="button" onClick={() => engage(true)}>
-              ENTER WITH AUDIO
+          <div className="cinema-gate-options">
+            <button
+              className={mobileVisitor ? "cinema-gate-primary" : undefined}
+              type="button"
+              onClick={() => engage(false)}
+            >
+              CONTINUE SILENT
             </button>
-          )}
+            <button
+              className={!mobileVisitor ? "cinema-gate-primary" : undefined}
+              type="button"
+              onClick={() => engage(true)}
+            >
+              {mobileVisitor ? "ENABLE AUDIO" : "ENTER WITH AUDIO"}
+            </button>
+          </div>
           <button className="cinema-gate-skip" type="button" onClick={skipIntro}>
             SKIP HYPERSPACE
           </button>
-          <small>{mobileVisitor ? "AUDIO IS OFF BY DEFAULT ON MOBILE" : "HEADPHONES RECOMMENDED"}</small>
+          <small>
+            {mobileVisitor
+              ? "AUDIO IS OFF BY DEFAULT ON MOBILE"
+              : "SELECT AUDIO BEFORE TRANSIT"}
+          </small>
         </div>
       )}
       <div

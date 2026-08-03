@@ -193,6 +193,9 @@ test("presents the production game pitch and cleanly hands transit audio to the 
   assert.match(intro, /audioRef\.current\?\.finishTransit\(audioFadeSeconds\)/);
   assert.match(intro, /void audio\.startMusic\(\)/);
   assert.match(intro, /SKIP HYPERSPACE/);
+  assert.match(intro, /CONTINUE SILENT/);
+  assert.match(intro, /SELECT AUDIO BEFORE TRANSIT/);
+  assert.match(intro, /className=\{mobileVisitor \? "cinema-gate-primary" : undefined\}/);
   assert.match(intro, /const skipIntro = useCallback/);
   assert.match(audio, /playbackEpoch/);
   assert.match(audio, /finishTransit/);
