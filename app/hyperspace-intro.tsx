@@ -1338,6 +1338,7 @@ const stormCloudVertexShader = `
   precision highp float;
 
   uniform sampler2D uMap;
+  uniform sampler2D uHeightMap;
   uniform float uTime;
   uniform float uLayer;
   uniform float uRelief;
@@ -1355,18 +1356,20 @@ const stormCloudVertexShader = `
       fract(uv.x + uDrift.x * uTime),
       clamp(uv.y + uDrift.y * sin(uTime * 0.07), 0.002, 0.998)
     );
-    vec3 reliefSample = texture2D(uMap, reliefUv).rgb;
+    // Height comes from a deliberately low-frequency map. Fine albedo detail
+    // stays in the fragment shader and can never turn into serrated geometry.
+    vec3 reliefSample = texture2D(uHeightMap, reliefUv).rgb;
     float reliefLuminance = dot(reliefSample, vec3(0.2126, 0.7152, 0.0722));
     float layerHeight = clamp(uLayer, 0.0, 1.0);
-    float reliefFloor = mix(0.3, 0.55, layerHeight);
-    float reliefCeiling = mix(0.7, 0.9, layerHeight);
+    float reliefFloor = mix(0.26, 0.5, layerHeight);
+    float reliefCeiling = mix(0.72, 0.9, layerHeight);
     float cloudRelief = smoothstep(reliefFloor, reliefCeiling, reliefLuminance);
     // The authored map already contains self-shadowed thunderhead relief. Keep
     // the geometric modulation broad so the clouds read as planetary masses,
     // not thousands of small animated puffs.
-    cloudRelief *= 0.96 + sin(
-      reliefUv.x * 11.0 + reliefUv.y * 9.0 + uTime * 0.025
-    ) * 0.04;
+    cloudRelief *= 0.985 + sin(
+      reliefUv.x * 7.0 + reliefUv.y * 5.0 + uTime * 0.018
+    ) * 0.015;
     vec3 displacedPosition = position + normal * cloudRelief * uRelief;
     vec4 viewPosition = modelViewMatrix * vec4(displacedPosition, 1.0);
     vViewNormal = normalize(normalMatrix * normal);
@@ -1462,7 +1465,7 @@ const stormCloudFragmentShader = `
       float depth = (float(sampleIndex) + 0.5) / uSteps;
       float centeredDepth = depth - 0.5;
       vec2 sampleUv = baseUv
-        + parallaxDirection * centeredDepth * grazing * (0.022 + uLayer * 0.014);
+        + parallaxDirection * centeredDepth * grazing * (0.007 + uLayer * 0.004);
       sampleUv = vec2(fract(sampleUv.x), clamp(sampleUv.y, 0.002, 0.998));
 
       vec3 stormSample = texture2D(uMap, sampleUv).rgb;
@@ -1491,7 +1494,7 @@ const stormCloudFragmentShader = `
         mix(0.64, 0.8, layerHeight),
         shadowLuminance
       );
-      float selfShadow = mix(1.0, 0.18, shadowDensity * (0.34 + depth * 0.66));
+      float selfShadow = mix(1.0, 0.28, shadowDensity * (0.34 + depth * 0.66));
       float sculptedLight = smoothstep(
         0.22,
         0.78,
@@ -1500,8 +1503,8 @@ const stormCloudFragmentShader = `
       float stepAlpha = density * (1.08 / uSteps) * (0.78 + grazing * 0.88);
       float contribution = transmittance * stepAlpha;
 
-      vec3 coldShadow = mix(vec3(0.12, 0.18, 0.25), vec3(0.25, 0.32, 0.42), layerHeight);
-      vec3 sunlitSilver = mix(vec3(0.74, 0.82, 0.9), vec3(1.15, 1.2, 1.26), layerHeight);
+      vec3 coldShadow = mix(vec3(0.16, 0.22, 0.3), vec3(0.28, 0.36, 0.47), layerHeight);
+      vec3 sunlitSilver = mix(vec3(0.74, 0.82, 0.9), vec3(0.98, 1.03, 1.08), layerHeight);
       float silverMix = cloudCore
         * mix(0.3, 1.0, sculptedLight)
         * mix(0.68, 1.0, selfShadow);
@@ -2167,7 +2170,7 @@ function createDeepSpaceWorld(
   oceanTexture.anisotropy = 8;
   textures.push(oceanTexture);
 
-  const stormTexture = new THREE.TextureLoader().load(`${BASE_PATH}/textures/bv-planetary-storm-clouds-v2.webp`);
+  const stormTexture = new THREE.TextureLoader().load(`${BASE_PATH}/textures/bv-planetary-storm-clouds-v3.webp`);
   stormTexture.colorSpace = THREE.SRGBColorSpace;
   stormTexture.wrapS = THREE.RepeatWrapping;
   stormTexture.wrapT = THREE.ClampToEdgeWrapping;
@@ -2175,6 +2178,13 @@ function createDeepSpaceWorld(
   stormTexture.magFilter = THREE.LinearFilter;
   stormTexture.anisotropy = 8;
   textures.push(stormTexture);
+  const stormHeightTexture = new THREE.TextureLoader().load(`${BASE_PATH}/textures/bv-planetary-storm-cloud-height-v3.webp`);
+  stormHeightTexture.colorSpace = THREE.NoColorSpace;
+  stormHeightTexture.wrapS = THREE.RepeatWrapping;
+  stormHeightTexture.wrapT = THREE.ClampToEdgeWrapping;
+  stormHeightTexture.minFilter = THREE.LinearMipmapLinearFilter;
+  stormHeightTexture.magFilter = THREE.LinearFilter;
+  textures.push(stormHeightTexture);
   const planetMaterial = trackMaterial(new THREE.MeshPhysicalMaterial({
     color: 0x7895a0,
     map: oceanTexture,
@@ -2191,12 +2201,14 @@ function createDeepSpaceWorld(
   }));
   const planetGeometry = trackGeometry(new THREE.SphereGeometry(
     planetRadius,
-    isMobile ? 64 : softwareRendering ? 80 : balancedQuality ? 96 : 128,
-    isMobile ? 40 : softwareRendering ? 48 : balancedQuality ? 60 : 80,
+    isMobile ? 64 : softwareRendering ? 80 : balancedQuality ? 112 : 192,
+    isMobile ? 40 : softwareRendering ? 48 : balancedQuality ? 72 : 128,
   ));
   const planet = new THREE.Mesh(planetGeometry, planetMaterial);
   planet.position.copy(planetPosition);
-  planet.rotation.set(-0.08, -1.12, 0.04);
+  // Present the eye of the primary continent-scale cyclone toward camera.
+  // The v3 map places that system around equirectangular U 0.23.
+  planet.rotation.set(-0.08, 0.12, 0.04);
   group.add(planet);
 
   const sceneSunDirection = new THREE.Vector3(-14, 18, 9).normalize();
@@ -2209,6 +2221,7 @@ function createDeepSpaceWorld(
   ) => {
     const uniforms = {
       uMap: { value: stormTexture },
+      uHeightMap: { value: stormHeightTexture },
       uTime: { value: 0 },
       uOpacity: { value: 0 },
       uLayer: { value: layer },
@@ -2232,7 +2245,7 @@ function createDeepSpaceWorld(
 
   const stormShadowLayer = createStormLayer(
     0,
-    0.00034,
+    0.00006,
     isMobile || softwareRendering ? 1 : balancedQuality ? 3 : 4,
     0,
     1,
@@ -2248,12 +2261,12 @@ function createDeepSpaceWorld(
     0,
     0.00006,
     isMobile || softwareRendering ? 2 : balancedQuality ? 4 : 6,
-    isMobile ? 0.32 : 0.5,
+    isMobile ? 0.14 : 0.22,
   );
   const lowerStormClouds = new THREE.Mesh(planetGeometry, lowerStormLayer.material);
   lowerStormClouds.position.copy(planet.position);
   lowerStormClouds.rotation.copy(planet.rotation);
-  lowerStormClouds.scale.setScalar(1.012);
+  lowerStormClouds.scale.setScalar(1.009);
   lowerStormClouds.renderOrder = 2;
   group.add(lowerStormClouds);
 
@@ -2261,12 +2274,12 @@ function createDeepSpaceWorld(
     0.56,
     0.000025,
     isMobile || softwareRendering ? 2 : balancedQuality ? 4 : 5,
-    isMobile ? 0.5 : 0.78,
+    isMobile ? 0.24 : 0.36,
   );
   const anvilStormClouds = new THREE.Mesh(planetGeometry, anvilStormLayer.material);
   anvilStormClouds.position.copy(planet.position);
   anvilStormClouds.rotation.copy(planet.rotation);
-  anvilStormClouds.scale.setScalar(1.027);
+  anvilStormClouds.scale.setScalar(1.019);
   anvilStormClouds.renderOrder = 3;
   group.add(anvilStormClouds);
 
@@ -2274,12 +2287,12 @@ function createDeepSpaceWorld(
     1,
     -0.000015,
     isMobile || softwareRendering ? 1 : balancedQuality ? 3 : 4,
-    isMobile ? 0.68 : 1.08,
+    isMobile ? 0.34 : 0.52,
   );
   const upperStormClouds = new THREE.Mesh(planetGeometry, upperStormLayer.material);
   upperStormClouds.position.copy(planet.position);
   upperStormClouds.rotation.copy(planet.rotation);
-  upperStormClouds.scale.setScalar(1.041);
+  upperStormClouds.scale.setScalar(1.031);
   upperStormClouds.renderOrder = 4;
   group.add(upperStormClouds);
 
@@ -2475,10 +2488,10 @@ function createDeepSpaceWorld(
     ringMaterial.opacity = eased * 0.46;
     starUniforms.uOpacity.value = eased * 0.92;
     veilUniforms.uOpacity.value = eased;
-    lowerStormLayer.uniforms.uOpacity.value = eased * 0.96;
-    anvilStormLayer.uniforms.uOpacity.value = eased * 0.84;
-    upperStormLayer.uniforms.uOpacity.value = eased * 0.76;
-    stormShadowLayer.uniforms.uOpacity.value = eased * 0.58;
+    lowerStormLayer.uniforms.uOpacity.value = eased * 0.92;
+    anvilStormLayer.uniforms.uOpacity.value = eased * 0.7;
+    upperStormLayer.uniforms.uOpacity.value = eased * 0.58;
+    stormShadowLayer.uniforms.uOpacity.value = eased * 0.46;
     innerAtmosphereLayer.uniforms.uOpacity.value = eased * 0.68;
     outerAtmosphereLayer.uniforms.uOpacity.value = eased * 0.82;
   };
@@ -3486,7 +3499,7 @@ export function HyperspaceIntro() {
 
         world.fleet.rotation.y = Math.sin(elapsed * 0.00008) * 0.022;
         world.flagship.position.y = -1.45 + Math.sin(elapsed * 0.00034) * 0.08;
-        world.planet.rotation.y = -1.12 + elapsed * 0.000008;
+        world.planet.rotation.y = 0.12 + elapsed * 0.000008;
         world.orbitalRing.rotation.z = 0.12 + elapsed * 0.000018;
       }
 
