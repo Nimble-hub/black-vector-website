@@ -8,6 +8,7 @@ interface Env {
   DB: D1Database;
   CHAT_ROOMS: DurableObjectNamespace;
   PROFILE_MEDIA: R2Bucket;
+  CINEMATIC_MEDIA: R2Bucket;
   IMAGES: {
     input(stream: ReadableStream): {
       transform(options: Record<string, unknown>): {
@@ -58,6 +59,33 @@ const worker = {
       });
       responseHeaders.set("etag", stored.httpEtag);
       return new Response(request.method === "HEAD" ? null : stored.body, { headers: responseHeaders });
+    }
+
+    const cinematicMedia = url.pathname.match(/^\/media\/cinematic\/(hyperspace\/v[0-9]+\/.+)$/i);
+    if (cinematicMedia && (request.method === "GET" || request.method === "HEAD")) {
+      const key = cinematicMedia[1];
+      const requestedRange = request.headers.has("range");
+      const stored = request.method === "HEAD"
+        ? await env.CINEMATIC_MEDIA.head(key)
+        : await env.CINEMATIC_MEDIA.get(key, { range: request.headers });
+      if (!stored) return new Response("Cinematic media not found", { status: 404 });
+
+      const responseHeaders = new Headers();
+      stored.writeHttpMetadata(responseHeaders);
+      responseHeaders.set("etag", stored.httpEtag);
+      responseHeaders.set("accept-ranges", "bytes");
+      responseHeaders.set("cache-control", "public, max-age=31536000, immutable");
+      responseHeaders.set("x-content-type-options", "nosniff");
+
+      const rangedObject = stored as R2Object & { range?: { offset: number; length: number } };
+      if (requestedRange && rangedObject.range) {
+        const { offset, length } = rangedObject.range;
+        responseHeaders.set("content-range", `bytes ${offset}-${offset + length - 1}/${stored.size}`);
+      }
+
+      const status = requestedRange && rangedObject.range ? 206 : 200;
+      const body = request.method === "HEAD" ? null : (stored as R2ObjectBody).body;
+      return new Response(body, { status, headers: responseHeaders });
     }
 
     if (url.pathname === "/_vinext/image") {

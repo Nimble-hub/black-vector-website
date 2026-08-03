@@ -36,6 +36,10 @@
     {
       "binding": "PROFILE_MEDIA",
       "bucket_name": "black-vector-profile-media"
+    },
+    {
+      "binding": "CINEMATIC_MEDIA",
+      "bucket_name": "black-vector-cinematic-media"
     }
   ],
   "durable_objects": {
