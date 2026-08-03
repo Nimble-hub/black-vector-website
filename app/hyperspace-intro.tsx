@@ -1337,6 +1337,12 @@ const stellarVeilFragmentShader = `
 const stormCloudVertexShader = `
   precision highp float;
 
+  uniform sampler2D uMap;
+  uniform float uTime;
+  uniform float uLayer;
+  uniform float uRelief;
+  uniform vec2 uDrift;
+
   varying vec2 vStormUv;
   varying vec3 vViewNormal;
   varying vec3 vViewDirection;
@@ -1345,10 +1351,21 @@ const stormCloudVertexShader = `
 
   void main() {
     vStormUv = uv;
-    vec4 viewPosition = modelViewMatrix * vec4(position, 1.0);
+    vec2 reliefUv = vec2(
+      fract(uv.x + uDrift.x * uTime),
+      clamp(uv.y + uDrift.y * sin(uTime * 0.07), 0.002, 0.998)
+    );
+    vec3 reliefSample = texture2D(uMap, reliefUv).rgb;
+    float reliefLuminance = dot(reliefSample, vec3(0.2126, 0.7152, 0.0722));
+    float cloudRelief = smoothstep(0.2 + uLayer * 0.04, 0.78, reliefLuminance);
+    cloudRelief *= 0.84 + sin(
+      reliefUv.x * 37.0 + reliefUv.y * 31.0 + uTime * 0.09
+    ) * 0.16;
+    vec3 displacedPosition = position + normal * cloudRelief * uRelief;
+    vec4 viewPosition = modelViewMatrix * vec4(displacedPosition, 1.0);
     vViewNormal = normalize(normalMatrix * normal);
     vViewDirection = normalize(-viewPosition.xyz);
-    vWorldPosition = (modelMatrix * vec4(position, 1.0)).xyz;
+    vWorldPosition = (modelMatrix * vec4(displacedPosition, 1.0)).xyz;
     vWorldNormal = normalize(mat3(modelMatrix) * normal);
     gl_Position = projectionMatrix * viewPosition;
   }
@@ -1362,6 +1379,7 @@ const stormCloudFragmentShader = `
   uniform float uOpacity;
   uniform float uLayer;
   uniform float uSteps;
+  uniform float uShadowPass;
   uniform vec2 uDrift;
   uniform vec3 uSunDirection;
 
@@ -1497,7 +1515,9 @@ const stormCloudFragmentShader = `
     vec3 cloudColor = accumulatedColor / max(accumulatedAlpha, 0.001);
     cloudColor += vec3(0.3, 0.86, 1.0) * accumulatedLightning;
     float alpha = clamp(accumulatedAlpha, 0.0, 0.94) * uOpacity;
-    gl_FragColor = vec4(cloudColor, alpha);
+    vec3 finalColor = mix(cloudColor, vec3(0.005, 0.012, 0.018), uShadowPass);
+    float finalAlpha = alpha * mix(1.0, 0.42, uShadowPass);
+    gl_FragColor = vec4(finalColor, finalAlpha);
   }
 `;
 
@@ -2118,39 +2138,63 @@ function createDeepSpaceWorld(isMobile: boolean) {
   stellarVeil.renderOrder = -13;
   group.add(stellarVeil);
 
-  const planetTexture = new THREE.TextureLoader().load(`${BASE_PATH}/textures/bv-storm-ocean-planet.webp`);
-  planetTexture.colorSpace = THREE.SRGBColorSpace;
-  planetTexture.wrapS = THREE.RepeatWrapping;
-  planetTexture.wrapT = THREE.ClampToEdgeWrapping;
-  planetTexture.minFilter = THREE.LinearMipmapLinearFilter;
-  planetTexture.magFilter = THREE.LinearFilter;
-  planetTexture.anisotropy = 8;
-  textures.push(planetTexture);
+  const oceanTexture = new THREE.TextureLoader().load(`${BASE_PATH}/textures/bv-abyssal-ocean.webp`);
+  oceanTexture.colorSpace = THREE.SRGBColorSpace;
+  oceanTexture.wrapS = THREE.RepeatWrapping;
+  oceanTexture.wrapT = THREE.ClampToEdgeWrapping;
+  oceanTexture.minFilter = THREE.LinearMipmapLinearFilter;
+  oceanTexture.magFilter = THREE.LinearFilter;
+  oceanTexture.anisotropy = 8;
+  textures.push(oceanTexture);
+
+  const stormTexture = new THREE.TextureLoader().load(`${BASE_PATH}/textures/bv-storm-ocean-planet.webp`);
+  stormTexture.colorSpace = THREE.SRGBColorSpace;
+  stormTexture.wrapS = THREE.RepeatWrapping;
+  stormTexture.wrapT = THREE.ClampToEdgeWrapping;
+  stormTexture.minFilter = THREE.LinearMipmapLinearFilter;
+  stormTexture.magFilter = THREE.LinearFilter;
+  stormTexture.anisotropy = 8;
+  textures.push(stormTexture);
   const planetMaterial = trackMaterial(new THREE.MeshPhysicalMaterial({
     color: 0xffffff,
-    map: planetTexture,
+    map: oceanTexture,
+    bumpMap: oceanTexture,
+    bumpScale: 0.085,
+    roughnessMap: oceanTexture,
     emissive: 0x062936,
-    emissiveMap: planetTexture,
-    emissiveIntensity: 0.12,
-    roughness: 0.38,
+    emissiveMap: oceanTexture,
+    emissiveIntensity: 0.08,
+    roughness: 0.31,
     metalness: 0.03,
-    clearcoat: 0.38,
-    clearcoatRoughness: 0.2,
+    clearcoat: 0.56,
+    clearcoatRoughness: 0.16,
   }));
-  const planetGeometry = trackGeometry(new THREE.SphereGeometry(planetRadius, isMobile ? 40 : 64, isMobile ? 24 : 40));
+  const planetGeometry = trackGeometry(new THREE.SphereGeometry(
+    planetRadius,
+    isMobile ? 64 : 128,
+    isMobile ? 40 : 80,
+  ));
   const planet = new THREE.Mesh(planetGeometry, planetMaterial);
   planet.position.copy(planetPosition);
   planet.rotation.set(-0.08, -1.12, 0.04);
   group.add(planet);
 
   const sceneSunDirection = new THREE.Vector3(-14, 18, 9).normalize();
-  const createStormLayer = (layer: number, driftX: number, steps: number) => {
+  const createStormLayer = (
+    layer: number,
+    driftX: number,
+    steps: number,
+    relief: number,
+    shadowPass = 0,
+  ) => {
     const uniforms = {
-      uMap: { value: planetTexture },
+      uMap: { value: stormTexture },
       uTime: { value: 0 },
       uOpacity: { value: 0 },
       uLayer: { value: layer },
       uSteps: { value: steps },
+      uRelief: { value: relief },
+      uShadowPass: { value: shadowPass },
       uDrift: { value: new THREE.Vector2(driftX, layer > 0.5 ? 0.0018 : 0.0011) },
       uSunDirection: { value: sceneSunDirection },
     };
@@ -2166,19 +2210,27 @@ function createDeepSpaceWorld(isMobile: boolean) {
     return { uniforms, material };
   };
 
-  const lowerStormLayer = createStormLayer(0, 0.00034, isMobile ? 3 : 6);
+  const stormShadowLayer = createStormLayer(0, 0.00034, isMobile ? 2 : 4, 0, 1);
+  const stormShadows = new THREE.Mesh(planetGeometry, stormShadowLayer.material);
+  stormShadows.position.copy(planet.position);
+  stormShadows.rotation.copy(planet.rotation);
+  stormShadows.scale.setScalar(1.003);
+  stormShadows.renderOrder = 1;
+  group.add(stormShadows);
+
+  const lowerStormLayer = createStormLayer(0, 0.00034, isMobile ? 3 : 6, isMobile ? 0.1 : 0.18);
   const lowerStormClouds = new THREE.Mesh(planetGeometry, lowerStormLayer.material);
   lowerStormClouds.position.copy(planet.position);
   lowerStormClouds.rotation.copy(planet.rotation);
-  lowerStormClouds.scale.setScalar(1.009);
+  lowerStormClouds.scale.setScalar(1.007);
   lowerStormClouds.renderOrder = 2;
   group.add(lowerStormClouds);
 
-  const upperStormLayer = createStormLayer(1, -0.00022, isMobile ? 2 : 4);
+  const upperStormLayer = createStormLayer(1, -0.00022, isMobile ? 2 : 4, isMobile ? 0.06 : 0.11);
   const upperStormClouds = new THREE.Mesh(planetGeometry, upperStormLayer.material);
   upperStormClouds.position.copy(planet.position);
   upperStormClouds.rotation.copy(planet.rotation);
-  upperStormClouds.scale.setScalar(1.018);
+  upperStormClouds.scale.setScalar(1.016);
   upperStormClouds.renderOrder = 3;
   group.add(upperStormClouds);
 
@@ -2375,6 +2427,7 @@ function createDeepSpaceWorld(isMobile: boolean) {
     veilUniforms.uOpacity.value = eased;
     lowerStormLayer.uniforms.uOpacity.value = eased * 0.72;
     upperStormLayer.uniforms.uOpacity.value = eased * 0.46;
+    stormShadowLayer.uniforms.uOpacity.value = eased * 0.68;
     innerAtmosphereLayer.uniforms.uOpacity.value = eased * 0.72;
     outerAtmosphereLayer.uniforms.uOpacity.value = eased * 0.9;
   };
@@ -2386,6 +2439,9 @@ function createDeepSpaceWorld(isMobile: boolean) {
     stellarVeil.rotation.z = -0.035 + Math.sin(elapsedSeconds * 0.0025) * 0.004;
     lowerStormLayer.uniforms.uTime.value = elapsedSeconds;
     upperStormLayer.uniforms.uTime.value = elapsedSeconds;
+    stormShadowLayer.uniforms.uTime.value = elapsedSeconds;
+    stormShadows.rotation.copy(planet.rotation);
+    stormShadows.rotation.y += elapsedSeconds * 0.0032;
     lowerStormClouds.rotation.copy(planet.rotation);
     lowerStormClouds.rotation.y += elapsedSeconds * 0.0032;
     upperStormClouds.rotation.copy(planet.rotation);
