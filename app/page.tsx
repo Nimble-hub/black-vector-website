@@ -87,12 +87,17 @@ const timeline = [
 ] as const;
 
 export default function Home() {
-  preload(`${BASE_PATH}/textures/bv-abyssal-ocean.webp`, { as: "image" });
+  preload(`${BASE_PATH}/textures/bv-abyssal-ocean.webp`, {
+    as: "image",
+    crossOrigin: "anonymous",
+  });
   preload(`${BASE_PATH}/textures/bv-planetary-storm-clouds-v3.webp`, {
     as: "image",
+    crossOrigin: "anonymous",
   });
   preload(`${BASE_PATH}/textures/bv-planetary-storm-cloud-height-v3.webp`, {
     as: "image",
+    crossOrigin: "anonymous",
   });
   preload(`${BASE_PATH}/models/Carrier.glb`, {
     as: "fetch",
