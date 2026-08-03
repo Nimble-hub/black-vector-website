@@ -1,5 +1,5 @@
 const BASE_PATH = process.env.NEXT_PUBLIC_BASE_PATH ?? "";
-const JUMP_SOUNDTRACK_URL = `${BASE_PATH}/audio/hyperspace-jump.mp3?v=theater-16`;
+const JUMP_SOUNDTRACK_URL = `${BASE_PATH}/audio/hyperspace-jump.mp3?v=theater-17`;
 const SCORE_LOOP_URL = `${BASE_PATH}/audio/black-vector-score-loop.mp3?v=score-2`;
 const PLAYBACK_GAIN = 0.96;
 const MUSIC_GAIN = 0.051;
