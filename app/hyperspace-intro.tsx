@@ -855,197 +855,6 @@ const gravitationalLensShader = {
   `,
 };
 
-const exitWakeVertexShader = `
-  precision highp float;
-
-  attribute float aAngle;
-  attribute float aRadius;
-  attribute float aSeed;
-  attribute float aLength;
-  attribute float aWidth;
-  attribute float aBrightness;
-  attribute float aDrift;
-
-  uniform float uTime;
-  uniform float uOpacity;
-  uniform vec2 uResolution;
-
-  varying vec2 vShardUv;
-  varying float vBrightness;
-  varying float vLife;
-
-  vec3 wakePosition(float age) {
-    float directionSign = mix(-1.0, 1.0, step(0.5, fract(aSeed * 19.73)));
-    float dragRate = 0.52 + aDrift * 0.86;
-    float retainedTravel = (1.0 - exp(-age * dragRate)) / dragRate;
-    float turbulenceOnset = smoothstep(0.18, 0.9, age);
-    float turn = aAngle
-      + directionSign * age * (0.045 + aDrift * 0.07)
-      + sin(age * (0.74 + aDrift * 0.5) + aSeed * 15.0) * 0.09 * turbulenceOnset;
-    vec2 radialDirection = normalize(vec2(cos(turn), sin(turn) * 0.72));
-    vec2 ellipseDirection = vec2(cos(turn), sin(turn) * 0.72);
-    vec2 tangentDirection = normalize(vec2(-sin(turn), cos(turn) * 0.72));
-    float radius = aRadius * (1.0 + age * (0.012 + aDrift * 0.022));
-    float gustPulse = 0.35 + 0.65 * (
-      0.5 + 0.5 * sin(age * (1.08 + aDrift * 0.72) + aSeed * 23.0)
-    );
-    vec2 gust = (
-      tangentDirection * sin(age * (1.7 + aDrift) + aSeed * 29.0) * (0.2 + age * 0.1)
-      + radialDirection * cos(age * (1.15 + aDrift * 0.8) + aSeed * 17.0) * 0.11
-    ) * turbulenceOnset * gustPulse * (0.36 + aDrift * 0.68);
-    float forwardTravel = -(7.2 + aLength * 1.65) * retainedTravel;
-    float depthTurbulence = sin(age * (1.5 + aDrift) + aSeed * 21.0)
-      * 0.1 * turbulenceOnset;
-    return vec3(ellipseDirection * radius + gust, 1.4 + aSeed * 5.2 + forwardTravel + depthTurbulence);
-  }
-
-  void main() {
-    float delay = 0.02
-      + (0.5 + 0.5 * sin(aAngle * 2.0 + 0.8)) * 0.1
-      + aSeed * 0.08;
-    float age = max(uTime - delay, 0.0);
-    float lifetime = 3.7 + aDrift * 1.55;
-    float life = clamp(age / lifetime, 0.0, 1.0);
-    float isAlive = step(delay, uTime) * (1.0 - step(lifetime, age));
-    float trailDuration = 0.13 + aLength * 0.035;
-    vec3 headPosition = wakePosition(age);
-    vec3 tailPosition = wakePosition(max(age - trailDuration, 0.0));
-    vec4 headClip = projectionMatrix * vec4(headPosition, 1.0);
-    vec4 tailClip = projectionMatrix * vec4(tailPosition, 1.0);
-    vec2 headNdc = headClip.xy / max(headClip.w, 0.001);
-    vec2 tailNdc = tailClip.xy / max(tailClip.w, 0.001);
-    vec2 line = headNdc - tailNdc;
-    vec2 linePixels = line * uResolution * 0.5;
-    vec2 perpendicular = normalize(vec2(-linePixels.y, linePixels.x) + vec2(0.0001));
-    float widthPixels = 0.65 + aWidth * 1.45;
-    vec2 centerNdc = mix(tailNdc, headNdc, uv.y);
-    vec2 offsetNdc = perpendicular * uv.x * widthPixels * 2.0 / uResolution;
-    gl_Position = vec4(centerNdc + offsetNdc, mix(tailClip.z / tailClip.w, headClip.z / headClip.w, uv.y), 1.0);
-    vShardUv = uv;
-    vBrightness = aBrightness;
-    vLife = isAlive
-      * smoothstep(0.3, 1.15, -headPosition.z)
-      * smoothstep(0.08, 0.72, -tailPosition.z)
-      * smoothstep(0.0, 0.055, life)
-      * (1.0 - smoothstep(0.7, 1.0, life))
-      * uOpacity;
-  }
-`;
-
-const exitWakeFragmentShader = `
-  precision highp float;
-
-  varying vec2 vShardUv;
-  varying float vBrightness;
-  varying float vLife;
-
-  void main() {
-    float widthProfile = pow(max(sin(vShardUv.y * 3.14159265), 0.0), 0.62);
-    float side = abs(vShardUv.x) / max(widthProfile, 0.001);
-    float softBody = 1.0 - smoothstep(0.18, 0.96, side);
-    float fiber = 1.0 - smoothstep(0.035, 0.28, abs(vShardUv.x));
-    float tail = smoothstep(0.0, 0.14, vShardUv.y);
-    float head = 1.0 - smoothstep(0.86, 1.0, vShardUv.y);
-    float alpha = max(softBody * 0.44, fiber * 0.66) * tail * head * vLife * vBrightness;
-    vec3 color = mix(vec3(0.34, 0.62, 0.86), vec3(0.88, 0.96, 1.0), fiber * 0.55);
-    gl_FragColor = vec4(color * 0.92, alpha);
-  }
-`;
-
-const exitCrystalVertexShader = `
-  precision highp float;
-
-  attribute vec3 aVelocity;
-  attribute float aDelay;
-  attribute float aLifetime;
-  attribute float aSize;
-  attribute float aBrightness;
-  attribute float aTurbulence;
-  attribute float aSeed;
-  attribute vec3 aClusterOrigin;
-  attribute vec3 aClusterVelocity;
-  attribute float aSwirl;
-  attribute float aClusterPhase;
-
-  uniform float uTime;
-  uniform float uOpacity;
-
-  varying float vLife;
-  varying float vBrightness;
-  varying float vCoolness;
-  varying float vRotation;
-
-  void main() {
-    float age = max(uTime - aDelay, 0.0);
-    float life = clamp(age / aLifetime, 0.0, 1.0);
-    float isAlive = step(aDelay, uTime) * (1.0 - step(aLifetime, age));
-    float fade = smoothstep(0.0, 0.055, life) * (1.0 - smoothstep(0.68, 1.0, life));
-
-    vec3 localOffset = position - aClusterOrigin;
-    float roll = age * aSwirl * 1.14 + sin(age * 1.45 + aClusterPhase) * 0.34;
-    float rollCos = cos(roll);
-    float rollSin = sin(roll);
-    localOffset.xy = mat2(rollCos, -rollSin, rollSin, rollCos) * localOffset.xy;
-    localOffset *= 1.0 + age * 0.16;
-
-    float orbit = age * aSwirl * 0.58 + sin(age * 1.18 + aClusterPhase) * 0.22;
-    float orbitCos = cos(orbit);
-    float orbitSin = sin(orbit);
-    vec2 clusterOrbit = mat2(orbitCos, -orbitSin, orbitSin, orbitCos) * aClusterOrigin.xy;
-    clusterOrbit *= 1.0 + age * (0.08 + aSeed * 0.045);
-    vec2 radialDirection = normalize(clusterOrbit + vec2(0.0001));
-    vec2 tangentDirection = vec2(-radialDirection.y, radialDirection.x);
-    float curl = sin(age * 3.85 + aClusterPhase + aSeed * 1.7);
-    float eddy = cos(age * 2.45 + aClusterPhase * 1.31 + aSeed * 2.4);
-    float windStrength = aTurbulence * smoothstep(0.0, 0.14, age) * (0.62 + age * 0.3);
-    vec3 windRoll = vec3(
-      tangentDirection * (curl * 0.72 + sin(age * 1.3 + aClusterPhase) * age * 0.28)
-        + radialDirection * eddy * 0.34,
-      curl * eddy * 0.3
-    ) * windStrength;
-
-    vec3 clusterPosition = vec3(clusterOrbit, aClusterOrigin.z)
-      + aClusterVelocity * age * 0.3;
-    vec3 particlePosition = clusterPosition + localOffset + aVelocity * age + windRoll;
-    vec4 viewPosition = vec4(particlePosition, 1.0);
-    gl_Position = projectionMatrix * viewPosition;
-    float facetShimmer = 0.92 + sin(age * (4.0 + aSeed * 3.0) + aSeed * 31.0) * 0.08;
-    gl_PointSize = clamp(aSize * facetShimmer * (20.0 / max(-viewPosition.z, 1.0)), 1.0, 20.0);
-
-    vLife = isAlive * fade * uOpacity;
-    vBrightness = aBrightness;
-    vCoolness = aSeed;
-    vRotation = aSeed + age * abs(aSwirl) * 0.055;
-  }
-`;
-
-const exitCrystalFragmentShader = `
-  precision highp float;
-
-  varying float vLife;
-  varying float vBrightness;
-  varying float vCoolness;
-  varying float vRotation;
-
-  void main() {
-    vec2 point = gl_PointCoord - 0.5;
-    float rotation = vRotation * 6.2831853;
-    point = mat2(cos(rotation), -sin(rotation), sin(rotation), cos(rotation)) * point;
-    float diamondDistance = abs(point.x) + abs(point.y);
-    float body = 1.0 - smoothstep(0.32, 0.5, diamondDistance);
-    float innerFacet = 1.0 - smoothstep(0.08, 0.3, diamondDistance);
-    float verticalGlint = 1.0 - smoothstep(0.018, 0.085, abs(point.x));
-    float horizontalGlint = 1.0 - smoothstep(0.018, 0.085, abs(point.y));
-    float glint = max(verticalGlint, horizontalGlint) * (1.0 - smoothstep(0.22, 0.5, diamondDistance));
-    float facet = max(innerFacet * 0.62, glint);
-
-    vec3 iceBlue = vec3(0.28, 0.72, 1.0);
-    vec3 frostWhite = vec3(0.94, 0.99, 1.0);
-    vec3 color = mix(iceBlue, frostWhite, 0.55 + vCoolness * 0.35 + facet * 0.3);
-    float alpha = body * vLife * vBrightness * (0.72 + facet * 0.28);
-    gl_FragColor = vec4(color * (0.74 + facet * 1.65), alpha);
-  }
-`;
 
 const exitDustVertexShader = `
   precision highp float;
@@ -1514,6 +1323,11 @@ const stormCloudFragmentShader = `
           + uTime * (0.025 + uLayer * 0.012)
       );
       density *= billow;
+      // Dark texels contribute exactly zero. Avoid the second texture fetch,
+      // self-shadow work, and procedural lightning for empty ocean/sky pixels.
+      // This preserves the rendered result while substantially reducing the
+      // cost of the sparse planetary cloud shells on software rasterizers.
+      if (density <= 0.0) continue;
       float cloudCore = smoothstep(mix(0.36, 0.6, layerHeight), 0.92, luminance);
 
       vec3 shadowSample = texture2D(
@@ -1725,114 +1539,6 @@ function createWarpBubbleGeometry(isMobile: boolean) {
   return geometry;
 }
 
-function createExitWakeGeometry(count: number) {
-  const geometry = new THREE.InstancedBufferGeometry();
-  geometry.setAttribute("position", new THREE.Float32BufferAttribute([-1, 0, 0, 1, 0, 0, 1, 1, 0, -1, 1, 0], 3));
-  geometry.setAttribute("uv", new THREE.Float32BufferAttribute([-1, 0, 1, 0, 1, 1, -1, 1], 2));
-  geometry.setIndex([0, 1, 2, 0, 2, 3]);
-
-  const angles = new Float32Array(count);
-  const radii = new Float32Array(count);
-  const seeds = new Float32Array(count);
-  const lengths = new Float32Array(count);
-  const widths = new Float32Array(count);
-  const brightness = new Float32Array(count);
-  const drift = new Float32Array(count);
-
-  for (let index = 0; index < count; index += 1) {
-    const angle = (index / count) * Math.PI * 2 + (Math.random() - 0.5) * 0.07;
-    const broadLobe = Math.sin(angle * 3 + 0.42) * 0.68;
-    const fineLobe = Math.sin(angle * 7 - 1.15) * 0.24;
-    angles[index] = angle;
-    radii[index] = 6.45 + broadLobe + fineLobe + (Math.random() - 0.5) * 0.64;
-    seeds[index] = Math.random();
-    lengths[index] = 1.8 + Math.pow(Math.random(), 0.62) * 4.4;
-    widths[index] = 0.22 + Math.random() * 0.48;
-    brightness[index] = 0.42 + Math.random() * 0.53;
-    drift[index] = Math.min(1, Math.max(0, 0.5 + Math.sin(angle * 2.0 + 0.9) * 0.28 + (Math.random() - 0.5) * 0.12));
-  }
-
-  geometry.setAttribute("aAngle", new THREE.InstancedBufferAttribute(angles, 1));
-  geometry.setAttribute("aRadius", new THREE.InstancedBufferAttribute(radii, 1));
-  geometry.setAttribute("aSeed", new THREE.InstancedBufferAttribute(seeds, 1));
-  geometry.setAttribute("aLength", new THREE.InstancedBufferAttribute(lengths, 1));
-  geometry.setAttribute("aWidth", new THREE.InstancedBufferAttribute(widths, 1));
-  geometry.setAttribute("aBrightness", new THREE.InstancedBufferAttribute(brightness, 1));
-  geometry.setAttribute("aDrift", new THREE.InstancedBufferAttribute(drift, 1));
-  geometry.instanceCount = count;
-  return geometry;
-}
-
-function createExitCrystalGeometry(count: number) {
-  const positions = new Float32Array(count * 3);
-  const velocities = new Float32Array(count * 3);
-  const clusterOrigins = new Float32Array(count * 3);
-  const clusterVelocities = new Float32Array(count * 3);
-  const delays = new Float32Array(count);
-  const lifetimes = new Float32Array(count);
-  const sizes = new Float32Array(count);
-  const brightness = new Float32Array(count);
-  const turbulence = new Float32Array(count);
-  const seeds = new Float32Array(count);
-  const swirls = new Float32Array(count);
-  const clusterPhases = new Float32Array(count);
-
-  const clusterCount = count > 1000 ? 20 : 13;
-  const clusters = Array.from({ length: clusterCount }, (_, clusterIndex) => {
-    const angle = (clusterIndex / clusterCount) * Math.PI * 2 + (Math.random() - 0.5) * 0.36;
-    const radius = 3.0 + Math.pow(Math.random(), 0.58) * 5.4;
-    return {
-      origin: new THREE.Vector3(Math.cos(angle) * radius, Math.sin(angle) * radius * 0.72, -6.8 - Math.random() * 6.2),
-      velocity: new THREE.Vector3(Math.cos(angle) * (0.18 + Math.random() * 0.44), Math.sin(angle) * (0.14 + Math.random() * 0.38), -0.72 - Math.random() * 1.15),
-      delay: Math.random() * 0.34,
-      swirl: (Math.random() < 0.5 ? -1 : 1) * (1.35 + Math.random() * 1.9),
-      phase: Math.random() * Math.PI * 2,
-    };
-  });
-
-  for (let index = 0; index < count; index += 1) {
-    const cluster = clusters[index % clusterCount];
-    const localAngle = Math.random() * Math.PI * 2;
-    const localRadius = Math.pow(Math.random(), 1.9) * (0.48 + Math.random() * 0.52);
-    const offset = index * 3;
-    positions[offset] = cluster.origin.x + Math.cos(localAngle) * localRadius;
-    positions[offset + 1] = cluster.origin.y + Math.sin(localAngle) * localRadius * 0.7;
-    positions[offset + 2] = cluster.origin.z + (Math.random() - 0.5) * 0.72;
-    velocities[offset] = Math.cos(localAngle) * (0.08 + Math.random() * 0.42);
-    velocities[offset + 1] = Math.sin(localAngle) * (0.08 + Math.random() * 0.38);
-    velocities[offset + 2] = -Math.random() * 1.15;
-    clusterOrigins[offset] = cluster.origin.x;
-    clusterOrigins[offset + 1] = cluster.origin.y;
-    clusterOrigins[offset + 2] = cluster.origin.z;
-    clusterVelocities[offset] = cluster.velocity.x;
-    clusterVelocities[offset + 1] = cluster.velocity.y;
-    clusterVelocities[offset + 2] = cluster.velocity.z;
-    delays[index] = cluster.delay + Math.random() * 0.2;
-    lifetimes[index] = 3.8 + Math.random() * 1.7;
-    const isMicroFrost = Math.random() < 0.78;
-    sizes[index] = isMicroFrost ? 0.58 + Math.pow(Math.random(), 0.8) * 1.72 : 2.4 + Math.pow(Math.random(), 0.72) * 4.6;
-    brightness[index] = isMicroFrost ? 0.48 + Math.random() * 0.3 : 0.58 + Math.random() * 0.34;
-    turbulence[index] = 0.52 + Math.random() * 1.05;
-    seeds[index] = Math.random();
-    swirls[index] = cluster.swirl;
-    clusterPhases[index] = cluster.phase;
-  }
-
-  const geometry = new THREE.BufferGeometry();
-  geometry.setAttribute("position", new THREE.BufferAttribute(positions, 3));
-  geometry.setAttribute("aVelocity", new THREE.BufferAttribute(velocities, 3));
-  geometry.setAttribute("aDelay", new THREE.BufferAttribute(delays, 1));
-  geometry.setAttribute("aLifetime", new THREE.BufferAttribute(lifetimes, 1));
-  geometry.setAttribute("aSize", new THREE.BufferAttribute(sizes, 1));
-  geometry.setAttribute("aBrightness", new THREE.BufferAttribute(brightness, 1));
-  geometry.setAttribute("aTurbulence", new THREE.BufferAttribute(turbulence, 1));
-  geometry.setAttribute("aSeed", new THREE.BufferAttribute(seeds, 1));
-  geometry.setAttribute("aClusterOrigin", new THREE.BufferAttribute(clusterOrigins, 3));
-  geometry.setAttribute("aClusterVelocity", new THREE.BufferAttribute(clusterVelocities, 3));
-  geometry.setAttribute("aSwirl", new THREE.BufferAttribute(swirls, 1));
-  geometry.setAttribute("aClusterPhase", new THREE.BufferAttribute(clusterPhases, 1));
-  return geometry;
-}
 
 function createExitDustGeometry(count: number) {
   const positions = new Float32Array(count * 3);
@@ -2211,16 +1917,22 @@ function createDeepSpaceWorld(isMobile: boolean, balancedQuality: boolean, softw
     return { uniforms, material };
   };
 
-  const stormShadowLayer = createStormLayer(0, 0.00006, isMobile || softwareRendering ? 1 : balancedQuality ? 3 : 4, 0, 1);
-  const stormShadows = new THREE.Mesh(planetGeometry, stormShadowLayer.material);
-  stormShadows.position.copy(planet.position);
-  stormShadows.rotation.copy(planet.rotation);
-  stormShadows.scale.setScalar(1.006);
-  stormShadows.renderOrder = 1;
+  const stormShadowLayer = softwareRendering
+    ? null
+    : createStormLayer(0, 0.00006, isMobile ? 1 : balancedQuality ? 3 : 4, 0, 1);
+  const stormShadows = stormShadowLayer
+    ? new THREE.Mesh(planetGeometry, stormShadowLayer.material)
+    : null;
   // The authored storm map and the cloud volume shader already carry their
   // own occlusion. On a software rasterizer this additional full-planet pass
   // is disproportionately expensive and visually redundant.
-  if (!softwareRendering) group.add(stormShadows);
+  if (stormShadows) {
+    stormShadows.position.copy(planet.position);
+    stormShadows.rotation.copy(planet.rotation);
+    stormShadows.scale.setScalar(1.006);
+    stormShadows.renderOrder = 1;
+    group.add(stormShadows);
+  }
 
   const lowerStormLayer = createStormLayer(0, 0.00006, isMobile || softwareRendering ? 2 : balancedQuality ? 4 : 6, isMobile ? 0.14 : 0.22);
   const lowerStormClouds = new THREE.Mesh(planetGeometry, lowerStormLayer.material);
@@ -2516,8 +2228,11 @@ function createDeepSpaceWorld(isMobile: boolean, balancedQuality: boolean, softw
   rimLight.position.set(8, -3, -9);
   group.add(hemisphere, keyLight, rimLight);
 
+  let lastOpacity = -1;
   const setOpacity = (opacity: number) => {
     const eased = clamp01(opacity);
+    if (eased === lastOpacity) return;
+    lastOpacity = eased;
     group.visible = eased > 0.001;
     for (const material of materials) material.opacity = eased;
     engineMaterial.opacity = eased * 0.92;
@@ -2527,7 +2242,7 @@ function createDeepSpaceWorld(isMobile: boolean, balancedQuality: boolean, softw
     lowerStormLayer.uniforms.uOpacity.value = eased * 0.92;
     anvilStormLayer.uniforms.uOpacity.value = eased * 0.7;
     upperStormLayer.uniforms.uOpacity.value = eased * 0.58;
-    stormShadowLayer.uniforms.uOpacity.value = eased * 0.46;
+    if (stormShadowLayer) stormShadowLayer.uniforms.uOpacity.value = eased * 0.46;
     innerAtmosphereLayer.uniforms.uOpacity.value = eased * 0.68;
     outerAtmosphereLayer.uniforms.uOpacity.value = eased * 0.82;
   };
@@ -2541,11 +2256,13 @@ function createDeepSpaceWorld(isMobile: boolean, balancedQuality: boolean, softw
     lowerStormLayer.uniforms.uTime.value = elapsedSeconds;
     anvilStormLayer.uniforms.uTime.value = elapsedSeconds;
     upperStormLayer.uniforms.uTime.value = elapsedSeconds;
-    stormShadowLayer.uniforms.uTime.value = elapsedSeconds;
+    if (stormShadowLayer) stormShadowLayer.uniforms.uTime.value = elapsedSeconds;
     planet.rotation.y = 0.12 + elapsedSeconds * 0.008;
     orbitalRing.rotation.z = 0.12 + elapsedSeconds * 0.018;
-    stormShadows.rotation.copy(planet.rotation);
-    stormShadows.rotation.y += elapsedSeconds * 0.00062;
+    if (stormShadows) {
+      stormShadows.rotation.copy(planet.rotation);
+      stormShadows.rotation.y += elapsedSeconds * 0.00062;
+    }
     lowerStormClouds.rotation.copy(planet.rotation);
     lowerStormClouds.rotation.y += elapsedSeconds * 0.00062;
     anvilStormClouds.rotation.copy(planet.rotation);
@@ -2885,56 +2602,6 @@ export function HyperspaceIntro() {
     warpBubble.visible = shouldJump;
     scene.add(warpBubble);
 
-    const exitWakeUniforms = {
-      uTime: { value: 0 },
-      uOpacity: { value: 0 },
-      uResolution: { value: new THREE.Vector2(1, 1) },
-    };
-    const exitWakeGeometry = createExitWakeGeometry(isMobile ? 96 : softwareRendering ? 112 : balancedQuality ? 128 : 192);
-    const exitWakeMaterial = new THREE.ShaderMaterial({
-      uniforms: exitWakeUniforms,
-      vertexShader: exitWakeVertexShader,
-      fragmentShader: exitWakeFragmentShader,
-      transparent: true,
-      blending: THREE.AdditiveBlending,
-      depthTest: false,
-      depthWrite: false,
-      toneMapped: false,
-      side: THREE.DoubleSide,
-    });
-    const exitWake = new THREE.Mesh(exitWakeGeometry, exitWakeMaterial);
-    exitWake.frustumCulled = false;
-    exitWake.matrixAutoUpdate = false;
-    exitWake.updateMatrix();
-    exitWake.renderOrder = 7;
-    // The legacy ribbon wake read as gray slivers after the jump. Diamond dust
-    // now carries the entire exit reveal, so keep this layer disabled.
-    exitWake.visible = false;
-    scene.add(exitWake);
-
-    const exitCrystalUniforms = {
-      uTime: { value: 0 },
-      uOpacity: { value: 0 },
-    };
-    const exitCrystalGeometry = createExitCrystalGeometry(isMobile ? 900 : softwareRendering ? 1050 : balancedQuality ? 1250 : 1900);
-    const exitCrystalMaterial = new THREE.ShaderMaterial({
-      uniforms: exitCrystalUniforms,
-      vertexShader: exitCrystalVertexShader,
-      fragmentShader: exitCrystalFragmentShader,
-      transparent: true,
-      blending: THREE.AdditiveBlending,
-      depthTest: false,
-      depthWrite: false,
-      toneMapped: false,
-    });
-    const exitCrystals = new THREE.Points(exitCrystalGeometry, exitCrystalMaterial);
-    exitCrystals.frustumCulled = false;
-    exitCrystals.matrixAutoUpdate = false;
-    exitCrystals.updateMatrix();
-    exitCrystals.renderOrder = 9;
-    exitCrystals.visible = false;
-    scene.add(exitCrystals);
-
     const exitDustUniforms = {
       uTime: { value: 0 },
       uOpacity: { value: 0 },
@@ -3033,15 +2700,19 @@ export function HyperspaceIntro() {
     let renderWidth = 0;
     let renderHeight = 0;
     let renderPixelRatio = 0;
+    let adaptiveRenderScale = 1;
     const resize = () => {
       const width = Math.max(1, Math.round(canvas.clientWidth || window.innerWidth));
       const height = Math.max(1, Math.round(canvas.clientHeight || window.innerHeight));
       // The capture route uses a fixed 2x backing surface. The master renderer
       // supplies a 1920x1080 viewport for a native 3840x2160 capture surface,
       // bypassing browser compositor scaling and tile seams.
-      // Interactive playback stays at the display's native backing resolution;
-      // performance tiers reduce scene workload and cadence instead.
-      const pixelRatio = captureMode ? 2 : window.devicePixelRatio || 1;
+      // Interactive playback begins at the display's native backing resolution.
+      // Only the software-rendering tier may lower its internal canvas scale
+      // when measured frame pacing cannot sustain the cinematic target; DOM
+      // interface elements remain at native resolution.
+      const nativePixelRatio = captureMode ? 2 : window.devicePixelRatio || 1;
+      const pixelRatio = nativePixelRatio * adaptiveRenderScale;
       if (width === renderWidth && height === renderHeight && pixelRatio === renderPixelRatio) return;
       renderWidth = width;
       renderHeight = height;
@@ -3054,7 +2725,6 @@ export function HyperspaceIntro() {
       camera.updateProjectionMatrix();
       uniforms.uResolution.value.set(width * pixelRatio, height * pixelRatio);
       lensPass.uniforms.uResolution.value.set(width * pixelRatio, height * pixelRatio);
-      exitWakeUniforms.uResolution.value.set(width * pixelRatio, height * pixelRatio);
     };
 
     const onContextLost = (event: Event) => {
@@ -3077,6 +2747,66 @@ export function HyperspaceIntro() {
     const desiredCamera = new THREE.Vector3();
     const interfaceFar = new THREE.Vector3(0, 0, -118);
     const interfaceNear = new THREE.Vector3(isMobile ? -7.5 : -13, isMobile ? 0.5 : -0.4, -26);
+    let frameIntervalEma = 0;
+    let slowFrameDuration = 0;
+    let fastFrameDuration = 0;
+    let lastAdaptiveScaleChange = 0;
+    const adaptRenderScale = (time: number, frameInterval: number) => {
+      if (
+        !softwareRendering ||
+        captureMode ||
+        qualityPreference === "cinematic" ||
+        document.visibilityState !== "visible" ||
+        frameInterval <= 0 ||
+        frameInterval >= 250
+      ) return;
+
+      frameIntervalEma = frameIntervalEma === 0
+        ? frameInterval
+        : THREE.MathUtils.lerp(frameIntervalEma, frameInterval, 0.12);
+      if (frameIntervalEma > 44) {
+        slowFrameDuration += frameInterval;
+        fastFrameDuration = 0;
+      } else if (frameIntervalEma < 35) {
+        fastFrameDuration += frameInterval;
+        slowFrameDuration = Math.max(0, slowFrameDuration - frameInterval * 0.5);
+      } else {
+        slowFrameDuration = Math.max(0, slowFrameDuration - frameInterval * 0.25);
+        fastFrameDuration = 0;
+      }
+
+      if (
+        slowFrameDuration >= 1200 &&
+        time - lastAdaptiveScaleChange >= 1200 &&
+        adaptiveRenderScale > 0.55
+      ) {
+        // Raster cost is approximately proportional to pixel area, so use the
+        // square root of the frame-budget ratio to converge in one or two
+        // reallocations instead of introducing a series of visible resize
+        // hitches during the charge-up.
+        const budgetScale = adaptiveRenderScale * Math.sqrt(36 / frameIntervalEma) * 0.96;
+        adaptiveRenderScale = Math.max(
+          0.55,
+          Math.min(adaptiveRenderScale - 0.05, Math.round(budgetScale * 100) / 100),
+        );
+        slowFrameDuration = 0;
+        fastFrameDuration = 0;
+        lastAdaptiveScaleChange = time;
+        canvas.dataset.renderScale = adaptiveRenderScale.toFixed(2);
+        resize();
+      } else if (
+        fastFrameDuration >= 15000 &&
+        time - lastAdaptiveScaleChange >= 15000 &&
+        adaptiveRenderScale < 1
+      ) {
+        adaptiveRenderScale = Math.min(1, Math.round((adaptiveRenderScale + 0.05) * 100) / 100);
+        slowFrameDuration = 0;
+        fastFrameDuration = 0;
+        lastAdaptiveScaleChange = time;
+        canvas.dataset.renderScale = adaptiveRenderScale.toFixed(2);
+        resize();
+      }
+    };
     const animate = (time: number) => {
       // A locked 30 fps cadence is substantially smoother than irregularly
       // missing 60 fps under a software rasterizer. Animation remains based on
@@ -3093,7 +2823,8 @@ export function HyperspaceIntro() {
       }
 
       const elapsed = time - startTime;
-      const delta = Math.min((time - previousTime) / 1000, 0.05);
+      const frameInterval = time - previousTime;
+      const delta = Math.min(frameInterval / 1000, 0.05);
       previousTime = time;
       if (worldAssetsReady) worldAssetFade = Math.min(1, worldAssetFade + delta * 2.8);
       let currentInterfaceArrival = jumpComplete ? 1 : 0;
@@ -3234,10 +2965,6 @@ export function HyperspaceIntro() {
         const exitDustIgnition = smoothstep((progress - 0.822) / 0.022);
         exitDust.visible = exitDustIgnition > 0.001;
         const exitDustWhiteout = exitDustIgnition * (1 - smoothstep((progress - 0.912) / 0.06));
-        exitWakeUniforms.uTime.value = Math.max(0, (elapsed - DURATION * 0.818) / 1000);
-        exitWakeUniforms.uOpacity.value = smoothstep((progress - 0.824) / 0.04) * 0.34;
-        exitCrystalUniforms.uTime.value = Math.max(0, (elapsed - DURATION * 0.872) / 1000);
-        exitCrystalUniforms.uOpacity.value = 0;
         exitDustUniforms.uTime.value = Math.max(0, (elapsed - DURATION * 0.818) / 1000);
         exitDustUniforms.uOpacity.value = exitDustIgnition * (1.15 + exitDustWhiteout * 1.35);
         // Let the destination exist behind the collapsing tunnel before the
@@ -3330,21 +3057,12 @@ export function HyperspaceIntro() {
           finishQueued = true;
           if (!captureMode) finish(0.7);
         }
-        const wakeFade = 1 - smoothstep(landingElapsed / 3500);
         const dustFade = 1 - smoothstep(landingElapsed / 4200);
-        exitWakeUniforms.uTime.value = Math.max(0, (elapsed - DURATION * 0.818) / 1000);
-        exitWakeUniforms.uOpacity.value = wakeFade * 0.34;
-        exitCrystalUniforms.uTime.value = Math.max(0, (elapsed - DURATION * 0.872) / 1000);
-        exitCrystalUniforms.uOpacity.value = 0;
         exitDustUniforms.uTime.value = Math.max(0, (elapsed - DURATION * 0.818) / 1000);
         // Preserve the veil's brightness across the jump-complete boundary so
         // the destination emerges from one continuous diamond-dust curtain.
         exitDustUniforms.uOpacity.value = dustFade * 1.15;
         world.rimLight.intensity = SCENE_RIM_BASE + (exitDust.visible ? dustFade * EXIT_RIM_BOOST * 0.62 : 0);
-        if (wakeFade <= 0.001) {
-          exitWake.visible = false;
-          exitCrystals.visible = false;
-        }
         if (dustFade <= 0.001) exitDust.visible = false;
         const interfaceArrival = 1;
         currentInterfaceArrival = interfaceArrival;
@@ -3369,6 +3087,7 @@ export function HyperspaceIntro() {
       if (currentInterfaceArrival > 0 || jumpComplete) updateWorldAnchors(currentInterfaceArrival);
       if (lensPass.enabled) composer.render(delta);
       else renderer.render(scene, camera);
+      adaptRenderScale(time, frameInterval);
     };
 
     resize();
@@ -3408,10 +3127,6 @@ export function HyperspaceIntro() {
         tunnelDustMaterial.dispose();
         warpBubbleGeometry.dispose();
         warpBubbleMaterial.dispose();
-        exitWakeGeometry.dispose();
-        exitWakeMaterial.dispose();
-        exitCrystalGeometry.dispose();
-        exitCrystalMaterial.dispose();
         exitDustGeometry.dispose();
         exitDustMaterial.dispose();
         for (const item of world.geometries) item.dispose();
@@ -3463,8 +3178,6 @@ export function HyperspaceIntro() {
       scene.remove(tunnel);
       scene.remove(tunnelDust);
       scene.remove(warpBubble);
-      scene.remove(exitWake);
-      scene.remove(exitCrystals);
       scene.remove(exitDust);
       geometry.dispose();
       material.dispose();
@@ -3472,10 +3185,6 @@ export function HyperspaceIntro() {
       tunnelDustMaterial.dispose();
       warpBubbleGeometry.dispose();
       warpBubbleMaterial.dispose();
-      exitWakeGeometry.dispose();
-      exitWakeMaterial.dispose();
-      exitCrystalGeometry.dispose();
-      exitCrystalMaterial.dispose();
       exitDustGeometry.dispose();
       exitDustMaterial.dispose();
       world.cancelAssetLoad();
