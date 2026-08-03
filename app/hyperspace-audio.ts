@@ -6,6 +6,7 @@ const SCORE_LOOP_URL = `${BASE_PATH}/audio/black-vector-score-loop.mp3?v=score-2
 const PLAYBACK_GAIN = 0.72;
 const MUSIC_GAIN = 0.051;
 const MUSIC_ENTRY_SECONDS = 16.54;
+const JUMP_FADE_IN_SECONDS = 1;
 
 type AudioWindow = Window &
   typeof globalThis & {
@@ -26,9 +27,9 @@ export class HyperspaceAudio {
   private structuralNoiseBuffer: AudioBuffer | null = null;
   private playbackEpoch = 0;
   private muted = false;
-  private volume = 1;
+  private volume = 0.5;
 
-  constructor(muted = false, volume = 1) {
+  constructor(muted = false, volume = 0.5) {
     this.muted = muted;
     this.volume = Math.max(0, Math.min(1, volume));
   }
@@ -83,8 +84,8 @@ export class HyperspaceAudio {
     const jumpSource = context.createBufferSource();
     jumpSource.buffer = jumpBuffer;
     jumpSource.connect(jumpGain).connect(this.master);
-    jumpGain.gain.setValueAtTime(0.0001, context.currentTime);
-    jumpGain.gain.exponentialRampToValueAtTime(1, start + 0.12);
+    jumpGain.gain.setValueAtTime(0, start);
+    jumpGain.gain.linearRampToValueAtTime(1, start + JUMP_FADE_IN_SECONDS);
     jumpSource.addEventListener(
       "ended",
       () => {

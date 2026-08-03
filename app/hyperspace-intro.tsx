@@ -2377,8 +2377,8 @@ export function HyperspaceIntro() {
     const isMobileVisitor = window.matchMedia("(pointer: coarse)").matches || window.innerWidth <= 760;
     const storedAudioPreference = window.localStorage.getItem("black-vector-audio-muted");
     const storedMuted = storedAudioPreference === null ? isMobileVisitor : storedAudioPreference === "true";
-    const storedVolumePreference = Number.parseFloat(window.localStorage.getItem(AUDIO_VOLUME_KEY) ?? "1");
-    const storedVolume = Number.isFinite(storedVolumePreference) ? clamp01(storedVolumePreference) : 1;
+    const storedVolumePreference = Number.parseFloat(window.localStorage.getItem(AUDIO_VOLUME_KEY) ?? "0.5");
+    const storedVolume = Number.isFinite(storedVolumePreference) ? clamp01(storedVolumePreference) : 0.5;
     const audio = new HyperspaceAudio(storedMuted, storedVolume);
     audioRef.current = audio;
     if (!storedMuted) audio.prepare();

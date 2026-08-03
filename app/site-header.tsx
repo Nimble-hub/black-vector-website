@@ -125,12 +125,12 @@ export function SiteHeader({ basePath = "" }: { basePath?: string }) {
                 min="0"
                 max="100"
                 step="5"
-                defaultValue="100"
+                defaultValue="50"
                 aria-label="Cinematic audio volume"
                 data-audio-volume
               />
               <output data-audio-volume-value aria-hidden="true">
-                100
+                050
               </output>
             </label>
           </div>

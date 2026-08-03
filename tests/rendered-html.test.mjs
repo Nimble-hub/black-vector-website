@@ -339,7 +339,11 @@ test("exposes a persistent cinematic master volume beside the audio toggle", asy
 
   assert.match(audio, /setVolume\(volume: number\)/);
   assert.match(audio, /PLAYBACK_GAIN \* this\.volume/);
+  assert.match(audio, /const JUMP_FADE_IN_SECONDS = 1/);
+  assert.match(audio, /linearRampToValueAtTime\(1, start \+ JUMP_FADE_IN_SECONDS\)/);
   assert.match(intro, /black-vector-audio-volume/);
+  assert.match(intro, /AUDIO_VOLUME_KEY\) \?\? "0\.5"/);
+  assert.match(header, /defaultValue="50"/);
   assert.match(
     intro,
     /volumeControl\?\.addEventListener\("input", changeVolume\)/,
