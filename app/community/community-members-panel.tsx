@@ -521,7 +521,7 @@ export function CommunityMembersPanel({
               type="search"
               value={friendSearch}
               onChange={(event) => setFriendSearch(event.target.value)}
-              placeholder="SEARCH MEMBERSâ€¦"
+              placeholder="SEARCH MEMBERS…"
               autoComplete="off"
             />
           </div>
@@ -652,7 +652,7 @@ export function CommunityMembersPanel({
               type="search"
               value={directSearch}
               onChange={(event) => setDirectSearch(event.target.value)}
-              placeholder="SEARCH MEMBERSâ€¦"
+              placeholder="SEARCH MEMBERS…"
               autoComplete="off"
             />
           </div>

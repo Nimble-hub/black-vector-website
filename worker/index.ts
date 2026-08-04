@@ -1,36 +1,23 @@
 /** Cloudflare Worker entry point for the vinext-starter template. */
-import { handleImageOptimization, DEFAULT_DEVICE_SIZES, DEFAULT_IMAGE_SIZES } from "vinext/server/image-optimization";
 import handler from "vinext/server/app-router-entry";
 export { ChatRoom } from "./chat-room";
 
-interface Env {
-  ASSETS: Fetcher;
-  DB: D1Database;
-  CHAT_ROOMS: DurableObjectNamespace;
-  PROFILE_MEDIA: R2Bucket;
-  CINEMATIC_MEDIA: R2Bucket;
-  IMAGES: {
-    input(stream: ReadableStream): {
-      transform(options: Record<string, unknown>): {
-        output(options: { format: string; quality: number }): Promise<{ response(): Response }>;
-      };
-    };
-  };
-}
+// Wrangler generates every application binding in `Env`. vinext's static
+// asset runtime supplies this optional binding outside the generated set.
+type WorkerEnv = Env & { ASSETS?: Fetcher };
 
-interface ExecutionContext {
-  waitUntil(promise: Promise<unknown>): void;
-  passThroughOnException(): void;
+function requestMatchesEtag(request: Request, etag: string): boolean {
+  const candidates = request.headers.get("if-none-match");
+  if (!candidates) return false;
+  const normalizedEtag = etag.replace(/^W\//i, "");
+  return candidates.split(",").some((candidate) => {
+    const normalizedCandidate = candidate.trim().replace(/^W\//i, "");
+    return normalizedCandidate === "*" || normalizedCandidate === normalizedEtag;
+  });
 }
-
-// Image security config. SVG sources with .svg extension auto-skip the
-// optimization endpoint on the client side (served directly, no proxy).
-// To route SVGs through the optimizer (with security headers), set
-// dangerouslyAllowSVG: true in next.config.js and uncomment below:
-// const imageConfig: ImageConfig = { dangerouslyAllowSVG: true };
 
 const worker = {
-  async fetch(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
+  async fetch(request: Request, env: WorkerEnv, ctx: ExecutionContext): Promise<Response> {
     const url = new URL(request.url);
 
     if (url.hostname === "www.blackvector.win") {
@@ -50,7 +37,9 @@ const worker = {
     const profileImage = url.pathname.match(/^\/media\/profile\/([0-9a-f-]{36})\.webp$/i);
     if (profileImage && (request.method === "GET" || request.method === "HEAD")) {
       const key = `profile:${profileImage[1]}`;
-      const stored = await env.PROFILE_MEDIA.get(key);
+      const stored = request.method === "HEAD"
+        ? await env.PROFILE_MEDIA.head(key)
+        : await env.PROFILE_MEDIA.get(key);
       if (!stored) return new Response("Profile image not found", { status: 404 });
       const responseHeaders = new Headers({
         "content-type": stored.httpMetadata?.contentType || "image/webp",
@@ -58,7 +47,11 @@ const worker = {
         "x-content-type-options": "nosniff",
       });
       responseHeaders.set("etag", stored.httpEtag);
-      return new Response(request.method === "HEAD" ? null : stored.body, { headers: responseHeaders });
+      if (requestMatchesEtag(request, stored.httpEtag)) {
+        return new Response(null, { status: 304, headers: responseHeaders });
+      }
+      const body = request.method === "HEAD" ? null : (stored as R2ObjectBody).body;
+      return new Response(body, { headers: responseHeaders });
     }
 
     const cinematicMedia = url.pathname.match(/^\/media\/cinematic\/(hyperspace\/v[0-9]+\/.+)$/i);
@@ -77,6 +70,10 @@ const worker = {
       responseHeaders.set("cache-control", "public, max-age=31536000, immutable");
       responseHeaders.set("x-content-type-options", "nosniff");
 
+      if (requestMatchesEtag(request, stored.httpEtag)) {
+        return new Response(null, { status: 304, headers: responseHeaders });
+      }
+
       const rangedObject = stored as R2Object & { range?: { offset: number; length: number } };
       if (requestedRange && rangedObject.range) {
         const { offset, length } = rangedObject.range;
@@ -88,19 +85,8 @@ const worker = {
       return new Response(body, { status, headers: responseHeaders });
     }
 
-    if (url.pathname === "/_vinext/image") {
-      const allowedWidths = [...DEFAULT_DEVICE_SIZES, ...DEFAULT_IMAGE_SIZES];
-      return handleImageOptimization(request, {
-        fetchAsset: (path) => env.ASSETS.fetch(new Request(new URL(path, request.url))),
-        transformImage: async (body, { width, format, quality }) => {
-          const result = await env.IMAGES.input(body).transform(width > 0 ? { width } : {}).output({ format, quality });
-          return result.response();
-        },
-      }, allowedWidths);
-    }
-
     return handler.fetch(request, env, ctx);
   },
-};
+} satisfies ExportedHandler<WorkerEnv>;
 
 export default worker;

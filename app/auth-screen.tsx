@@ -104,6 +104,8 @@ export function AuthScreen({ mode, returnTo }: AuthScreenProps) {
         <div className="connection-grid" aria-label="Connected sign-in options">
           <button type="button" disabled={providerDisabled("steam")} onClick={() => {
             setBusy("steam");
+            // Steam OpenID must leave the app as a full-document navigation.
+            // eslint-disable-next-line @next/next/no-location-assign-relative-destination
             window.location.assign(`/api/auth/steam/login?callbackURL=${encodeURIComponent(callbackURL)}&errorCallbackURL=${encodeURIComponent("/login?error=steam")}`);
           }}>
             <span className="connection-mark">ST</span>

@@ -2,6 +2,7 @@
 
 import { FormEvent, useMemo, useState } from "react";
 import Image from "next/image";
+import { useRouter } from "next/navigation";
 import { authClient } from "@/lib/auth-client";
 import type { ProviderAvailability } from "@/lib/auth-environment";
 
@@ -53,6 +54,7 @@ export function AccountSettings({
   initialTab: "profile" | "connections" | "security";
   initialStatus: string;
 }) {
+  const router = useRouter();
   const [tab, setTab] = useState<"profile" | "connections" | "security">(initialTab);
   const [status, setStatus] = useState(initialStatus);
   const [busy, setBusy] = useState(false);
@@ -201,7 +203,7 @@ export function AccountSettings({
         <button className={tab === "profile" ? "is-active" : ""} onClick={() => setTab("profile")}>PROFILE &amp; PLAYTEST</button>
         <button className={tab === "connections" ? "is-active" : ""} onClick={() => setTab("connections")}>CONNECTED ACCOUNTS</button>
         <button className={tab === "security" ? "is-active" : ""} onClick={() => setTab("security")}>SECURITY</button>
-        <button className="account-signout" onClick={() => void authClient.signOut({ fetchOptions: { onSuccess: () => window.location.assign("/") } })}>SIGN OUT</button>
+        <button className="account-signout" onClick={() => void authClient.signOut({ fetchOptions: { onSuccess: () => { router.push("/"); router.refresh(); } } })}>SIGN OUT</button>
       </aside>
 
       <section className="account-content">

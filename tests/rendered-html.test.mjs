@@ -400,3 +400,28 @@ test("exposes a persistent cinematic master volume beside the audio toggle", asy
   assert.match(header, /Cinematic audio volume/);
   assert.match(polish, /\.audio-volume-control/);
 });
+
+test("keeps the cinematic and Worker runtime production-clean", async () => {
+  const [intro, worker, members, eslintConfig, wranglerConfig] =
+    await Promise.all([
+      readFile(new URL("app/hyperspace-intro.tsx", root), "utf8"),
+      readFile(new URL("worker/index.ts", root), "utf8"),
+      readFile(
+        new URL("app/community/community-members-panel.tsx", root),
+        "utf8",
+      ),
+      readFile(new URL("eslint.config.mjs", root), "utf8"),
+      readFile(new URL("wrangler.jsonc", root), "utf8"),
+    ]);
+
+  assert.doesNotMatch(members, /Â|Ã|â|�/);
+  assert.match(intro, /const releaseResources = \(\) =>/);
+  assert.match(intro, /if \(resourcesReleased\) return/);
+  assert.match(intro, /visibilitychange/);
+  assert.doesNotMatch(worker, /handleImageOptimization|interface Env|interface ExecutionContext/);
+  assert.match(worker, /satisfies ExportedHandler<WorkerEnv>/);
+  assert.match(worker, /if-none-match/);
+  assert.match(eslintConfig, /worker-configuration\.d\.ts/);
+  assert.match(wranglerConfig, /"traces"/);
+  assert.match(wranglerConfig, /"head_sampling_rate": 0\.05/);
+});

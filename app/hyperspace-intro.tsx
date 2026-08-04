@@ -2676,10 +2676,33 @@ export function HyperspaceIntro() {
 
     const world = createDeepSpaceWorld(isMobile, balancedQuality, softwareRendering);
     let disposed = false;
+    let resourcesReleased = false;
     let worldAssetsReady = false;
     let worldAssetFade = 0;
     world.setOpacity(0);
     scene.add(world.group);
+
+    const releaseResources = () => {
+      if (resourcesReleased) return;
+      resourcesReleased = true;
+      world.cancelAssetLoad();
+      scene.remove(tunnel, tunnelDust, warpBubble, exitDust, world.group);
+      geometry.dispose();
+      material.dispose();
+      tunnelDustGeometry.dispose();
+      tunnelDustMaterial.dispose();
+      warpBubbleGeometry.dispose();
+      warpBubbleMaterial.dispose();
+      exitDustGeometry.dispose();
+      exitDustMaterial.dispose();
+      for (const item of world.geometries) item.dispose();
+      for (const item of world.materials) item.dispose();
+      for (const item of world.textures) item.dispose();
+      lensPass.dispose();
+      renderPass.dispose();
+      composer.dispose();
+      renderer.dispose();
+    };
 
     // Decode, upload, and compile the destination while the visitor is still
     // in transit. The planet remains hidden until the complete material stack
@@ -2780,6 +2803,11 @@ export function HyperspaceIntro() {
       event.preventDefault();
       renderer.setAnimationLoop(null);
       setFallback(true);
+    };
+
+    const onVisibilityChange = () => {
+      if (captureMode || disposed) return;
+      renderer.setAnimationLoop(document.visibilityState === "visible" ? animate : null);
     };
 
     let startTime = 0;
@@ -3170,28 +3198,14 @@ export function HyperspaceIntro() {
       uniforms.uSymmetry.value = 1;
       const hasLightGeometry = probePixels.some((value, index) => index % 4 !== 3 && value > 6);
       if (!hasLightGeometry) {
-        geometry.dispose();
-        material.dispose();
-        tunnelDustGeometry.dispose();
-        tunnelDustMaterial.dispose();
-        warpBubbleGeometry.dispose();
-        warpBubbleMaterial.dispose();
-        exitDustGeometry.dispose();
-        exitDustMaterial.dispose();
-        for (const item of world.geometries) item.dispose();
-        for (const item of world.materials) item.dispose();
-        for (const item of world.textures) item.dispose();
-        world.cancelAssetLoad();
-        lensPass.dispose();
-        renderPass.dispose();
-        composer.dispose();
-        renderer.dispose();
+        releaseResources();
         window.setTimeout(() => setFallback(true), 0);
         return;
       }
     }
 
     window.addEventListener("resize", resize);
+    document.addEventListener("visibilitychange", onVisibilityChange);
     canvas.addEventListener("webglcontextlost", onContextLost);
     if (captureMode) {
       window.__BV_CAPTURE_READY__ = true;
@@ -3223,27 +3237,9 @@ export function HyperspaceIntro() {
         delete window.__BV_CAPTURE_RENDER__;
       }
       window.removeEventListener("resize", resize);
+      document.removeEventListener("visibilitychange", onVisibilityChange);
       canvas.removeEventListener("webglcontextlost", onContextLost);
-      scene.remove(tunnel);
-      scene.remove(tunnelDust);
-      scene.remove(warpBubble);
-      scene.remove(exitDust);
-      geometry.dispose();
-      material.dispose();
-      tunnelDustGeometry.dispose();
-      tunnelDustMaterial.dispose();
-      warpBubbleGeometry.dispose();
-      warpBubbleMaterial.dispose();
-      exitDustGeometry.dispose();
-      exitDustMaterial.dispose();
-      world.cancelAssetLoad();
-      for (const item of world.geometries) item.dispose();
-      for (const item of world.materials) item.dispose();
-      for (const item of world.textures) item.dispose();
-      lensPass.dispose();
-      renderPass.dispose();
-      composer.dispose();
-      renderer.dispose();
+      releaseResources();
     };
   }, [experienceReady, fallback, finish, runId]);
 
