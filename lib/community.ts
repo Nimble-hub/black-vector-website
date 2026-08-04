@@ -66,6 +66,7 @@ export interface CommunityChatMessage {
 
 export type CommunityNotificationType =
   | "reply"
+  | "mention"
   | "direct-message"
   | "friend-request"
   | "friend-accepted"

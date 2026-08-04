@@ -13,6 +13,7 @@ import Image from "next/image";
 import {
   CHAT_CHANNELS,
   FORUM_CATEGORIES,
+  isChatChannel,
   type ChatChannelId,
   type CommunityChatMessage,
   type CommunityRole,
@@ -60,6 +61,7 @@ interface StaffUser {
   role: CommunityRole;
 }
 type PresenceStatus = "online" | "dnd" | "invisible";
+type MentionMember = { id: string; name: string; image: string | null };
 
 function formatTime(value: string | number) {
   const date = new Date(value);
@@ -103,6 +105,28 @@ function Avatar({ name, image }: { name: string; image?: string | null }) {
   );
 }
 
+function escapeRegExp(value: string) {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+function renderMessageContent(content: string, members: MentionMember[]) {
+  const names = members
+    .map((member) => member.name)
+    .filter(Boolean)
+    .sort((left, right) => right.length - left.length);
+  if (!names.length) return content;
+  const pattern = new RegExp(
+    `(@(?:${names.map(escapeRegExp).join("|")}))(?=$|[\\s.,!?;:()\\[\\]{}])`,
+    "gi",
+  );
+  const known = new Set(names.map((name) => `@${name.toLocaleLowerCase()}`));
+  return content.split(pattern).map((part, index) =>
+    known.has(part.toLocaleLowerCase()) ? (
+      <mark className={styles.mention} key={`${part}-${index}`}>{part}</mark>
+    ) : part,
+  );
+}
+
 function RoleBadge({ role }: { role: CommunityRole }) {
   if (role === "member") return null;
   return (
@@ -126,6 +150,8 @@ export function CommunityConsole({
     "connecting" | "live" | "offline"
   >("connecting");
   const [chatText, setChatText] = useState("");
+  const [mentionMembers, setMentionMembers] = useState<MentionMember[]>([]);
+  const [mentionUserIds, setMentionUserIds] = useState<string[]>([]);
   const [replyingTo, setReplyingTo] = useState<CommunityChatMessage | null>(null);
   const [notice, setNotice] = useState("");
   const [busyAction, setBusyAction] = useState<string | null>(null);
@@ -156,6 +182,41 @@ export function CommunityConsole({
   const feedRef = useRef<HTMLDivElement>(null);
   const isModerator =
     currentUser?.role === "moderator" || currentUser?.role === "admin";
+
+  const mentionMatch = useMemo(
+    () => chatText.match(/(?:^|\s)@([^@\n]*)$/),
+    [chatText],
+  );
+  const mentionSuggestions = useMemo(() => {
+    if (!mentionMatch || chatText.endsWith(" ")) return [];
+    const query = mentionMatch[1].trim().toLocaleLowerCase();
+    return mentionMembers
+      .filter((member) => member.id !== currentUser?.id)
+      .filter((member) => !query || member.name.toLocaleLowerCase().includes(query))
+      .slice(0, 6);
+  }, [chatText, currentUser?.id, mentionMatch, mentionMembers]);
+
+  const selectMention = useCallback((member: MentionMember) => {
+    const match = chatText.match(/(?:^|\s)@([^@\n]*)$/);
+    if (!match || match.index === undefined) return;
+    const atIndex = match.index + match[0].lastIndexOf("@");
+    setChatText(`${chatText.slice(0, atIndex)}@${member.name} `);
+    setMentionUserIds((current) => [...new Set([...current, member.id])]);
+  }, [chatText]);
+
+  useEffect(() => {
+    const requestedChannel = new URLSearchParams(window.location.search).get("channel");
+    if (requestedChannel && isChatChannel(requestedChannel)) {
+      queueMicrotask(() => setChannel(requestedChannel));
+    }
+  }, []);
+
+  useEffect(() => {
+    if (!currentUser) return;
+    void fetch("/api/community/members", { cache: "no-store" })
+      .then(async (response) => (await response.json()) as { members?: MentionMember[] })
+      .then((data) => setMentionMembers(data.members ?? []));
+  }, [currentUser]);
 
   useEffect(() => {
     let socket: WebSocket | undefined;
@@ -336,7 +397,11 @@ export function CommunityConsole({
   }, [channel]);
 
   useEffect(() => {
-    feedRef.current?.scrollTo({
+    const target = window.location.hash
+      ? document.getElementById(window.location.hash.slice(1))
+      : null;
+    if (target) target.scrollIntoView({ behavior: "smooth", block: "center" });
+    else feedRef.current?.scrollTo({
       top: feedRef.current.scrollHeight,
       behavior: "smooth",
     });
@@ -457,7 +522,11 @@ export function CommunityConsole({
     const response = await fetch(`/api/community/chat/${channel}`, {
       method: "POST",
       headers: { "content-type": "application/json" },
-      body: JSON.stringify({ content, replyToId: replyingTo?.id ?? null }),
+      body: JSON.stringify({
+        content,
+        replyToId: replyingTo?.id ?? null,
+        mentionUserIds,
+      }),
     });
     const data = (await response.json()) as {
       message?: CommunityChatMessage;
@@ -468,6 +537,7 @@ export function CommunityConsole({
       setChatText(content);
       return;
     }
+    setMentionUserIds([]);
     if (data.message) {
       setReplyingTo(null);
       setMessages((current) =>
@@ -939,7 +1009,7 @@ export function CommunityConsole({
                                 <span>{message.replyTo.content}</span>
                               </button>
                             )}
-                            <p>{message.content}</p>
+                            <p>{renderMessageContent(message.content, mentionMembers)}</p>
                           </>
                         )}
                       </div>
@@ -961,13 +1031,35 @@ export function CommunityConsole({
                   )}
                   <textarea
                     value={chatText}
-                    onChange={(event) => setChatText(event.target.value)}
+                    onChange={(event) => {
+                      const value = event.target.value;
+                      setChatText(value);
+                      setMentionUserIds((current) => current.filter((userId) => {
+                        const member = mentionMembers.find((item) => item.id === userId);
+                        return Boolean(member && value.toLocaleLowerCase().includes(`@${member.name.toLocaleLowerCase()}`));
+                      }));
+                    }}
                     onKeyDown={(event) => {
+                      if (mentionSuggestions.length && (event.key === "Enter" || event.key === "Tab")) {
+                        event.preventDefault();
+                        selectMention(mentionSuggestions[0]);
+                        return;
+                      }
                       if (submitChatOnEnter(event)) void transmit();
                     }}
                     maxLength={500}
                     placeholder={`Transmit to #${activeChannel.label.toLowerCase()}…`}
                   />
+                  {mentionSuggestions.length > 0 && (
+                    <div className={styles.mentionSuggestions} role="listbox" aria-label="Mention a member">
+                      {mentionSuggestions.map((member) => (
+                        <button type="button" role="option" aria-selected="false" key={member.id} onClick={() => selectMention(member)}>
+                          <Avatar name={member.name} image={member.image} />
+                          <span><b>{member.name}</b><small>MENTION MEMBER</small></span>
+                        </button>
+                      ))}
+                    </div>
+                  )}
                   <span>{chatText.length}/500</span>
                   <button>
                     TRANSMIT <i>↗</i>

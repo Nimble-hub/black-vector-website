@@ -69,8 +69,10 @@ test("requires a verified contact email and delivers legacy account reminders", 
   assert.match(continuation, /hasVerifiedContactEmail/);
   assert.match(continuation, /ensureContactEmailReminder/);
   assert.match(account, /emailRequired/);
-  assert.match(settings, /VERIFY YOUR CONTACT CHANNEL/);
-  assert.match(settings, /Optional development news remains controlled/);
+  assert.match(settings, /ADD AND VERIFY YOUR EMAIL/);
+  assert.match(settings, /ENTER YOUR EMAIL/);
+  assert.match(settings, /RESEND VERIFICATION/);
+  assert.match(settings, /resendPendingEmail/);
   assert.match(settings, /authClient\.sendVerificationEmail/);
   assert.match(conversations, /EMAIL_REQUIRED_CONVERSATION_ID/);
   assert.match(direct, /Black Vector Command/);
@@ -372,11 +374,15 @@ test("ships authenticated social connections, direct comms, and clan operations"
   assert.match(chatRoom, /SELECT id, name, image FROM user/);
 });
 
-test("ships durable message replies and an account notification inbox", async () => {
-  const [schema, chatRoom, notifications, notificationUi, consoleUi, migration] =
+test("ships durable replies, member mentions, and an account notification inbox", async () => {
+  const [schema, chatRoom, chatRoute, notifications, notificationUi, consoleUi, migration] =
     await Promise.all([
       readFile(new URL("db/schema.ts", root), "utf8"),
       readFile(new URL("worker/chat-room.ts", root), "utf8"),
+      readFile(
+        new URL("app/api/community/chat/[channel]/route.ts", root),
+        "utf8",
+      ),
       readFile(
         new URL("app/api/community/notifications/route.ts", root),
         "utf8",
@@ -401,6 +407,10 @@ test("ships durable message replies and an account notification inbox", async ()
   assert.match(notificationUi, /MARK ALL READ/);
   assert.match(consoleUi, /REPLYING TO/);
   assert.match(consoleUi, /replyToId/);
+  assert.match(consoleUi, /mentionSuggestions/);
+  assert.match(consoleUi, /mentionUserIds/);
+  assert.match(chatRoute, /type: "mention"/);
+  assert.match(chatRoute, /mentioned you in/);
   assert.match(migration, /CREATE TABLE `community_notification`/);
 });
 

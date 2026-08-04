@@ -1518,6 +1518,8 @@ nav[aria-label="Community navigation"] a:focus-visible {
 .account-email-required p { max-width: 610px; margin: 0; color: rgba(210, 210, 204, .7); font-size: 12px; line-height: 1.55; }
 .account-email-required > strong { flex: 0 0 auto; color: var(--amber); font: 700 8px/1 Consolas, monospace; letter-spacing: .14em; }
 .contact-channel-required { border-color: rgba(215, 158, 65, .34); box-shadow: inset 3px 0 0 rgba(215, 158, 65, .74); }
+.contact-channel-actions { display: flex; flex-wrap: wrap; gap: 10px; }
+.contact-channel-actions button { margin: 0; }
 
 .settings-form {
   max-width: 820px;

@@ -149,6 +149,14 @@ function createAuth() {
         window: 60 * 15,
         max: 5,
       },
+      "/send-verification-email": {
+        window: 60 * 15,
+        max: 3,
+      },
+      "/change-email": {
+        window: 60 * 15,
+        max: 3,
+      },
     },
   },
   socialProviders,

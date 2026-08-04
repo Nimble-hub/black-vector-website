@@ -13,6 +13,7 @@ export const dynamic = "force-dynamic";
 const messageInput = z.object({
   content: z.string().trim().min(1).max(500),
   replyToId: z.string().uuid().nullable().optional(),
+  mentionUserIds: z.array(z.string().uuid()).max(10).default([]),
 });
 const mutationInput = z.object({
   id: z.string().uuid(),
@@ -28,6 +29,14 @@ function friendlyError(value: unknown) {
   return typeof value === "string"
     ? value
     : "The message could not be changed.";
+}
+
+function containsMention(content: string, name: string) {
+  const escaped = name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  return new RegExp(
+    `(?:^|\\s)@${escaped}(?=$|[\\s.,!?;:()\\[\\]{}])`,
+    "iu",
+  ).test(content);
 }
 
 async function actor() {
@@ -125,6 +134,32 @@ export async function POST(
       body: payload.message.content,
       href: `/community?channel=${channel}`,
     });
+  }
+  const mentionIds = [...new Set(parsed.data.mentionUserIds)].filter(
+    (userId) =>
+      userId !== identity.session.user.id &&
+      userId !== payload.message!.replyTo?.userId,
+  );
+  if (mentionIds.length) {
+    const placeholders = mentionIds.map(() => "?").join(", ");
+    const mentioned = await getD1()
+      .prepare(`SELECT id, name FROM user WHERE id IN (${placeholders})`)
+      .bind(...mentionIds)
+      .all<{ id: string; name: string }>();
+    await Promise.allSettled(
+      mentioned.results
+        .filter(({ name }) => containsMention(payload.message!.content, name))
+        .map(({ id }) =>
+          createCommunityNotification({
+            userId: id,
+            actorId: identity.session.user.id,
+            type: "mention",
+            title: `${payload.message!.displayName} mentioned you in #${channel}`,
+            body: payload.message!.content,
+            href: `/community?channel=${channel}#message-${payload.message!.id}`,
+          }),
+        ),
+    );
   }
   return Response.json(payload, { status: response.status });
 }

@@ -66,6 +66,7 @@ export function AccountSettings({
   const [busy, setBusy] = useState(false);
   const [avatar, setAvatar] = useState(user.image);
   const [needsDisplayName, setNeedsDisplayName] = useState(displayNameRequired);
+  const [pendingContactEmail, setPendingContactEmail] = useState("");
   const linked = useMemo(() => new Map(accounts.map((item) => [item.providerId, item])), [accounts]);
   const verificationCallbackURL = `/auth/continue?returnTo=${encodeURIComponent(returnTo)}`;
   const hasSyntheticEmail = user.email.toLowerCase().endsWith(".invalid");
@@ -177,9 +178,28 @@ export function AccountSettings({
       newEmail,
       callbackURL: verificationCallbackURL,
     });
-    setStatus(result.error
-      ? result.error.message || "Email change could not be started."
-      : "Verification transmitted to the new address.");
+    if (result.error) {
+      setStatus(result.error.message || "Email change could not be started.");
+    } else {
+      setPendingContactEmail(newEmail);
+      setStatus("Verification transmitted to the new address.");
+    }
+    setBusy(false);
+  };
+
+  const resendPendingEmail = async () => {
+    if (!pendingContactEmail) return;
+    setBusy(true);
+    setStatus("");
+    const result = await authClient.changeEmail({
+      newEmail: pendingContactEmail,
+      callbackURL: verificationCallbackURL,
+    });
+    setStatus(
+      result.error
+        ? result.error.message || "Verification could not be retransmitted."
+        : "Verification retransmitted. Check your inbox and spam folder.",
+    );
     setBusy(false);
   };
 
@@ -252,15 +272,41 @@ export function AccountSettings({
               <section className="account-email-required" role="alert">
                 <div>
                   <small>ACCOUNT SETUP // ACTION REQUIRED</small>
-                  <h2>VERIFY YOUR CONTACT CHANNEL.</h2>
+                  <h2>{hasSyntheticEmail ? "ADD AND VERIFY YOUR EMAIL." : "VERIFY YOUR CONTACT CHANNEL."}</h2>
                   <p>
-                    We need a deliverable email for playtest invitations,
-                    access windows, security notices, and major account
-                    updates. Optional development news remains controlled by
-                    your preference below.
+                    {hasSyntheticEmail
+                      ? "Steam does not share your email with Black Vector. Enter the inbox where you want playtest invitations, access windows, and account notices sent."
+                      : "Confirm this inbox for playtest invitations, access windows, security notices, and major account updates."}
                   </p>
                 </div>
-                <strong>EMAIL REQUIRED</strong>
+                <strong>{hasSyntheticEmail ? "EMAIL ADDRESS REQUIRED" : "EMAIL VERIFICATION REQUIRED"}</strong>
+              </section>
+            )}
+            {emailRequired && hasSyntheticEmail && (pendingContactEmail ? (
+              <section className="settings-form contact-channel-required" aria-live="polite">
+                <h2>CHECK YOUR INBOX</h2>
+                <p>
+                  We sent a verification link to <strong>{pendingContactEmail}</strong>.
+                  If it does not arrive, check spam or retransmit it below.
+                </p>
+                <div className="contact-channel-actions">
+                  <button type="button" disabled={busy || !providers.manual} onClick={() => void resendPendingEmail()}>RESEND VERIFICATION</button>
+                  <button type="button" disabled={busy} onClick={() => { setPendingContactEmail(""); setStatus(""); }}>USE A DIFFERENT EMAIL</button>
+                </div>
+              </section>
+            ) : (
+              <form className="settings-form contact-channel-required" onSubmit={changeEmail}>
+                <h2>ENTER YOUR EMAIL</h2>
+                <p>We will send a verification link before replacing the private Steam placeholder.</p>
+                <label><span>EMAIL ADDRESS</span><input name="newEmail" type="email" autoComplete="email" required autoFocus /></label>
+                <button type="submit" disabled={busy || !providers.manual}>SEND VERIFICATION</button>
+              </form>
+            ))}
+            {emailRequired && !hasSyntheticEmail && (
+              <section className="settings-form contact-channel-required">
+                <h2>CHECK YOUR INBOX</h2>
+                <p>{user.email} is waiting for confirmation. If it did not arrive, check spam or send another link.</p>
+                <button type="button" disabled={busy || !providers.manual} onClick={() => void verifyCurrentEmail()}>RESEND VERIFICATION</button>
               </section>
             )}
             {needsDisplayName && (
@@ -296,20 +342,7 @@ export function AccountSettings({
               <label><span>PRIMARY EMAIL</span><input value={hasSyntheticEmail ? "Steam identity — verified email required" : user.email} disabled /></label>
               <button type="submit" disabled={busy}>UPDATE IDENTITY</button>
             </form>
-            {hasSyntheticEmail ? (
-              <form className="settings-form contact-channel-required" onSubmit={changeEmail}>
-                <h2>CONTACT CHANNEL</h2>
-                <p>Add the inbox where Black Vector should send account and playtest notices. We will verify it before replacing the Steam placeholder.</p>
-                <label><span>EMAIL ADDRESS</span><input name="newEmail" type="email" autoComplete="email" required /></label>
-                <button type="submit" disabled={busy || !providers.manual}>SEND VERIFICATION</button>
-              </form>
-            ) : !user.emailVerified ? (
-              <section className="settings-form contact-channel-required">
-                <h2>CONTACT CHANNEL</h2>
-                <p>{user.email} is waiting for inbox confirmation.</p>
-                <button type="button" disabled={busy || !providers.manual} onClick={() => void verifyCurrentEmail()}>RESEND VERIFICATION</button>
-              </section>
-            ) : (
+            {!hasSyntheticEmail && user.emailVerified && (
               <form className="settings-form" onSubmit={changeEmail}>
                 <h2>CONTACT CHANNEL</h2>
                 <p>Changing this address requires confirmation at the new inbox.</p>

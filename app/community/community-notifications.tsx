@@ -115,7 +115,13 @@ export function CommunityNotifications({ enabled }: { enabled: boolean }) {
                 key={item.id}
                 href={item.href}
                 className={item.readAt ? styles.notificationRead : styles.notificationUnread}
-                onClick={() => void markRead(item.id)}
+                onClick={(event) => {
+                  void markRead(item.id);
+                  if (item.type === "mention") {
+                    event.preventDefault();
+                    window.location.assign(item.href);
+                  }
+                }}
               >
                 {item.actorImage ? (
                   <Image src={item.actorImage} alt="" width={34} height={34} unoptimized />

@@ -416,6 +416,7 @@ export const communityNotification = sqliteTable(
     type: text("type", {
       enum: [
         "reply",
+        "mention",
         "direct-message",
         "friend-request",
         "friend-accepted",
