@@ -1621,7 +1621,8 @@ function createDeepSpaceWorld(isMobile: boolean, balancedQuality: boolean, softw
   const fleet = new THREE.Group();
   const planetRadius = isMobile ? 16 : 18;
   const planetPosition = new THREE.Vector3(isMobile ? 10.5 : 14.5, 0.8, -58);
-  const flagshipBaseY = -1.45;
+  const flagshipBaseY = isMobile ? -11.5 : -16.5;
+  const flagshipBaseX = isMobile ? 5.5 : 19;
   const interfaceAnchor = new THREE.Object3D();
   interfaceAnchor.position.set(0, 0, -118);
   group.add(interfaceAnchor);
@@ -2138,7 +2139,8 @@ function createDeepSpaceWorld(isMobile: boolean, balancedQuality: boolean, softw
   // Foreground contacts occupy their own depth band, well clear of the
   // planetary sphere. Smaller silhouettes deeper in frame sell orbital scale
   // without making a carrier look comparable to a world.
-  const flagship = createShip(0.72, new THREE.Vector3(-7.2, flagshipBaseY, -27), 0.18);
+  const flagship = createShip(0.72, new THREE.Vector3(flagshipBaseX, flagshipBaseY, -34), 0.18);
+  flagship.userData.baseY = flagshipBaseY;
   createInstancedContacts([
     { scale: 0.22, position: new THREE.Vector3(2.5, 4.8, -39), rotationY: -0.2 },
     { scale: 0.17, position: new THREE.Vector3(-3.2, -4.2, -45), rotationY: 0.28 },
@@ -3156,7 +3158,7 @@ export function HyperspaceIntro() {
         camera.updateProjectionMatrix();
 
         world.fleet.rotation.y = Math.sin(elapsed * 0.00008) * 0.022;
-        world.flagship.position.y = -1.45 + Math.sin(elapsed * 0.00034) * 0.08;
+        world.flagship.position.y = world.flagship.userData.baseY + Math.sin(elapsed * 0.00034) * 0.08;
       }
 
       const destinationElapsedSeconds = Math.max(0, (elapsed - DURATION * 0.86) / 1000);
