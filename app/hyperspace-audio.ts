@@ -1,11 +1,11 @@
 const BASE_PATH = process.env.NEXT_PUBLIC_BASE_PATH ?? "";
-const JUMP_SOUNDTRACK_URL = `${BASE_PATH}/audio/hyperspace-jump.mp3?v=theater-19`;
+const JUMP_SOUNDTRACK_URL = `${BASE_PATH}/audio/hyperspace-jump.mp3?v=theater-20-short-cruise`;
 const SCORE_LOOP_URL = `${BASE_PATH}/audio/black-vector-score-loop.mp3?v=score-2`;
 // The source mix measures roughly -13.7 LUFS / -0.9 dBTP. This trim leaves
 // cinematic headroom for the live hull-resonance layer and full-volume devices.
 const PLAYBACK_GAIN = 0.72;
 const MUSIC_GAIN = 0.051;
-const MUSIC_ENTRY_SECONDS = 16.54;
+const MUSIC_ENTRY_SECONDS = 11.54;
 const JUMP_FADE_IN_SECONDS = 1;
 const VOLUME_CURVE_ANCHOR = 0.3;
 
@@ -203,9 +203,9 @@ export class HyperspaceAudio {
     structuralGain.gain.linearRampToValueAtTime(0.068, start + 5.72);
     structuralGain.gain.linearRampToValueAtTime(0.082, start + 5.79);
     structuralGain.gain.exponentialRampToValueAtTime(0.026, start + 6.8);
-    structuralGain.gain.linearRampToValueAtTime(0.018, start + 12.9);
-    structuralGain.gain.linearRampToValueAtTime(0.052, start + 14.15);
-    structuralGain.gain.exponentialRampToValueAtTime(0.0001, start + 16.25);
+    structuralGain.gain.linearRampToValueAtTime(0.018, start + 7.9);
+    structuralGain.gain.linearRampToValueAtTime(0.052, start + 9.15);
+    structuralGain.gain.exponentialRampToValueAtTime(0.0001, start + 11.25);
     structuralGain.connect(this.master);
     this.structuralGain = structuralGain;
 
@@ -214,7 +214,7 @@ export class HyperspaceAudio {
     fundamental.type = "triangle";
     fundamental.frequency.setValueAtTime(47, start);
     fundamental.frequency.linearRampToValueAtTime(43, start + 6.8);
-    fundamental.frequency.linearRampToValueAtTime(39, start + 14.15);
+    fundamental.frequency.linearRampToValueAtTime(39, start + 9.15);
     fundamentalGain.gain.value = 0.46;
     fundamental.connect(fundamentalGain).connect(structuralGain);
 
@@ -243,7 +243,7 @@ export class HyperspaceAudio {
     noiseGain.gain.value = 0.34;
     noiseSource.connect(noiseFilter).connect(noiseGain).connect(structuralGain);
 
-    const stopAt = start + 16.4;
+    const stopAt = start + 11.4;
     fundamental.addEventListener(
       "ended",
       () => {
@@ -263,7 +263,7 @@ export class HyperspaceAudio {
 
   private getStructuralNoiseBuffer(context: AudioContext) {
     if (this.structuralNoiseBuffer) return this.structuralNoiseBuffer;
-    const frameCount = Math.ceil(context.sampleRate * 16.5);
+    const frameCount = Math.ceil(context.sampleRate * 11.5);
     const buffer = context.createBuffer(1, frameCount, context.sampleRate);
     const data = buffer.getChannelData(0);
     let pressure = 0;

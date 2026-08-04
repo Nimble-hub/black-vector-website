@@ -8,8 +8,12 @@ import { RenderPass } from "three/examples/jsm/postprocessing/RenderPass.js";
 import { ShaderPass } from "three/examples/jsm/postprocessing/ShaderPass.js";
 import { HyperspaceIntro2D } from "./hyperspace-intro-2d";
 import { HyperspaceAudio } from "./hyperspace-audio";
+import {
+  getHyperspaceProgress,
+  getHyperspaceTimelineElapsed,
+  HYPERSPACE_SOURCE_DURATION_MS,
+} from "./hyperspace-timeline";
 
-const DURATION = 16500;
 const EXIT_SETTLE_DURATION = 3000;
 const LAUNCH_PROGRESS = 0.35;
 const DEPTH = 132;
@@ -3044,7 +3048,12 @@ export function HyperspaceIntro() {
       let currentInterfaceArrival = jumpComplete ? 1 : 0;
 
       if (!jumpComplete) {
-        const progress = skipJumpRef.current ? 1 : clamp01(elapsed / DURATION);
+        const timelineElapsed = skipJumpRef.current
+          ? HYPERSPACE_SOURCE_DURATION_MS
+          : getHyperspaceTimelineElapsed(elapsed);
+        const progress = skipJumpRef.current
+          ? 1
+          : getHyperspaceProgress(elapsed);
         // The destination interface now enters during the final braking veil,
         // not after the cinematic state flips. Camera, FOV, dust, and DOM UI
         // therefore resolve on one shared handoff curve.
@@ -3179,7 +3188,10 @@ export function HyperspaceIntro() {
         const exitDustIgnition = smoothstep((progress - 0.822) / 0.022);
         exitDust.visible = exitDustIgnition > 0.001;
         const exitDustWhiteout = exitDustIgnition * (1 - smoothstep((progress - 0.912) / 0.06));
-        exitDustUniforms.uTime.value = Math.max(0, (elapsed - DURATION * 0.818) / 1000);
+        exitDustUniforms.uTime.value = Math.max(
+          0,
+          (timelineElapsed - HYPERSPACE_SOURCE_DURATION_MS * 0.818) / 1000,
+        );
         exitDustUniforms.uOpacity.value = exitDustIgnition * (1.15 + exitDustWhiteout * 1.35);
         // Let the destination exist behind the collapsing tunnel before the
         // exit completes. The early power curve keeps it subliminal at first,
@@ -3272,7 +3284,11 @@ export function HyperspaceIntro() {
           if (!captureMode) finish(0.7);
         }
         const dustFade = 1 - smoothstep(landingElapsed / 4200);
-        exitDustUniforms.uTime.value = Math.max(0, (elapsed - DURATION * 0.818) / 1000);
+        const timelineElapsed = getHyperspaceTimelineElapsed(elapsed);
+        exitDustUniforms.uTime.value = Math.max(
+          0,
+          (timelineElapsed - HYPERSPACE_SOURCE_DURATION_MS * 0.818) / 1000,
+        );
         // Preserve the veil's brightness across the jump-complete boundary so
         // the destination emerges from one continuous diamond-dust curtain.
         exitDustUniforms.uOpacity.value = dustFade * 1.15;
@@ -3296,7 +3312,12 @@ export function HyperspaceIntro() {
         world.flagship.position.y = world.flagship.userData.baseY + Math.sin(elapsed * 0.00034) * 0.08;
       }
 
-      const destinationElapsedSeconds = Math.max(0, (elapsed - DURATION * 0.86) / 1000);
+      const destinationElapsedSeconds = Math.max(
+        0,
+        (getHyperspaceTimelineElapsed(elapsed) -
+          HYPERSPACE_SOURCE_DURATION_MS * 0.86) /
+          1000,
+      );
       world.update(destinationElapsedSeconds);
       if (currentInterfaceArrival > 0 || jumpComplete) updateWorldAnchors(currentInterfaceArrival);
       if (lensPass.enabled) composer.render(delta);

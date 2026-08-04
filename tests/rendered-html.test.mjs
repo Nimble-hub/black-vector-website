@@ -472,10 +472,15 @@ test("ships durable replies, member mentions, and an account notification inbox"
 });
 
 test("resolves the hyperspace camera, FOV, and interface on one handoff curve", async () => {
-  const [intro, styles] = await Promise.all([
+  const [intro, timeline, styles] = await Promise.all([
     readFile(new URL("app/hyperspace-intro.tsx", root), "utf8"),
+    readFile(new URL("app/hyperspace-timeline.ts", root), "utf8"),
     readFile(new URL("app/globals.css", root), "utf8"),
   ]);
+  assert.match(timeline, /HYPERSPACE_SOURCE_DURATION_MS = 16_500/);
+  assert.match(timeline, /HYPERSPACE_DURATION_MS = 11_500/);
+  assert.match(timeline, /CRUISE_COMPRESSION_START_MS = 7_000/);
+  assert.match(timeline, /EXIT_SEQUENCE_START_MS = HYPERSPACE_SOURCE_DURATION_MS \* 0\.84/);
   assert.match(intro, /const handoffBlend = smoothstep/);
   assert.match(intro, /camera\.position\.set\([\s\S]*handoffBlend/);
   assert.match(

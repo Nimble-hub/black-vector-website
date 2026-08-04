@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import { getHyperspaceProgress } from "./hyperspace-timeline";
 
 type Star = {
   x: number;
@@ -9,7 +10,6 @@ type Star = {
   brightness: number;
 };
 
-const DURATION = 16500;
 const SEEN_KEY = "black-vector-jump-seen-v13";
 
 function clamp01(value: number) {
@@ -128,7 +128,7 @@ export function HyperspaceIntro2D() {
 
       const elapsed = time - startTime;
       const delta = Math.min(time - lastTime, 50) / 1000;
-      const progress = Math.min(elapsed / DURATION, 1);
+      const progress = getHyperspaceProgress(elapsed);
       lastTime = time;
 
       const exitBoost = smoothstep((progress - 0.8) / 0.105);
