@@ -180,12 +180,14 @@ export function AccountSettings({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ newEmail, callbackURL: verificationCallbackURL }),
       });
-      const data = await response.json() as { error?: string };
+      const data = await response.json() as { error?: string; requiresMerge?: boolean };
       if (!response.ok) {
         setStatus(data.error || "Verification could not be transmitted.");
       } else {
         setPendingContactEmail(newEmail);
-        setStatus("Verification accepted by the mail provider. Check your inbox and spam folder.");
+        setStatus(data.requiresMerge
+          ? "This email already has a Black Vector profile. We sent it a secure approval link to combine that profile with this Steam identity."
+          : "Verification accepted by the mail provider. Check your inbox and spam folder.");
       }
       setBusy(false);
       return;
@@ -216,10 +218,12 @@ export function AccountSettings({
           callbackURL: verificationCallbackURL,
         }),
       });
-      const data = await response.json() as { error?: string };
+      const data = await response.json() as { error?: string; requiresMerge?: boolean };
       setStatus(
         response.ok
-          ? "Verification accepted again. Check your inbox and spam folder."
+          ? data.requiresMerge
+            ? "Steam connection approval sent again. Check that inbox and its spam folder."
+            : "Verification accepted again. Check your inbox and spam folder."
           : data.error || "Verification could not be retransmitted.",
       );
       setBusy(false);

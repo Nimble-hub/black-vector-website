@@ -23,6 +23,10 @@ const connectionMessages: Record<string, string> = {
   "steam-verification-failed": "Steam could not verify that identity.",
   "steam-already-linked": "That Steam identity belongs to another Black Vector profile.",
   "steam-link-failed": "Steam could not be connected.",
+  "steam-merge-invalid": "That Steam connection approval link is invalid.",
+  "steam-merge-expired": "That Steam connection approval expired. Request another from the Steam profile.",
+  "steam-merge-failed": "The Steam identity could not be combined. No accounts were changed.",
+  "steam-merged": "Steam and your existing Black Vector profile are now connected.",
 };
 
 export default async function AccountPage({

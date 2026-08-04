@@ -50,6 +50,7 @@ export function AuthScreen({ mode, returnTo }: AuthScreenProps) {
       const result = await authClient.signIn.social({
         provider,
         callbackURL: providerCallbackURL,
+        requestSignUp: mode === "register",
       });
       if (result.error) setMessage(result.error.message || "Connection failed.");
     } catch (error) {
@@ -111,8 +112,8 @@ export function AuthScreen({ mode, returnTo }: AuthScreenProps) {
           <h1 id="auth-title">{mode === "register" ? "CREATE ACCESS PROFILE." : "REOPEN YOUR CHANNEL."}</h1>
           <p>
             {mode === "register"
-              ? "One Black Vector account can hold every identity you choose to connect."
-              : "Continue with a connected identity or your manual access key."}
+              ? "Create one Black Vector profile, then connect every other identity from Account Settings."
+              : "Continue only with an identity already connected to your profile. New commanders should create an account first."}
           </p>
         </div>
 
@@ -142,7 +143,16 @@ export function AuthScreen({ mode, returnTo }: AuthScreenProps) {
         {mode === "register" && (
           <p className="auth-contact-note">
             A verified contact email is required for every account. Steam
-            commanders complete this immediately after identity confirmation.
+            commanders complete this immediately after identity confirmation. If that
+            email already has a profile, Black Vector will send a secure approval link
+            to combine the identities.
+          </p>
+        )}
+        {mode === "login" && (
+          <p className="auth-contact-note">
+            Steam reopens an existing profile only after that Steam identity has been
+            connected. If you originally joined with Google, Discord, or email, sign in
+            that way and connect Steam from Account Settings.
           </p>
         )}
 

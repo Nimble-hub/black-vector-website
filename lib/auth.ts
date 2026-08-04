@@ -18,12 +18,14 @@ function createAuth() {
     socialProviders.google = {
       clientId: runtime.GOOGLE_CLIENT_ID!,
       clientSecret: runtime.GOOGLE_CLIENT_SECRET!,
+      disableImplicitSignUp: true,
     };
   }
   if (providers.discord) {
     socialProviders.discord = {
       clientId: runtime.DISCORD_CLIENT_ID!,
       clientSecret: runtime.DISCORD_CLIENT_SECRET!,
+      disableImplicitSignUp: true,
       mapProfileToUser: () => ({ displayNameSet: true }),
     };
   }

@@ -47,13 +47,16 @@ test("keeps account linking explicit and exposes every requested sign-in path", 
 });
 
 test("requires a verified contact email and delivers legacy account reminders", async () => {
-  const [authScreen, continuation, account, settings, contactEmail, conversations, direct, migration] =
+  const [authScreen, authConfig, continuation, account, settings, contactEmail, mergePage, mergeEmail, conversations, direct, migration] =
     await Promise.all([
       readFile(new URL("app/auth-screen.tsx", root), "utf8"),
+      readFile(new URL("lib/auth.ts", root), "utf8"),
       readFile(new URL("app/auth/continue/route.ts", root), "utf8"),
       readFile(new URL("app/account/page.tsx", root), "utf8"),
       readFile(new URL("app/account/settings.tsx", root), "utf8"),
       readFile(new URL("app/api/account/contact-email/route.ts", root), "utf8"),
+      readFile(new URL("app/account/merge-steam/page.tsx", root), "utf8"),
+      readFile(new URL("app/api/account/contact-email/merge/route.ts", root), "utf8"),
       readFile(
         new URL("app/api/community/conversations/route.ts", root),
         "utf8",
@@ -77,10 +80,24 @@ test("requires a verified contact email and delivers legacy account reminders", 
   assert.match(settings, /authClient\.sendVerificationEmail/);
   assert.match(settings, /\/api\/account\/contact-email/);
   assert.match(settings, /accepted by the mail provider/i);
+  assert.match(settings, /secure approval link/i);
   assert.match(contactEmail, /createEmailVerificationToken/);
   assert.match(contactEmail, /change-email-verification/);
   assert.match(contactEmail, /RATE_LIMIT = 3/);
   assert.match(contactEmail, /sendAuthEmail/);
+  assert.match(contactEmail, /requiresMerge: true/);
+  assert.match(contactEmail, /APPROVE STEAM CONNECTION/);
+  assert.match(contactEmail, /\/account\/merge-steam/);
+  assert.match(mergePage, /method="post"/);
+  assert.match(mergePage, /Only approve this request/);
+  assert.match(mergeEmail, /constantTimeEqual/);
+  assert.match(mergeEmail, /d1\.batch/);
+  assert.match(mergeEmail, /UPDATE account SET user_id/);
+  assert.match(mergeEmail, /export async function POST/);
+  assert.doesNotMatch(mergeEmail, /export async function GET/);
+  assert.match(mergeEmail, /better-auth\.\$\{name\}/);
+  assert.match(authConfig, /disableImplicitSignUp: true/);
+  assert.match(authScreen, /requestSignUp: mode === "register"/);
   assert.match(conversations, /EMAIL_REQUIRED_CONVERSATION_ID/);
   assert.match(direct, /Black Vector Command/);
   assert.match(migration, /uidx_community_notification_system_notice/);

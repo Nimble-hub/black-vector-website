@@ -1,15 +1,20 @@
 import { headers } from "next/headers";
 import { createEmailVerificationToken } from "better-auth/api";
-import { eq } from "drizzle-orm";
+import { and, eq, sql } from "drizzle-orm";
 import { z } from "zod";
 import { getDb } from "@/db";
-import { rateLimit, user } from "@/db/schema";
+import { account, rateLimit, user, verification } from "@/db/schema";
 import { safeInternalReturnTo } from "@/lib/account-email";
 import { getAuth } from "@/lib/auth";
 import { sendAuthEmail } from "@/lib/auth-email";
 import { getAuthEnvironment } from "@/lib/auth-environment";
 import { isSteamSyntheticEmail } from "@/lib/display-name";
 import { isSameOriginRequest } from "@/lib/request-security";
+import {
+  createSteamAccountMergeToken,
+  hashSteamAccountMergeToken,
+  steamAccountMergeIdentifier,
+} from "@/lib/steam-account-merge";
 
 export const dynamic = "force-dynamic";
 
@@ -72,15 +77,62 @@ export async function POST(request: Request) {
   }
 
   const [existingUser] = await db
-    .select({ id: user.id })
+    .select({ id: user.id, email: user.email, emailVerified: user.emailVerified })
     .from(user)
-    .where(eq(user.email, parsed.data.newEmail))
+    .where(sql`lower(${user.email}) = ${parsed.data.newEmail}`)
     .limit(1);
   if (existingUser) {
-    return Response.json(
-      { error: "That address is unavailable. Try another email." },
-      { status: 409 },
-    );
+    const [steamIdentity] = await db
+      .select({ id: account.id })
+      .from(account)
+      .where(and(eq(account.userId, session.user.id), eq(account.providerId, "steam")))
+      .limit(1);
+    if (!steamIdentity || !existingUser.emailVerified) {
+      return Response.json(
+        { error: "That address is unavailable. Try another email." },
+        { status: 409 },
+      );
+    }
+
+    const environment = getAuthEnvironment();
+    const mergeToken = createSteamAccountMergeToken(session.user.id);
+    const mergeIdentifier = steamAccountMergeIdentifier(session.user.id);
+    const mergeURL = new URL("/account/merge-steam", environment.baseURL);
+    mergeURL.searchParams.set("token", mergeToken);
+    await db.delete(verification).where(eq(verification.identifier, mergeIdentifier));
+    await db.insert(verification).values({
+      id: crypto.randomUUID(),
+      identifier: mergeIdentifier,
+      value: JSON.stringify({
+        tokenHash: await hashSteamAccountMergeToken(mergeToken),
+        targetUserId: existingUser.id,
+        targetEmail: existingUser.email,
+        callbackURL: safeInternalReturnTo(parsed.data.callbackURL),
+      }),
+      expiresAt: new Date(Date.now() + 60 * 60 * 1000),
+    });
+
+    try {
+      await sendAuthEmail({
+        to: existingUser.email,
+        subject: "Approve your Steam connection to Black Vector",
+        preheader: "Confirm that this Steam identity belongs to your existing Black Vector profile.",
+        heading: "Connect Steam identity",
+        message:
+          "A Steam sign-in is waiting to join this existing Black Vector account. Approve the connection to keep one profile, one community identity, and every linked sign-in method together.",
+        actionLabel: "APPROVE STEAM CONNECTION",
+        actionUrl: mergeURL.toString(),
+      });
+    } catch (error) {
+      await db.delete(verification).where(eq(verification.identifier, mergeIdentifier));
+      console.error("Steam account merge approval email was rejected.", error);
+      return Response.json(
+        { error: "The mail provider rejected this request. Please try again shortly." },
+        { status: 502 },
+      );
+    }
+
+    return Response.json({ ok: true, requiresMerge: true });
   }
 
   const environment = getAuthEnvironment();
