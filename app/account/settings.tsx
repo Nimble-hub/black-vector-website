@@ -174,6 +174,22 @@ export function AccountSettings({
     setBusy(true);
     setStatus("");
     const newEmail = String(new FormData(event.currentTarget).get("newEmail") || "").trim();
+    if (hasSyntheticEmail) {
+      const response = await fetch("/api/account/contact-email", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ newEmail, callbackURL: verificationCallbackURL }),
+      });
+      const data = await response.json() as { error?: string };
+      if (!response.ok) {
+        setStatus(data.error || "Verification could not be transmitted.");
+      } else {
+        setPendingContactEmail(newEmail);
+        setStatus("Verification accepted by the mail provider. Check your inbox and spam folder.");
+      }
+      setBusy(false);
+      return;
+    }
     const result = await authClient.changeEmail({
       newEmail,
       callbackURL: verificationCallbackURL,
@@ -191,6 +207,24 @@ export function AccountSettings({
     if (!pendingContactEmail) return;
     setBusy(true);
     setStatus("");
+    if (hasSyntheticEmail) {
+      const response = await fetch("/api/account/contact-email", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          newEmail: pendingContactEmail,
+          callbackURL: verificationCallbackURL,
+        }),
+      });
+      const data = await response.json() as { error?: string };
+      setStatus(
+        response.ok
+          ? "Verification accepted again. Check your inbox and spam folder."
+          : data.error || "Verification could not be retransmitted.",
+      );
+      setBusy(false);
+      return;
+    }
     const result = await authClient.changeEmail({
       newEmail: pendingContactEmail,
       callbackURL: verificationCallbackURL,

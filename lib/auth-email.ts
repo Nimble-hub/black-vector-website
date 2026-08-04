@@ -41,7 +41,14 @@ export async function sendAuthEmail(email: AuthEmail) {
     }),
   });
 
+  const result = await response.json().catch(() => null) as {
+    id?: string;
+    message?: string;
+  } | null;
   if (!response.ok) {
-    throw new Error(`Transactional email failed with status ${response.status}.`);
+    const detail = result?.message ? ` ${result.message}` : "";
+    throw new Error(`Transactional email failed with status ${response.status}.${detail}`);
   }
+  if (!result?.id) throw new Error("Transactional email provider did not return a message ID.");
+  return { provider: "resend" as const, messageId: result.id };
 }

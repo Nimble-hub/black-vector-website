@@ -47,12 +47,13 @@ test("keeps account linking explicit and exposes every requested sign-in path", 
 });
 
 test("requires a verified contact email and delivers legacy account reminders", async () => {
-  const [authScreen, continuation, account, settings, conversations, direct, migration] =
+  const [authScreen, continuation, account, settings, contactEmail, conversations, direct, migration] =
     await Promise.all([
       readFile(new URL("app/auth-screen.tsx", root), "utf8"),
       readFile(new URL("app/auth/continue/route.ts", root), "utf8"),
       readFile(new URL("app/account/page.tsx", root), "utf8"),
       readFile(new URL("app/account/settings.tsx", root), "utf8"),
+      readFile(new URL("app/api/account/contact-email/route.ts", root), "utf8"),
       readFile(
         new URL("app/api/community/conversations/route.ts", root),
         "utf8",
@@ -74,6 +75,12 @@ test("requires a verified contact email and delivers legacy account reminders", 
   assert.match(settings, /RESEND VERIFICATION/);
   assert.match(settings, /resendPendingEmail/);
   assert.match(settings, /authClient\.sendVerificationEmail/);
+  assert.match(settings, /\/api\/account\/contact-email/);
+  assert.match(settings, /accepted by the mail provider/i);
+  assert.match(contactEmail, /createEmailVerificationToken/);
+  assert.match(contactEmail, /change-email-verification/);
+  assert.match(contactEmail, /RATE_LIMIT = 3/);
+  assert.match(contactEmail, /sendAuthEmail/);
   assert.match(conversations, /EMAIL_REQUIRED_CONVERSATION_ID/);
   assert.match(direct, /Black Vector Command/);
   assert.match(migration, /uidx_community_notification_system_notice/);
