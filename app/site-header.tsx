@@ -124,7 +124,7 @@ export function SiteHeader({ basePath = "" }: { basePath?: string }) {
                 type="range"
                 min="0"
                 max="100"
-                step="5"
+                step="1"
                 defaultValue="30"
                 aria-label="Cinematic audio volume"
                 data-audio-volume

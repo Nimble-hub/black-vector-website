@@ -7,6 +7,29 @@ const PLAYBACK_GAIN = 0.72;
 const MUSIC_GAIN = 0.051;
 const MUSIC_ENTRY_SECONDS = 16.54;
 const JUMP_FADE_IN_SECONDS = 1;
+const VOLUME_CURVE_ANCHOR = 0.3;
+
+// Preserve the current 30% listening level while giving the lower half of the
+// control more perceptible separation. The upper range still resolves to the
+// same maximum gain, so this adds control without raising the safety ceiling.
+function volumeToGain(volume: number) {
+  const normalized = Math.max(0, Math.min(1, volume));
+  if (normalized === 0) return 0;
+  if (normalized <= VOLUME_CURVE_ANCHOR) {
+    return (
+      VOLUME_CURVE_ANCHOR *
+      Math.pow(normalized / VOLUME_CURVE_ANCHOR, 1.35)
+    );
+  }
+  return (
+    VOLUME_CURVE_ANCHOR +
+    (1 - VOLUME_CURVE_ANCHOR) *
+      Math.pow(
+        (normalized - VOLUME_CURVE_ANCHOR) / (1 - VOLUME_CURVE_ANCHOR),
+        0.68,
+      )
+  );
+}
 
 type AudioWindow = Window &
   typeof globalThis & {
@@ -369,7 +392,9 @@ export class HyperspaceAudio {
     if (!AudioContextClass) return null;
     const context = new AudioContextClass({ latencyHint: "playback" });
     const master = context.createGain();
-    master.gain.value = this.muted ? 0 : PLAYBACK_GAIN * this.volume;
+    master.gain.value = this.muted
+      ? 0
+      : PLAYBACK_GAIN * volumeToGain(this.volume);
     master.connect(context.destination);
     this.context = context;
     this.master = master;
@@ -378,7 +403,9 @@ export class HyperspaceAudio {
 
   private updateMasterGain() {
     if (!this.context || !this.master) return;
-    const target = this.muted ? 0 : PLAYBACK_GAIN * this.volume;
+    const target = this.muted
+      ? 0
+      : PLAYBACK_GAIN * volumeToGain(this.volume);
     const now = this.context.currentTime;
     this.master.gain.cancelScheduledValues(now);
     this.master.gain.setTargetAtTime(target, now, 0.025);
