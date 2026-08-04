@@ -4,16 +4,12 @@ import Link from "next/link";
 import { FormEvent, useEffect, useMemo, useState } from "react";
 import { authClient } from "@/lib/auth-client";
 import type { ProviderAvailability } from "@/lib/auth-environment";
+import { safeInternalReturnTo } from "@/lib/account-email";
 
 type AuthScreenProps = {
   mode: "login" | "register";
   returnTo?: string;
 };
-
-function safeReturnTo(value?: string) {
-  if (!value || !value.startsWith("/") || value.startsWith("//")) return "/account";
-  return value;
-}
 
 function messageFromError(error: unknown) {
   if (error && typeof error === "object" && "message" in error) {
@@ -23,7 +19,14 @@ function messageFromError(error: unknown) {
 }
 
 export function AuthScreen({ mode, returnTo }: AuthScreenProps) {
-  const callbackURL = useMemo(() => safeReturnTo(returnTo), [returnTo]);
+  const callbackURL = useMemo(
+    () => safeInternalReturnTo(returnTo),
+    [returnTo],
+  );
+  const providerCallbackURL = useMemo(
+    () => `/auth/continue?returnTo=${encodeURIComponent(callbackURL)}`,
+    [callbackURL],
+  );
   const [providers, setProviders] = useState<ProviderAvailability | null>(null);
   const [systemReady, setSystemReady] = useState(false);
   const [busy, setBusy] = useState<string | null>(null);
@@ -44,7 +47,10 @@ export function AuthScreen({ mode, returnTo }: AuthScreenProps) {
     setBusy(provider);
     setMessage("");
     try {
-      const result = await authClient.signIn.social({ provider, callbackURL });
+      const result = await authClient.signIn.social({
+        provider,
+        callbackURL: providerCallbackURL,
+      });
       if (result.error) setMessage(result.error.message || "Connection failed.");
     } catch (error) {
       setMessage(messageFromError(error));
@@ -106,7 +112,7 @@ export function AuthScreen({ mode, returnTo }: AuthScreenProps) {
             setBusy("steam");
             // Steam OpenID must leave the app as a full-document navigation.
             // eslint-disable-next-line @next/next/no-location-assign-relative-destination
-            window.location.assign(`/api/auth/steam/login?callbackURL=${encodeURIComponent(callbackURL)}&errorCallbackURL=${encodeURIComponent("/login?error=steam")}`);
+            window.location.assign(`/api/auth/steam/login?callbackURL=${encodeURIComponent(providerCallbackURL)}&errorCallbackURL=${encodeURIComponent("/login?error=steam")}`);
           }}>
             <span className="connection-mark">ST</span>
             <strong>CONTINUE WITH STEAM</strong>
@@ -123,6 +129,13 @@ export function AuthScreen({ mode, returnTo }: AuthScreenProps) {
             <small>{providers?.discord ? "OAUTH 2.0" : "AWAITING CONFIG"}</small>
           </button>
         </div>
+
+        {mode === "register" && (
+          <p className="auth-contact-note">
+            A verified contact email is required for every account. Steam
+            commanders complete this immediately after identity confirmation.
+          </p>
+        )}
 
         <div className="auth-divider"><span>OR MANUAL ACCOUNT</span></div>
 

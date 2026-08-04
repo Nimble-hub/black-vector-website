@@ -1298,6 +1298,13 @@ h1 span {
   letter-spacing: 0.13em;
 }
 
+.auth-contact-note {
+  margin: 14px 0 0;
+  color: rgba(155, 170, 179, 0.62);
+  font: 8px/1.7 Consolas, "Cascadia Mono", monospace;
+  letter-spacing: 0.08em;
+}
+
 .connection-mark {
   display: grid;
   width: 30px;
@@ -1493,6 +1500,24 @@ nav[aria-label="Community navigation"] a:focus-visible {
 .account-view-heading { max-width: 800px; margin-bottom: 10px; }
 .account-view-heading h1 { margin: 10px 0 16px; font: 700 clamp(40px, 5vw, 70px)/.92 Bahnschrift, "Arial Narrow", sans-serif; letter-spacing: -.035em; }
 .account-view-heading > p:last-child { max-width: 670px; color: rgba(155, 170, 179, .72); line-height: 1.65; }
+
+.account-email-required {
+  display: flex;
+  max-width: 820px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 26px;
+  padding: 22px 24px;
+  border: 1px solid rgba(215, 158, 65, .38);
+  border-left: 3px solid var(--amber);
+  background: linear-gradient(100deg, rgba(145, 86, 24, .16), rgba(3, 8, 12, .72));
+}
+.account-email-required div { display: grid; gap: 7px; }
+.account-email-required small { color: var(--amber); font: 700 7px/1 Consolas, monospace; letter-spacing: .15em; }
+.account-email-required h2 { margin: 0; color: var(--ivory); font: 700 20px/1 Bahnschrift, "Arial Narrow", sans-serif; letter-spacing: .03em; }
+.account-email-required p { max-width: 610px; margin: 0; color: rgba(210, 210, 204, .7); font-size: 12px; line-height: 1.55; }
+.account-email-required > strong { flex: 0 0 auto; color: var(--amber); font: 700 8px/1 Consolas, monospace; letter-spacing: .14em; }
+.contact-channel-required { border-color: rgba(215, 158, 65, .34); box-shadow: inset 3px 0 0 rgba(215, 158, 65, .74); }
 
 .settings-form {
   max-width: 820px;
@@ -1693,6 +1718,7 @@ nav[aria-label="Community navigation"] a:focus-visible {
   .account-sidebar button.is-active { border-left: 0; border-bottom-color: var(--cyan); }
   .account-sidebar .account-signout { margin: 0 0 0 auto; }
   .account-content { padding: 30px 16px; }
+  .account-email-required { align-items: flex-start; flex-direction: column; gap: 14px; padding: 18px 16px; }
   .settings-form { padding: 20px 16px; }
   .settings-row { grid-template-columns: 1fr; }
   .avatar-settings { grid-template-columns: 82px 1fr; gap: 16px; }

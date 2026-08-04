@@ -1,6 +1,7 @@
 "use client";
 
 import Image from "next/image";
+import Link from "next/link";
 import {
   FormEvent,
   useCallback,
@@ -12,6 +13,7 @@ import {
 import type { CommunityChatMessage, CommunityRole } from "@/lib/community";
 import social from "./community-social.module.css";
 import { submitChatOnEnter } from "@/lib/chat-input";
+import { EMAIL_REQUIRED_CONVERSATION_ID } from "@/lib/account-email";
 
 interface Member {
   id: string;
@@ -446,24 +448,37 @@ export function CommunityMembersPanel({
               </article>
             ))}
           </div>
-          <form onSubmit={transmit}>
-            {replyingTo && (
-              <div className={social.replyingTo}>
-                <span>REPLYING TO <b>{replyingTo.displayName}</b></span>
-                <button type="button" onClick={() => setReplyingTo(null)}>CANCEL</button>
-              </div>
-            )}
-            <textarea
-              value={text}
-              onChange={(event) => setText(event.target.value)}
-              onKeyDown={(event) => {
-                if (submitChatOnEnter(event)) void transmit();
-              }}
-              maxLength={1000}
-              placeholder="Direct transmission…"
-            />
-            <button>TRANSMIT</button>
-          </form>
+          {selected.id === EMAIL_REQUIRED_CONVERSATION_ID ? (
+            <div className={social.systemDmAction}>
+              <span>
+                COMPLETE YOUR CONTACT CHANNEL TO RECEIVE PLAYTEST NOTICES.
+              </span>
+              <Link href="/account?email=required">VERIFY EMAIL</Link>
+            </div>
+          ) : (
+            <form onSubmit={transmit}>
+              {replyingTo && (
+                <div className={social.replyingTo}>
+                  <span>
+                    REPLYING TO <b>{replyingTo.displayName}</b>
+                  </span>
+                  <button type="button" onClick={() => setReplyingTo(null)}>
+                    CANCEL
+                  </button>
+                </div>
+              )}
+              <textarea
+                value={text}
+                onChange={(event) => setText(event.target.value)}
+                onKeyDown={(event) => {
+                  if (submitChatOnEnter(event)) void transmit();
+                }}
+                maxLength={1000}
+                placeholder="Direct transmission…"
+              />
+              <button>TRANSMIT</button>
+            </form>
+          )}
         </div>
       ) : tab === "online" ? (
         <div className={social.memberList}>

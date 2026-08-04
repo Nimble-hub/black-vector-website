@@ -437,6 +437,9 @@ export const communityNotification = sqliteTable(
       table.userId,
       table.readAt,
     ),
+    uniqueIndex("uidx_community_notification_system_notice")
+      .on(table.userId, table.type, table.title)
+      .where(sql`${table.actorId} IS NULL`),
   ],
 );
 

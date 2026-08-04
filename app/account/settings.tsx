@@ -46,6 +46,8 @@ export function AccountSettings({
   initialProfile,
   initialTab,
   initialStatus,
+  emailRequired,
+  returnTo,
 }: {
   user: { id: string; name: string; email: string; emailVerified: boolean; image: string | null };
   accounts: AccountRecord[];
@@ -53,6 +55,8 @@ export function AccountSettings({
   initialProfile: PlayerProfile | null;
   initialTab: "profile" | "connections" | "security";
   initialStatus: string;
+  emailRequired: boolean;
+  returnTo: string;
 }) {
   const router = useRouter();
   const [tab, setTab] = useState<"profile" | "connections" | "security">(initialTab);
@@ -60,6 +64,8 @@ export function AccountSettings({
   const [busy, setBusy] = useState(false);
   const [avatar, setAvatar] = useState(user.image);
   const linked = useMemo(() => new Map(accounts.map((item) => [item.providerId, item])), [accounts]);
+  const verificationCallbackURL = `/auth/continue?returnTo=${encodeURIComponent(returnTo)}`;
+  const hasSyntheticEmail = user.email.toLowerCase().endsWith(".invalid");
 
   const uploadAvatar = async (file: File) => {
     setBusy(true);
@@ -153,10 +159,28 @@ export function AccountSettings({
     setBusy(true);
     setStatus("");
     const newEmail = String(new FormData(event.currentTarget).get("newEmail") || "").trim();
-    const result = await authClient.changeEmail({ newEmail, callbackURL: "/account?email=verified" });
+    const result = await authClient.changeEmail({
+      newEmail,
+      callbackURL: verificationCallbackURL,
+    });
     setStatus(result.error
       ? result.error.message || "Email change could not be started."
       : "Verification transmitted to the new address.");
+    setBusy(false);
+  };
+
+  const verifyCurrentEmail = async () => {
+    setBusy(true);
+    setStatus("");
+    const result = await authClient.sendVerificationEmail({
+      email: user.email,
+      callbackURL: verificationCallbackURL,
+    });
+    setStatus(
+      result.error
+        ? result.error.message || "Verification could not be transmitted."
+        : "Verification transmitted. Check your inbox.",
+    );
     setBusy(false);
   };
 
@@ -210,6 +234,21 @@ export function AccountSettings({
         {tab === "profile" && (
           <div className="account-view">
             <div className="account-view-heading"><p className="eyebrow">PLAYER RECORD // PLAYTEST INTAKE</p><h1>PROFILE &amp; ACCESS.</h1><p>Choose how the development team can identify and contact you for future test waves.</p></div>
+            {emailRequired && (
+              <section className="account-email-required" role="alert">
+                <div>
+                  <small>ACCOUNT SETUP // ACTION REQUIRED</small>
+                  <h2>VERIFY YOUR CONTACT CHANNEL.</h2>
+                  <p>
+                    We need a deliverable email for playtest invitations,
+                    access windows, security notices, and major account
+                    updates. Optional development news remains controlled by
+                    your preference below.
+                  </p>
+                </div>
+                <strong>EMAIL REQUIRED</strong>
+              </section>
+            )}
             <section className="settings-form avatar-settings" aria-labelledby="avatar-settings-title">
               <div className="avatar-preview">
                 {avatar ? <Image src={avatar} alt="Current profile" width={112} height={112} unoptimized /> : <span>{user.name.split(/\s+/).slice(0, 2).map((part) => part[0]).join("").toUpperCase()}</span>}
@@ -226,15 +265,30 @@ export function AccountSettings({
             <form className="settings-form" onSubmit={saveIdentity}>
               <h2>IDENTITY</h2>
               <label><span>DISPLAY NAME</span><input name="name" defaultValue={user.name} minLength={2} maxLength={48} required /></label>
-              <label><span>PRIMARY EMAIL</span><input value={user.email.endsWith(".invalid") ? "Steam identity — add a verified email later" : user.email} disabled /></label>
+              <label><span>PRIMARY EMAIL</span><input value={hasSyntheticEmail ? "Steam identity — verified email required" : user.email} disabled /></label>
               <button type="submit" disabled={busy}>UPDATE IDENTITY</button>
             </form>
-            <form className="settings-form" onSubmit={changeEmail}>
-              <h2>CONTACT CHANNEL</h2>
-              <p>Changing this address requires confirmation at the new inbox.</p>
-              <label><span>NEW EMAIL ADDRESS</span><input name="newEmail" type="email" autoComplete="email" required /></label>
-              <button type="submit" disabled={busy || !providers.manual}>VERIFY NEW EMAIL</button>
-            </form>
+            {hasSyntheticEmail ? (
+              <form className="settings-form contact-channel-required" onSubmit={changeEmail}>
+                <h2>CONTACT CHANNEL</h2>
+                <p>Add the inbox where Black Vector should send account and playtest notices. We will verify it before replacing the Steam placeholder.</p>
+                <label><span>EMAIL ADDRESS</span><input name="newEmail" type="email" autoComplete="email" required /></label>
+                <button type="submit" disabled={busy || !providers.manual}>SEND VERIFICATION</button>
+              </form>
+            ) : !user.emailVerified ? (
+              <section className="settings-form contact-channel-required">
+                <h2>CONTACT CHANNEL</h2>
+                <p>{user.email} is waiting for inbox confirmation.</p>
+                <button type="button" disabled={busy || !providers.manual} onClick={() => void verifyCurrentEmail()}>RESEND VERIFICATION</button>
+              </section>
+            ) : (
+              <form className="settings-form" onSubmit={changeEmail}>
+                <h2>CONTACT CHANNEL</h2>
+                <p>Changing this address requires confirmation at the new inbox.</p>
+                <label><span>NEW EMAIL ADDRESS</span><input name="newEmail" type="email" autoComplete="email" required /></label>
+                <button type="submit" disabled={busy || !providers.manual}>VERIFY NEW EMAIL</button>
+              </form>
+            )}
             <form className="settings-form" onSubmit={saveProfile}>
               <h2>PLAYTEST PROFILE</h2>
               <label><span>CALLSIGN</span><input name="callsign" defaultValue={initialProfile?.callsign || ""} maxLength={32} /></label>
@@ -243,7 +297,7 @@ export function AccountSettings({
                 <label><span>STRATEGY EXPERIENCE</span><select name="strategyExperience" defaultValue={initialProfile?.strategyExperience || "intermediate"}><option value="new">New commander</option><option value="intermediate">Experienced</option><option value="veteran">Veteran / competitive</option></select></label>
               </div>
               <label className="settings-check"><input name="playtestOptIn" type="checkbox" defaultChecked={initialProfile?.playtestOptIn || false} /><span>Place me in the Black Vector playtest candidate pool.</span></label>
-              <label className="settings-check"><input name="developmentUpdatesOptIn" type="checkbox" defaultChecked={initialProfile?.developmentUpdatesOptIn || false} /><span>Send occasional development and release transmissions.</span></label>
+              <label className="settings-check"><input name="developmentUpdatesOptIn" type="checkbox" defaultChecked={initialProfile?.developmentUpdatesOptIn || false} /><span>Send optional development news, release announcements, and studio updates. Account and enrolled-playtest notices are sent separately.</span></label>
               <button type="submit" disabled={busy}>{busy ? "SYNCHRONIZING..." : "SAVE PLAYTEST PROFILE"}</button>
             </form>
           </div>

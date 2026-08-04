@@ -5,7 +5,7 @@ import type { CommunityNotificationType } from "@/lib/community";
 
 interface NotificationInput {
   userId: string;
-  actorId: string;
+  actorId: string | null;
   type: CommunityNotificationType;
   title: string;
   body: string;
@@ -13,10 +13,10 @@ interface NotificationInput {
 }
 
 export async function createCommunityNotification(input: NotificationInput) {
-  if (input.userId === input.actorId) return;
+  if (input.actorId && input.userId === input.actorId) return;
   await getD1()
     .prepare(
-      `INSERT INTO community_notification
+      `INSERT OR IGNORE INTO community_notification
         (id, user_id, actor_id, type, title, body, href, read_at, created_at)
        VALUES (?, ?, ?, ?, ?, ?, ?, NULL, ?)`,
     )

@@ -6,6 +6,10 @@ import {
   orderedPair,
 } from "@/lib/community-social";
 import { isSameOriginRequest } from "@/lib/request-security";
+import {
+  EMAIL_REQUIRED_CONVERSATION_ID,
+  hasVerifiedContactEmail,
+} from "@/lib/account-email";
 
 export const dynamic = "force-dynamic";
 
@@ -50,25 +54,37 @@ export async function GET() {
     )
     .bind(session.user.id, session.user.id, session.user.id)
     .all<ConversationRow>();
-  return Response.json({
-    conversations: rows.results.map((row) => ({
-      id: row.id,
-      updatedAt: row.updated_at,
+  const conversations = rows.results.map((row) => ({
+    id: row.id,
+    updatedAt: row.updated_at,
+    member: {
+      id: row.member_id,
+      name: row.member_name,
+      image: row.member_image,
+      online:
+        (row.last_seen_at ?? 0) >= onlineThreshold &&
+        row.presence_status !== "invisible",
+      presenceStatus:
+        (row.last_seen_at ?? 0) >= onlineThreshold &&
+        row.presence_status !== "invisible"
+          ? (row.presence_status ?? "online")
+          : "offline",
+    },
+  }));
+  if (!hasVerifiedContactEmail(session.user)) {
+    conversations.unshift({
+      id: EMAIL_REQUIRED_CONVERSATION_ID,
+      updatedAt: new Date(session.user.createdAt).getTime(),
       member: {
-        id: row.member_id,
-        name: row.member_name,
-        image: row.member_image,
-        online:
-          (row.last_seen_at ?? 0) >= onlineThreshold &&
-          row.presence_status !== "invisible",
-        presenceStatus:
-          (row.last_seen_at ?? 0) >= onlineThreshold &&
-          row.presence_status !== "invisible"
-            ? (row.presence_status ?? "online")
-            : "offline",
+        id: "black-vector-command",
+        name: "Black Vector Command",
+        image: null,
+        online: true,
+        presenceStatus: "online",
       },
-    })),
-  });
+    });
+  }
+  return Response.json({ conversations });
 }
 
 export async function POST(request: Request) {

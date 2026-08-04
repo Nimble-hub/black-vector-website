@@ -46,6 +46,39 @@ test("keeps account linking explicit and exposes every requested sign-in path", 
   ]);
 });
 
+test("requires a verified contact email and delivers legacy account reminders", async () => {
+  const [authScreen, continuation, account, settings, conversations, direct, migration] =
+    await Promise.all([
+      readFile(new URL("app/auth-screen.tsx", root), "utf8"),
+      readFile(new URL("app/auth/continue/route.ts", root), "utf8"),
+      readFile(new URL("app/account/page.tsx", root), "utf8"),
+      readFile(new URL("app/account/settings.tsx", root), "utf8"),
+      readFile(
+        new URL("app/api/community/conversations/route.ts", root),
+        "utf8",
+      ),
+      readFile(
+        new URL("app/api/community/dm/[conversationId]/route.ts", root),
+        "utf8",
+      ),
+      readFile(new URL("drizzle/0006_clean_nekra.sql", root), "utf8"),
+    ]);
+
+  assert.match(authScreen, /providerCallbackURL/);
+  assert.match(authScreen, /verified contact email is required/i);
+  assert.match(continuation, /hasVerifiedContactEmail/);
+  assert.match(continuation, /ensureContactEmailReminder/);
+  assert.match(account, /emailRequired/);
+  assert.match(settings, /VERIFY YOUR CONTACT CHANNEL/);
+  assert.match(settings, /Optional development news remains controlled/);
+  assert.match(settings, /authClient\.sendVerificationEmail/);
+  assert.match(conversations, /EMAIL_REQUIRED_CONVERSATION_ID/);
+  assert.match(direct, /Black Vector Command/);
+  assert.match(migration, /uidx_community_notification_system_notice/);
+  assert.match(migration, /Contact email required/);
+  assert.match(migration, /LIKE '%\.invalid'/);
+});
+
 test("secures and exposes manual-account password recovery", async () => {
   const [auth, email, forgotPassword, resetPassword] = await Promise.all([
     readFile(new URL("lib/auth.ts", root), "utf8"),

@@ -7,6 +7,10 @@ import { getAuth } from "@/lib/auth";
 import { getAuthEnvironment } from "@/lib/auth-environment";
 import { getDb } from "@/db";
 import { playtestProfile } from "@/db/schema";
+import {
+  hasVerifiedContactEmail,
+  safeInternalReturnTo,
+} from "@/lib/account-email";
 import { AccountSettings } from "./settings";
 
 export const metadata: Metadata = { title: "Account settings" };
@@ -24,7 +28,12 @@ const connectionMessages: Record<string, string> = {
 export default async function AccountPage({
   searchParams,
 }: {
-  searchParams: Promise<{ tab?: string; connection?: string; email?: string }>;
+  searchParams: Promise<{
+    tab?: string;
+    connection?: string;
+    email?: string;
+    returnTo?: string;
+  }>;
 }) {
   const environment = getAuthEnvironment();
   if (!environment.coreConfigured) redirect("/login?returnTo=/account");
@@ -39,16 +48,22 @@ export default async function AccountPage({
     getDb().select().from(playtestProfile).where(eq(playtestProfile.userId, session.user.id)).limit(1),
   ]);
   const query = await searchParams;
-  const initialTab = query.connection
-    ? "connections"
-    : query.tab === "connections" || query.tab === "security"
-      ? query.tab
-      : "profile";
-  const initialStatus = query.email === "verified"
-    ? "Primary email verified."
+  const emailRequired = !hasVerifiedContactEmail(session.user);
+  const returnTo = safeInternalReturnTo(query.returnTo);
+  const initialTab = emailRequired
+    ? "profile"
     : query.connection
-      ? connectionMessages[query.connection] || "Connection flow completed."
-      : "";
+      ? "connections"
+      : query.tab === "connections" || query.tab === "security"
+        ? query.tab
+        : "profile";
+  const initialStatus = query.email === "required"
+    ? "Verify a deliverable contact email to complete this account."
+    : query.email === "verified"
+      ? "Primary email verified."
+      : query.connection
+        ? connectionMessages[query.connection] || "Connection flow completed."
+        : "";
 
   return (
     <main className="account-shell">
@@ -76,6 +91,8 @@ export default async function AccountPage({
         providers={environment.providers}
         initialTab={initialTab}
         initialStatus={initialStatus}
+        emailRequired={emailRequired}
+        returnTo={returnTo}
         initialProfile={profiles[0] ? {
           callsign: profiles[0].callsign || "",
           preferredPlatform: profiles[0].preferredPlatform,

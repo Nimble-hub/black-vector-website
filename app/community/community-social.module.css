@@ -338,6 +338,29 @@
   background: rgba(3, 11, 15, 0.98);
 }
 
+.systemDmAction {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px;
+  border-top: 1px solid rgba(126, 190, 195, 0.14);
+  background: rgba(3, 11, 15, 0.98);
+  color: #70858b;
+  font: 700 7px/1.5 Consolas, monospace;
+  letter-spacing: 0.08em;
+}
+
+.systemDmAction a {
+  flex: 0 0 auto;
+  padding: 10px 12px;
+  background: #64d2d8;
+  color: #021014;
+  font: 700 7px/1 Consolas, monospace;
+  letter-spacing: 0.1em;
+  text-decoration: none;
+}
+
 .directThread textarea,
 .clanWorkspace textarea,
 .clanWorkspace input {

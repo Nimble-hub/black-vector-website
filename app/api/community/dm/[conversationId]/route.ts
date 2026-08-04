@@ -8,6 +8,11 @@ import {
 import { isSameOriginRequest } from "@/lib/request-security";
 import type { CommunityChatMessage } from "@/lib/community";
 import { createCommunityNotification } from "@/lib/community-notifications";
+import {
+  EMAIL_REQUIRED_CONVERSATION_ID,
+  EMAIL_REQUIRED_MESSAGE_ID,
+  hasVerifiedContactEmail,
+} from "@/lib/account-email";
 
 export const dynamic = "force-dynamic";
 
@@ -27,6 +32,27 @@ export async function GET(
       { status: 401 },
     );
   const { conversationId } = await params;
+  if (conversationId === EMAIL_REQUIRED_CONVERSATION_ID) {
+    if (hasVerifiedContactEmail(session.user)) {
+      return Response.json({ error: "Contact channel already verified." }, { status: 404 });
+    }
+    return Response.json({
+      messages: [
+        {
+          id: EMAIL_REQUIRED_MESSAGE_ID,
+          channel: `dm:${EMAIL_REQUIRED_CONVERSATION_ID}`,
+          userId: "black-vector-command",
+          displayName: "Black Vector Command",
+          avatarUrl: null,
+          content:
+            "Commander, add and verify a contact email so we can reach you about playtest waves, access windows, security notices, and important Black Vector updates.",
+          createdAt: new Date(session.user.createdAt).getTime(),
+          updatedAt: null,
+          replyTo: null,
+        },
+      ],
+    });
+  }
   const membership = await requireConversationMembership(
     conversationId,
     session.user.id,
@@ -52,6 +78,12 @@ export async function POST(
   if (!session)
     return Response.json({ error: "Sign in to transmit." }, { status: 401 });
   const { conversationId } = await params;
+  if (conversationId === EMAIL_REQUIRED_CONVERSATION_ID) {
+    return Response.json(
+      { error: "This command channel is read-only." },
+      { status: 403 },
+    );
+  }
   const membership = await requireConversationMembership(
     conversationId,
     session.user.id,
