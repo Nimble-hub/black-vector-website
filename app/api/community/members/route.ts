@@ -15,6 +15,7 @@ interface MemberRow {
   role: "member" | "moderator" | "admin";
   last_seen_at: number | null;
   presence_status: "online" | "dnd" | "invisible" | null;
+  total_count: number;
 }
 
 const statusInput = z.object({
@@ -42,8 +43,9 @@ export async function GET() {
       u.name,
       u.image,
       COALESCE(sr.role, 'member') AS role,
-      p.last_seen_at
-      ,p.status AS presence_status
+      p.last_seen_at,
+      p.status AS presence_status,
+      (SELECT COUNT(*) FROM user) AS total_count
     FROM user u
     LEFT JOIN community_staff_role sr ON sr.user_id = u.id
     LEFT JOIN community_presence p ON p.user_id = u.id
@@ -59,6 +61,7 @@ export async function GET() {
 
   return Response.json({
     selfStatus: selfPresence?.status ?? "online",
+    totalMembers: Number(result.results[0]?.total_count ?? 0),
     members: result.results.map((member) => ({
       id: member.id,
       isSelf: member.id === session.user.id,

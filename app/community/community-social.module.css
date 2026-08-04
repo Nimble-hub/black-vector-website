@@ -121,6 +121,27 @@
   text-align: left;
 }
 
+.rosterSection {
+  position: sticky;
+  z-index: 1;
+  top: 0;
+  display: flex;
+  min-height: 30px;
+  align-items: center;
+  justify-content: space-between;
+  margin: 0;
+  padding: 0 13px;
+  border-bottom: 1px solid rgba(126, 190, 195, 0.1);
+  background: rgba(3, 11, 15, 0.96);
+  color: #60777d;
+  font: 700 6px/1 Consolas, monospace;
+  letter-spacing: 0.15em;
+}
+
+.rosterSection b {
+  color: #69d7dd;
+}
+
 .memberSearch {
   position: sticky;
   z-index: 2;

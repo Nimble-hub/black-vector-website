@@ -66,6 +66,7 @@ export function CommunityMembersPanel({
     "online",
   );
   const [members, setMembers] = useState<Member[]>([]);
+  const [totalMembers, setTotalMembers] = useState(0);
   const [friends, setFriends] = useState<Friend[]>([]);
   const [incoming, setIncoming] = useState<Friend[]>([]);
   const [outgoing, setOutgoing] = useState<Friend[]>([]);
@@ -86,9 +87,14 @@ export function CommunityMembersPanel({
     });
     const data = (await response.json()) as {
       members?: Member[];
+      totalMembers?: number;
       error?: string;
     };
-    if (response.ok) setMembers(data.members ?? []);
+    if (response.ok) {
+      const roster = data.members ?? [];
+      setMembers(roster);
+      setTotalMembers(data.totalMembers ?? roster.length);
+    }
   }, [currentUser]);
 
   const loadFriends = useCallback(async () => {
@@ -306,6 +312,55 @@ export function CommunityMembersPanel({
     setReplyingTo(null);
   }
 
+  const onlineMembers = members.filter((member) => member.online);
+  const offlineMembers = members.filter((member) => !member.online);
+
+  const renderMember = (member: Member) => (
+    <article key={member.id}>
+      <Avatar member={member} />
+      <span>
+        <b>{member.name}</b>
+        <small className={member.online ? social.online : ""}>
+          {member.presenceStatus === "dnd"
+            ? "DO NOT DISTURB"
+            : member.online
+              ? "ONLINE"
+              : "OFFLINE"}
+          {member.role !== "member"
+            ? ` · ${member.role.toUpperCase()}`
+            : ""}
+        </small>
+        {member.isSelf && <em className={social.selfBadge}>YOU</em>}
+      </span>
+      <div hidden={member.isSelf}>
+        <button
+          disabled={busy !== null}
+          onClick={() => void openDirect(member)}
+        >
+          DM
+        </button>
+        {incomingIds.has(member.id) && (
+          <button
+            disabled={busy !== null}
+            onClick={() => void changeFriend(member.id, "accept")}
+          >
+            ACCEPT
+          </button>
+        )}
+        {!friendIds.has(member.id) &&
+          !outgoingIds.has(member.id) &&
+          !incomingIds.has(member.id) && (
+            <button
+              disabled={busy !== null}
+              onClick={() => void requestFriend(member.id)}
+            >
+              +
+            </button>
+          )}
+      </div>
+    </article>
+  );
+
   if (!currentUser) {
     return (
       <aside className={social.membersPanel}>
@@ -328,7 +383,7 @@ export function CommunityMembersPanel({
             ? selected.member.online
               ? "DIRECT COMMS // ONLINE"
               : "DIRECT COMMS // OFFLINE DELIVERY"
-            : "CREW NETWORK"}
+            : `CREW NETWORK // ${totalMembers.toLocaleString()} TOTAL`}
         </small>
         <strong>{selected ? selected.member.name : "MEMBERS"}</strong>
         {selected && <button onClick={() => setSelected(null)}>BACK</button>}
@@ -339,13 +394,13 @@ export function CommunityMembersPanel({
             className={tab === "online" ? social.active : ""}
             onClick={() => setTab("online")}
           >
-            ONLINE <b>{members.filter((item) => item.online).length}</b>
+            ONLINE <b>{onlineMembers.length}</b>
           </button>
           <button
             className={tab === "members" ? social.active : ""}
             onClick={() => setTab("members")}
           >
-            MEMBERS <b>{members.length}</b>
+            MEMBERS <b>{totalMembers}</b>
           </button>
           <button
             className={tab === "friends" ? social.active : ""}
@@ -412,102 +467,24 @@ export function CommunityMembersPanel({
         </div>
       ) : tab === "online" ? (
         <div className={social.memberList}>
-          {members
-            .filter((member) => member.online)
-            .map((member) => (
-              <article key={member.id}>
-                <Avatar member={member} />
-                <span>
-                  <b>{member.name}</b>
-                  <small className={member.online ? social.online : ""}>
-                    {member.presenceStatus === "dnd"
-                      ? "DO NOT DISTURB"
-                      : "ONLINE"}
-                    {member.role !== "member"
-                      ? ` · ${member.role.toUpperCase()}`
-                      : ""}
-                  </small>
-                  {member.isSelf && <em className={social.selfBadge}>YOU</em>}
-                </span>
-                <div hidden={member.isSelf}>
-                  <button
-                    disabled={busy !== null}
-                    onClick={() => void openDirect(member)}
-                  >
-                    DM
-                  </button>
-                  {incomingIds.has(member.id) && (
-                    <button
-                      disabled={busy !== null}
-                      onClick={() => void changeFriend(member.id, "accept")}
-                    >
-                      ACCEPT
-                    </button>
-                  )}
-                  {!friendIds.has(member.id) &&
-                    !outgoingIds.has(member.id) &&
-                    !incomingIds.has(member.id) && (
-                      <button
-                        disabled={busy !== null}
-                        onClick={() => void requestFriend(member.id)}
-                      >
-                        +
-                      </button>
-                    )}
-                </div>
-              </article>
-            ))}
-          {!members.some((member) => member.online) && (
+          <p className={social.rosterSection}>
+            ONLINE CREW <b>{onlineMembers.length}</b>
+          </p>
+          {onlineMembers.map(renderMember)}
+          {!onlineMembers.length && (
             <p className={social.emptySocial}>NO CREW ONLINE.</p>
+          )}
+          <p className={social.rosterSection}>
+            OFFLINE CREW <b>{offlineMembers.length}</b>
+          </p>
+          {offlineMembers.map(renderMember)}
+          {!offlineMembers.length && (
+            <p className={social.emptySocial}>NO CREW OFFLINE.</p>
           )}
         </div>
       ) : tab === "members" ? (
         <div className={social.memberList}>
-          {members.map((member) => (
-            <article key={member.id}>
-              <Avatar member={member} />
-              <span>
-                <b>{member.name}</b>
-                <small className={member.online ? social.online : ""}>
-                  {member.presenceStatus === "dnd"
-                    ? "DO NOT DISTURB"
-                    : member.online
-                      ? "ONLINE"
-                      : "OFFLINE"}
-                  {member.role !== "member"
-                    ? ` · ${member.role.toUpperCase()}`
-                    : ""}
-                </small>
-                {member.isSelf && <em className={social.selfBadge}>YOU</em>}
-              </span>
-              <div hidden={member.isSelf}>
-                <button
-                  disabled={busy !== null}
-                  onClick={() => void openDirect(member)}
-                >
-                  DM
-                </button>
-                {incomingIds.has(member.id) && (
-                  <button
-                    disabled={busy !== null}
-                    onClick={() => void changeFriend(member.id, "accept")}
-                  >
-                    ACCEPT
-                  </button>
-                )}
-                {!friendIds.has(member.id) &&
-                  !outgoingIds.has(member.id) &&
-                  !incomingIds.has(member.id) && (
-                    <button
-                      disabled={busy !== null}
-                      onClick={() => void requestFriend(member.id)}
-                    >
-                      +
-                    </button>
-                  )}
-              </div>
-            </article>
-          ))}
+          {members.map(renderMember)}
           {!members.length && (
             <p className={social.emptySocial}>NO REGISTERED CREW FOUND.</p>
           )}

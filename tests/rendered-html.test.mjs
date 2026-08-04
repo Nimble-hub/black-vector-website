@@ -285,6 +285,8 @@ test("ships authenticated social connections, direct comms, and clan operations"
   assert.match(memberUi, /ONLINE/);
   assert.match(memberUi, /social\.selfBadge/);
   assert.match(memberUi, /MEMBERS/);
+  assert.match(memberUi, /OFFLINE CREW/);
+  assert.match(memberUi, /totalMembers/);
   assert.match(memberUi, /DIRECT COMMS \/\/ OFFLINE DELIVERY/);
   assert.match(memberUi, /FIND CREW TO ADD/);
   assert.match(memberUi, /START DIRECT COMMS/);
