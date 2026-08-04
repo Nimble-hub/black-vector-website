@@ -79,6 +79,30 @@ test("requires a verified contact email and delivers legacy account reminders", 
   assert.match(migration, /LIKE '%\.invalid'/);
 });
 
+test("keeps provider real names out of the public community identity", async () => {
+  const [auth, authScreen, account, community, schema, migration, room] =
+    await Promise.all([
+      readFile(new URL("lib/auth.ts", root), "utf8"),
+      readFile(new URL("app/auth-screen.tsx", root), "utf8"),
+      readFile(new URL("app/account/settings.tsx", root), "utf8"),
+      readFile(new URL("app/community/community-console.tsx", root), "utf8"),
+      readFile(new URL("db/schema.ts", root), "utf8"),
+      readFile(new URL("drizzle/0007_sticky_masque.sql", root), "utf8"),
+      readFile(new URL("worker/chat-room.ts", root), "utf8"),
+    ]);
+
+  assert.match(schema, /displayNameSet/);
+  assert.match(auth, /createDefaultDisplayName/);
+  assert.match(auth, /displayNameSet:\s*true/);
+  assert.match(authScreen, /displayNameSet:\s*true/);
+  assert.match(account, /CHOOSE YOUR DISPLAY NAME/);
+  assert.match(community, /PUBLIC IDENTITY \/\/ PRIVACY CHECK/);
+  assert.match(community, /SET DISPLAY NAME/);
+  assert.match(migration, /'Vector-' \|\| upper/);
+  assert.match(migration, /'credential', 'discord', 'steam'/);
+  assert.match(room, /refreshProfiles/);
+});
+
 test("secures and exposes manual-account password recovery", async () => {
   const [auth, email, forgotPassword, resetPassword] = await Promise.all([
     readFile(new URL("lib/auth.ts", root), "utf8"),

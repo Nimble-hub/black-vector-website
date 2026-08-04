@@ -8,6 +8,7 @@ import { getDb } from "@/db";
 import * as schema from "@/db/schema";
 import { getAuthEnvironment } from "./auth-environment";
 import { sendAuthEmail } from "./auth-email";
+import { createDefaultDisplayName, isSteamSyntheticEmail } from "./display-name";
 
 function createAuth() {
   const authEnvironment = getAuthEnvironment();
@@ -23,6 +24,7 @@ function createAuth() {
     socialProviders.discord = {
       clientId: runtime.DISCORD_CLIENT_ID!,
       clientSecret: runtime.DISCORD_CLIENT_SECRET!,
+      mapProfileToUser: () => ({ displayNameSet: true }),
     };
   }
 
@@ -73,6 +75,47 @@ function createAuth() {
   },
   user: {
     changeEmail: { enabled: true },
+    additionalFields: {
+      displayNameSet: {
+        type: "boolean",
+        required: false,
+        defaultValue: false,
+        input: true,
+      },
+    },
+  },
+  databaseHooks: {
+    user: {
+      create: {
+        before: async (newUser) => {
+          if (newUser.displayNameSet === true || isSteamSyntheticEmail(newUser.email)) {
+            return {
+              data: {
+                ...newUser,
+                displayNameSet: true,
+              },
+            };
+          }
+          return {
+            data: {
+              ...newUser,
+              name: createDefaultDisplayName(),
+              displayNameSet: false,
+            },
+          };
+        },
+      },
+      update: {
+        before: async (userUpdate) => {
+          if ("name" in userUpdate && userUpdate.displayNameSet !== true) {
+            const { name: _providerName, ...safeUpdate } = userUpdate;
+            void _providerName;
+            return { data: safeUpdate };
+          }
+          return { data: userUpdate };
+        },
+      },
+    },
   },
   account: {
     encryptOAuthTokens: true,

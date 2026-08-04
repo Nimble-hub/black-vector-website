@@ -71,7 +71,16 @@ export function AuthScreen({ mode, returnTo }: AuthScreenProps) {
         const name = String(form.get("name") || "").trim();
         const confirmPassword = String(form.get("confirmPassword") || "");
         if (password !== confirmPassword) throw new Error("The access keys do not match.");
-        const result = await authClient.signUp.email({ name, email, password, callbackURL });
+        const registration = {
+          name,
+          email,
+          password,
+          callbackURL,
+          displayNameSet: true,
+        } as Parameters<typeof authClient.signUp.email>[0] & {
+          displayNameSet: boolean;
+        };
+        const result = await authClient.signUp.email(registration);
         if (result.error) throw new Error(result.error.message);
         setMessage("Verification transmitted. Check your email to activate the account.");
         event.currentTarget.reset();

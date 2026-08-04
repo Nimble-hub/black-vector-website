@@ -47,6 +47,7 @@ export function AccountSettings({
   initialTab,
   initialStatus,
   emailRequired,
+  displayNameRequired,
   returnTo,
 }: {
   user: { id: string; name: string; email: string; emailVerified: boolean; image: string | null };
@@ -56,6 +57,7 @@ export function AccountSettings({
   initialTab: "profile" | "connections" | "security";
   initialStatus: string;
   emailRequired: boolean;
+  displayNameRequired: boolean;
   returnTo: string;
 }) {
   const router = useRouter();
@@ -63,6 +65,7 @@ export function AccountSettings({
   const [status, setStatus] = useState(initialStatus);
   const [busy, setBusy] = useState(false);
   const [avatar, setAvatar] = useState(user.image);
+  const [needsDisplayName, setNeedsDisplayName] = useState(displayNameRequired);
   const linked = useMemo(() => new Map(accounts.map((item) => [item.providerId, item])), [accounts]);
   const verificationCallbackURL = `/auth/continue?returnTo=${encodeURIComponent(returnTo)}`;
   const hasSyntheticEmail = user.email.toLowerCase().endsWith(".invalid");
@@ -149,8 +152,19 @@ export function AccountSettings({
     event.preventDefault();
     setBusy(true);
     const name = String(new FormData(event.currentTarget).get("name") || "").trim();
-    const result = await authClient.updateUser({ name });
-    setStatus(result.error ? result.error.message || "Update failed." : "Identity record updated.");
+    const update = { name, displayNameSet: true } as Parameters<
+      typeof authClient.updateUser
+    >[0] & { displayNameSet: boolean };
+    const result = await authClient.updateUser(update);
+    if (result.error) {
+      setStatus(result.error.message || "Update failed.");
+    } else {
+      const shouldReturn = needsDisplayName && returnTo !== "/";
+      setNeedsDisplayName(false);
+      setStatus("Public display name updated.");
+      if (shouldReturn) router.push(returnTo);
+      else router.refresh();
+    }
     setBusy(false);
   };
 
@@ -247,6 +261,20 @@ export function AccountSettings({
                   </p>
                 </div>
                 <strong>EMAIL REQUIRED</strong>
+              </section>
+            )}
+            {needsDisplayName && (
+              <section className="account-email-required account-display-required" role="alert">
+                <div>
+                  <small>PUBLIC IDENTITY // ACTION REQUIRED</small>
+                  <h2>CHOOSE YOUR DISPLAY NAME.</h2>
+                  <p>
+                    Your provider name stays private. We assigned a neutral
+                    callsign for community chat, forums, friends, and clans.
+                    Replace it below with any public name you want to use.
+                  </p>
+                </div>
+                <strong>DISPLAY NAME REQUIRED</strong>
               </section>
             )}
             <section className="settings-form avatar-settings" aria-labelledby="avatar-settings-title">

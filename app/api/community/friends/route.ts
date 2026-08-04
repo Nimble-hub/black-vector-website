@@ -7,6 +7,7 @@ import {
 } from "@/lib/community-social";
 import { isSameOriginRequest } from "@/lib/request-security";
 import { createCommunityNotification } from "@/lib/community-notifications";
+import { getPublicCommunityIdentity } from "@/lib/community-identity";
 
 export const dynamic = "force-dynamic";
 
@@ -142,11 +143,15 @@ export async function POST(request: Request) {
     )
     .bind(low, high, session.user.id, Date.now(), Date.now())
     .run();
+  const publicIdentity = await getPublicCommunityIdentity(session.user.id, {
+    name: session.user.name,
+    image: session.user.image ?? null,
+  });
   await createCommunityNotification({
     userId: parsed.data.targetUserId,
     actorId: session.user.id,
     type: "friend-request",
-    title: `${session.user.name} sent you a friend request`,
+    title: `${publicIdentity.name} sent you a friend request`,
     body: "Open the Friends panel to accept or decline.",
     href: "/community?panel=friends",
   });
@@ -200,11 +205,15 @@ export async function PATCH(request: Request) {
       )
       .bind(Date.now(), low, high)
       .run();
+    const publicIdentity = await getPublicCommunityIdentity(session.user.id, {
+      name: session.user.name,
+      image: session.user.image ?? null,
+    });
     await createCommunityNotification({
       userId: record.requested_by_id,
       actorId: session.user.id,
       type: "friend-accepted",
-      title: `${session.user.name} accepted your friend request`,
+      title: `${publicIdentity.name} accepted your friend request`,
       body: "You can now open a direct channel from the Friends panel.",
       href: "/community?panel=friends",
     });

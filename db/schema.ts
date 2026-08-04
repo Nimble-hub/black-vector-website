@@ -13,6 +13,9 @@ const now = sql`(cast(unixepoch('subsecond') * 1000 as integer))`;
 export const user = sqliteTable("user", {
   id: text("id").primaryKey(),
   name: text("name").notNull(),
+  displayNameSet: integer("display_name_set", { mode: "boolean" })
+    .default(false)
+    .notNull(),
   email: text("email").notNull().unique(),
   emailVerified: integer("email_verified", { mode: "boolean" })
     .default(false)

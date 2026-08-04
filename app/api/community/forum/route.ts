@@ -6,6 +6,7 @@ import { forumThread, user } from "@/db/schema";
 import { FORUM_CATEGORIES } from "@/lib/community";
 import { getAuth } from "@/lib/auth";
 import { isSameOriginRequest } from "@/lib/request-security";
+import { getPublicCommunityIdentity } from "@/lib/community-identity";
 
 export const dynamic = "force-dynamic";
 
@@ -70,5 +71,9 @@ export async function POST(request: Request) {
     updatedAt: now,
   };
   await db.insert(forumThread).values(thread);
-  return Response.json({ thread: { ...thread, authorName: session.user.name, authorImage: session.user.image || null } }, { status: 201 });
+  const publicIdentity = await getPublicCommunityIdentity(session.user.id, {
+    name: session.user.name,
+    image: session.user.image || null,
+  });
+  return Response.json({ thread: { ...thread, authorName: publicIdentity.name, authorImage: publicIdentity.image } }, { status: 201 });
 }

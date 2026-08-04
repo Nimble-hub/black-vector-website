@@ -7,6 +7,7 @@ import { getAuth } from "@/lib/auth";
 import { canModerate, getCommunityRole } from "@/lib/community-permissions";
 import { isSameOriginRequest } from "@/lib/request-security";
 import { createCommunityNotification } from "@/lib/community-notifications";
+import { getPublicCommunityIdentity } from "@/lib/community-identity";
 
 export const dynamic = "force-dynamic";
 
@@ -124,13 +125,17 @@ export async function POST(
     body: parsed.data.body,
     href: `/community?thread=${threadId}`,
   });
+  const publicIdentity = await getPublicCommunityIdentity(identity.session.user.id, {
+    name: identity.session.user.name,
+    image: identity.session.user.image || null,
+  });
   return Response.json({
     reply: {
       id,
       body: parsed.data.body,
       authorId: identity.session.user.id,
-      authorName: identity.session.user.name,
-      authorImage: identity.session.user.image || null,
+      authorName: publicIdentity.name,
+      authorImage: publicIdentity.image,
       createdAt: now,
       updatedAt: now,
     },

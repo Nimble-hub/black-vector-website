@@ -28,6 +28,7 @@ import { CommunityNotifications } from "./community-notifications";
 interface CurrentUser {
   id: string;
   name: string;
+  displayNameSet: boolean;
   role: CommunityRole;
 }
 interface ForumThread {
@@ -717,6 +718,22 @@ export function CommunityConsole({
           <Link href="/account">ACCOUNT</Link>
         </nav>
       </header>
+
+      {currentUser && !currentUser.displayNameSet && (
+        <section className={styles.displayNamePrompt} role="alert">
+          <div>
+            <small>PUBLIC IDENTITY // PRIVACY CHECK</small>
+            <strong>CHOOSE THE NAME OTHER COMMANDERS WILL SEE.</strong>
+            <p>
+              Your account provider name is not shown here. You are currently
+              using the temporary callsign <b>{currentUser.name}</b>.
+            </p>
+          </div>
+          <Link href="/account?display=required&returnTo=%2Fcommunity">
+            SET DISPLAY NAME
+          </Link>
+        </section>
+      )}
 
       <section className={styles.console}>
         <aside

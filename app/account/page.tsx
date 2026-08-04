@@ -6,7 +6,7 @@ import { eq } from "drizzle-orm";
 import { getAuth } from "@/lib/auth";
 import { getAuthEnvironment } from "@/lib/auth-environment";
 import { getDb } from "@/db";
-import { playtestProfile } from "@/db/schema";
+import { playtestProfile, user as userTable } from "@/db/schema";
 import {
   hasVerifiedContactEmail,
   safeInternalReturnTo,
@@ -32,6 +32,7 @@ export default async function AccountPage({
     tab?: string;
     connection?: string;
     email?: string;
+    display?: string;
     returnTo?: string;
   }>;
 }) {
@@ -43,12 +44,27 @@ export default async function AccountPage({
   const session = await auth.api.getSession({ headers: requestHeaders });
   if (!session) redirect("/login?returnTo=/account");
 
-  const [accounts, profiles] = await Promise.all([
+  const [accounts, profiles, identities] = await Promise.all([
     auth.api.listUserAccounts({ headers: requestHeaders }),
     getDb().select().from(playtestProfile).where(eq(playtestProfile.userId, session.user.id)).limit(1),
+    getDb()
+      .select({
+        name: userTable.name,
+        displayNameSet: userTable.displayNameSet,
+        image: userTable.image,
+      })
+      .from(userTable)
+      .where(eq(userTable.id, session.user.id))
+      .limit(1),
   ]);
   const query = await searchParams;
+  const identity = identities[0] ?? {
+    name: session.user.name,
+    displayNameSet: false,
+    image: session.user.image || null,
+  };
   const emailRequired = !hasVerifiedContactEmail(session.user);
+  const displayNameRequired = !identity.displayNameSet;
   const returnTo = safeInternalReturnTo(query.returnTo);
   const initialTab = emailRequired
     ? "profile"
@@ -57,7 +73,9 @@ export default async function AccountPage({
       : query.tab === "connections" || query.tab === "security"
         ? query.tab
         : "profile";
-  const initialStatus = query.email === "required"
+  const initialStatus = query.display === "required"
+    ? "Choose the public display name other commanders will see."
+    : query.email === "required"
     ? "Verify a deliverable contact email to complete this account."
     : query.email === "verified"
       ? "Primary email verified."
@@ -73,15 +91,15 @@ export default async function AccountPage({
           <Link href="/">HOME</Link>
           <Link href="/community">COMMUNITY</Link>
         </nav>
-        <div className="account-user-state"><span>IDENTITY NODE // AUTHENTICATED</span><strong>{session.user.name}</strong></div>
+        <div className="account-user-state"><span>IDENTITY NODE // AUTHENTICATED</span><strong>{identity.name}</strong></div>
       </header>
       <AccountSettings
         user={{
           id: session.user.id,
-          name: session.user.name,
+          name: identity.name,
           email: session.user.email,
           emailVerified: session.user.emailVerified,
-          image: session.user.image || null,
+          image: identity.image,
         }}
         accounts={accounts.map((item) => ({
           id: item.id,
@@ -92,6 +110,7 @@ export default async function AccountPage({
         initialTab={initialTab}
         initialStatus={initialStatus}
         emailRequired={emailRequired}
+        displayNameRequired={displayNameRequired}
         returnTo={returnTo}
         initialProfile={profiles[0] ? {
           callsign: profiles[0].callsign || "",
