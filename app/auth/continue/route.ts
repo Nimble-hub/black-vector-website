@@ -5,6 +5,7 @@ import {
   safeInternalReturnTo,
 } from "@/lib/account-email";
 import { ensureContactEmailReminder } from "@/lib/account-email-reminders";
+import { getD1 } from "@/db";
 
 export const dynamic = "force-dynamic";
 
@@ -23,6 +24,17 @@ export async function GET(request: Request) {
     await ensureContactEmailReminder(session.user.id);
     const account = new URL("/account", url.origin);
     account.searchParams.set("email", "required");
+    account.searchParams.set("returnTo", returnTo);
+    return Response.redirect(account);
+  }
+
+  const identity = await getD1()
+    .prepare("SELECT display_name_set FROM user WHERE id = ? LIMIT 1")
+    .bind(session.user.id)
+    .first<{ display_name_set: number }>();
+  if (!identity?.display_name_set) {
+    const account = new URL("/account", url.origin);
+    account.searchParams.set("display", "required");
     account.searchParams.set("returnTo", returnTo);
     return Response.redirect(account);
   }

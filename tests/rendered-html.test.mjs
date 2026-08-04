@@ -82,14 +82,17 @@ test("requires a verified contact email and delivers legacy account reminders", 
 });
 
 test("keeps provider real names out of the public community identity", async () => {
-  const [auth, authScreen, account, community, schema, migration, room] =
+  const [auth, authScreen, continuation, account, community, schema, migration, callsignMigration, displayNames, room] =
     await Promise.all([
       readFile(new URL("lib/auth.ts", root), "utf8"),
       readFile(new URL("app/auth-screen.tsx", root), "utf8"),
+      readFile(new URL("app/auth/continue/route.ts", root), "utf8"),
       readFile(new URL("app/account/settings.tsx", root), "utf8"),
       readFile(new URL("app/community/community-console.tsx", root), "utf8"),
       readFile(new URL("db/schema.ts", root), "utf8"),
       readFile(new URL("drizzle/0007_sticky_masque.sql", root), "utf8"),
+      readFile(new URL("drizzle/0008_neutral_callsigns.sql", root), "utf8"),
+      readFile(new URL("lib/display-name.ts", root), "utf8"),
       readFile(new URL("worker/chat-room.ts", root), "utf8"),
     ]);
 
@@ -100,8 +103,15 @@ test("keeps provider real names out of the public community identity", async () 
   assert.match(account, /CHOOSE YOUR DISPLAY NAME/);
   assert.match(community, /PUBLIC IDENTITY \/\/ PRIVACY CHECK/);
   assert.match(community, /SET DISPLAY NAME/);
+  assert.match(continuation, /display_name_set/);
+  assert.match(continuation, /account\.searchParams\.set\("display", "required"\)/);
+  assert.match(displayNames, /CALLSIGN_PREFIXES/);
+  assert.match(displayNames, /CALLSIGN_NAMES/);
+  assert.match(displayNames, /crypto\.getRandomValues/);
   assert.match(migration, /'Vector-' \|\| upper/);
   assert.match(migration, /'credential', 'discord', 'steam'/);
+  assert.match(callsignMigration, /WHERE `display_name_set` = false/);
+  assert.match(callsignMigration, /Kestrel/);
   assert.match(room, /refreshProfiles/);
 });
 

@@ -57,6 +57,13 @@
       "when": 1785809394453,
       "tag": "0007_sticky_masque",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "6",
+      "when": 1785811124981,
+      "tag": "0008_neutral_callsigns",
+      "breakpoints": true
     }
   ]
 }
