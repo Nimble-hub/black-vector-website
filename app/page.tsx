@@ -99,10 +99,18 @@ export default function Home() {
     as: "image",
     crossOrigin: "anonymous",
   });
-  preload(`${BASE_PATH}/models/Carrier.glb`, {
-    as: "fetch",
-    crossOrigin: "anonymous",
-  });
+  for (const model of [
+    "Carrier.glb",
+    "Cruiser.glb",
+    "Fighter.glb",
+    "Patrol-Cutter.glb",
+    "Recon.glb",
+  ]) {
+    preload(`${BASE_PATH}/models/${model}`, {
+      as: "fetch",
+      crossOrigin: "anonymous",
+    });
+  }
 
   return (
     <main>

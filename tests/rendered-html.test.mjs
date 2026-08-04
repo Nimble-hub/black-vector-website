@@ -279,6 +279,29 @@ test("presents the production game pitch and cleanly hands transit audio to the 
   assert.match(header, /ACCOUNT/);
 });
 
+test("uses the complete game fleet with lightweight procedural ship finish", async () => {
+  const [home, intro] = await Promise.all([
+    readFile(new URL("app/page.tsx", root), "utf8"),
+    readFile(new URL("app/hyperspace-intro.tsx", root), "utf8"),
+  ]);
+
+  for (const model of [
+    "Carrier.glb",
+    "Cruiser.glb",
+    "Fighter.glb",
+    "Patrol-Cutter.glb",
+    "Recon.glb",
+  ]) {
+    assert.match(home, new RegExp(model.replace(".", "\\.")));
+    assert.match(intro, new RegExp(model.replace(".", "\\.")));
+    await access(new URL(`public/models/${model}`, root));
+  }
+  assert.match(intro, /applyProceduralShipPaint/);
+  assert.match(intro, /vertexColors:\s*true/);
+  assert.match(intro, /createShipLights/);
+  assert.match(intro, /THREE\.PointsMaterial/);
+});
+
 test("ships authenticated social connections, direct comms, and clan operations", async () => {
   const [
     schema,

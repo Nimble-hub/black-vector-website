@@ -2068,85 +2068,186 @@ function createDeepSpaceWorld(isMobile: boolean, balancedQuality: boolean, softw
     return ship;
   };
 
-  const createInstancedContacts = (
-    contacts: Array<{ scale: number; position: THREE.Vector3; rotationY: number }>,
-  ) => {
-    const hullMatrices: THREE.Matrix4[] = [];
-    const armorMatrices: THREE.Matrix4[] = [];
-    const noseMatrices: THREE.Matrix4[] = [];
-    const engineMatrices: THREE.Matrix4[] = [];
-    const antennaMatrices: THREE.Matrix4[] = [];
-    const shipEuler = new THREE.Euler();
-    const shipQuaternion = new THREE.Quaternion();
-    const partQuaternion = new THREE.Quaternion();
-    const shipScale = new THREE.Vector3();
-    const partScale = new THREE.Vector3();
-    const partPosition = new THREE.Vector3();
-    const rootMatrix = new THREE.Matrix4();
-    const partMatrix = new THREE.Matrix4();
-
-    const addPart = (
-      target: THREE.Matrix4[],
-      root: THREE.Matrix4,
-      position: [number, number, number],
-      scale: [number, number, number],
-      rotationZ = 0,
-    ) => {
-      partPosition.set(...position);
-      partScale.set(...scale);
-      partQuaternion.setFromEuler(new THREE.Euler(0, 0, rotationZ));
-      partMatrix.compose(partPosition, partQuaternion, partScale);
-      target.push(root.clone().multiply(partMatrix));
-    };
-
-    for (const contact of contacts) {
-      shipEuler.set(-0.04, contact.rotationY, -0.035);
-      shipQuaternion.setFromEuler(shipEuler);
-      shipScale.setScalar(contact.scale);
-      rootMatrix.compose(contact.position, shipQuaternion, shipScale);
-
-      addPart(hullMatrices, rootMatrix, [0, 0, 0], [4.9, 0.62, 1.58]);
-      addPart(armorMatrices, rootMatrix, [-0.35, 0.51, 0.12], [2.65, 0.34, 0.82]);
-      addPart(armorMatrices, rootMatrix, [-2.55, -0.08, 0.18], [2.55, 0.18, 1.86], -0.1);
-      addPart(armorMatrices, rootMatrix, [2.55, -0.08, 0.18], [2.55, 0.18, 1.86], 0.1);
-      addPart(noseMatrices, rootMatrix, [0, 0, -2.85], [1.55, 1.55, 1.05]);
-      for (const x of [-2.1, 0, 2.1]) {
-        const engineScale = x === 0 ? 0.34 : 0.27;
-        addPart(engineMatrices, rootMatrix, [x, -0.05, 1.605], [engineScale, engineScale, engineScale]);
-      }
-      addPart(antennaMatrices, rootMatrix, [-0.55, 1.08, 0.05], [1, 1.35, 1]);
-    }
-
-    const addBatch = (
-      geometry: THREE.BufferGeometry,
-      material: THREE.Material,
-      matrices: THREE.Matrix4[],
-    ) => {
-      const batch = new THREE.InstancedMesh(geometry, material, matrices.length);
-      matrices.forEach((matrix, index) => batch.setMatrixAt(index, matrix));
-      batch.instanceMatrix.setUsage(THREE.StaticDrawUsage);
-      batch.frustumCulled = false;
-      fleet.add(batch);
-    };
-
-    addBatch(hullGeometry, hullMaterial, hullMatrices);
-    addBatch(hullGeometry, armorMaterial, armorMatrices);
-    addBatch(noseGeometry, hullMaterial, noseMatrices);
-    addBatch(engineGeometry, engineMaterial, engineMatrices);
-    addBatch(antennaGeometry, armorMaterial, antennaMatrices);
-  };
-
   // Foreground contacts occupy their own depth band, well clear of the
   // planetary sphere. Smaller silhouettes deeper in frame sell orbital scale
   // without making a carrier look comparable to a world.
-  const flagship = createShip(0.72, new THREE.Vector3(flagshipBaseX, flagshipBaseY, -34), 0.18);
+  const shipSlots = [
+    {
+      file: "Carrier.glb",
+      object: createShip(
+        0.72,
+        new THREE.Vector3(flagshipBaseX, flagshipBaseY, -34),
+        0.18,
+      ),
+      targetSize: 10.8,
+      yawCorrection: Math.PI / 2,
+      baseColor: 0x34434b,
+      accentColor: 0x2fabb7,
+      paintSeed: 0.7,
+    },
+    {
+      file: "Cruiser.glb",
+      object: createShip(
+        0.45,
+        new THREE.Vector3(isMobile ? 1.2 : 9, isMobile ? -9.4 : -13.3, -38),
+        0.1,
+      ),
+      targetSize: 5.4,
+      yawCorrection: 0,
+      baseColor: 0x3e4850,
+      accentColor: 0xb47a3e,
+      paintSeed: 2.1,
+    },
+    {
+      file: "Patrol-Cutter.glb",
+      object: createShip(
+        0.3,
+        new THREE.Vector3(isMobile ? 7.8 : 14, isMobile ? -7.6 : -11.4, -41),
+        0.2,
+      ),
+      targetSize: 3.5,
+      yawCorrection: 0,
+      baseColor: 0x303b43,
+      accentColor: 0x68cbd2,
+      paintSeed: 4.3,
+    },
+    {
+      file: "Recon.glb",
+      object: createShip(
+        0.23,
+        new THREE.Vector3(isMobile ? 0.2 : 5, isMobile ? -6.8 : -9.8, -39),
+        0.02,
+      ),
+      targetSize: 2.6,
+      yawCorrection: Math.PI / 2,
+      baseColor: 0x283940,
+      accentColor: 0x3bb9c7,
+      paintSeed: 6.2,
+    },
+    {
+      file: "Fighter.glb",
+      object: createShip(
+        0.15,
+        new THREE.Vector3(isMobile ? 6.5 : 18.5, isMobile ? -5.5 : -8.7, -42),
+        0.15,
+      ),
+      targetSize: 1.7,
+      yawCorrection: 0,
+      baseColor: 0x414a4e,
+      accentColor: 0xc17d3c,
+      paintSeed: 8.8,
+    },
+  ] as const;
+  const flagship = shipSlots[0].object;
   flagship.userData.baseY = flagshipBaseY;
-  createInstancedContacts([
-    { scale: 0.22, position: new THREE.Vector3(2.5, 4.8, -39), rotationY: -0.2 },
-    { scale: 0.17, position: new THREE.Vector3(-3.2, -4.2, -45), rotationY: 0.28 },
-    { scale: 0.15, position: new THREE.Vector3(-13.5, 3.5, -43), rotationY: 0.08 },
-  ]);
   group.add(fleet);
+
+  const lightTextureSize = 16;
+  const lightTextureData = new Uint8Array(lightTextureSize * lightTextureSize * 4);
+  for (let y = 0; y < lightTextureSize; y += 1) {
+    for (let x = 0; x < lightTextureSize; x += 1) {
+      const dx = (x + 0.5) / lightTextureSize * 2 - 1;
+      const dy = (y + 0.5) / lightTextureSize * 2 - 1;
+      const distance = Math.sqrt(dx * dx + dy * dy);
+      const alpha = Math.round(clamp01(1 - distance) ** 2.4 * 255);
+      const offset = (y * lightTextureSize + x) * 4;
+      lightTextureData[offset] = 255;
+      lightTextureData[offset + 1] = 255;
+      lightTextureData[offset + 2] = 255;
+      lightTextureData[offset + 3] = alpha;
+    }
+  }
+  const shipLightTexture = new THREE.DataTexture(
+    lightTextureData,
+    lightTextureSize,
+    lightTextureSize,
+    THREE.RGBAFormat,
+  );
+  shipLightTexture.colorSpace = THREE.SRGBColorSpace;
+  shipLightTexture.needsUpdate = true;
+  textures.push(shipLightTexture);
+  const shipLightMaterial = trackMaterial(
+    new THREE.PointsMaterial({
+      map: shipLightTexture,
+      vertexColors: true,
+      alphaTest: 0.025,
+      depthWrite: false,
+      blending: THREE.AdditiveBlending,
+      size: isMobile ? 0.09 : 0.13,
+      sizeAttenuation: true,
+      toneMapped: false,
+    }),
+  );
+
+  const applyProceduralShipPaint = (
+    geometry: THREE.BufferGeometry,
+    baseColorValue: number,
+    accentColorValue: number,
+    seed: number,
+  ) => {
+    geometry.computeBoundingBox();
+    const bounds = geometry.boundingBox;
+    const position = geometry.getAttribute("position");
+    if (!bounds || !position) return;
+    const size = bounds.getSize(new THREE.Vector3());
+    const baseColor = new THREE.Color(baseColorValue);
+    const accentColor = new THREE.Color(accentColorValue);
+    const color = new THREE.Color();
+    const colors = new Float32Array(position.count * 3);
+    for (let index = 0; index < position.count; index += 1) {
+      const x = (position.getX(index) - bounds.min.x) / Math.max(size.x, 0.0001);
+      const y = (position.getY(index) - bounds.min.y) / Math.max(size.y, 0.0001);
+      const z = (position.getZ(index) - bounds.min.z) / Math.max(size.z, 0.0001);
+      const panelNoise = 0.5 + 0.5 * Math.sin(x * 47 + z * 31 + y * 17 + seed);
+      const armorLift = 0.72 + y * 0.28 + panelNoise * 0.11;
+      const accentStripe =
+        Math.abs(Math.sin((x * 5.2 + z * 1.7 + seed * 0.11) * Math.PI)) > 0.965 && y > 0.34;
+      color.copy(baseColor).multiplyScalar(armorLift);
+      if (accentStripe) color.lerp(accentColor, 0.68);
+      colors[index * 3] = color.r;
+      colors[index * 3 + 1] = color.g;
+      colors[index * 3 + 2] = color.b;
+    }
+    geometry.setAttribute("color", new THREE.BufferAttribute(colors, 3));
+  };
+
+  const createShipLights = (bounds: THREE.Box3, seed: number) => {
+    const size = bounds.getSize(new THREE.Vector3());
+    const center = bounds.getCenter(new THREE.Vector3());
+    const positions: number[] = [];
+    const colors: number[] = [];
+    const addLight = (x: number, y: number, z: number, color: THREE.Color) => {
+      positions.push(x, y, z);
+      colors.push(color.r, color.g, color.b);
+    };
+    const engineColor = new THREE.Color(1.4, 3.2, 4.2);
+    const windowColor = new THREE.Color(1.9, 1.55, 0.72);
+    const portColor = new THREE.Color(2.4, 0.22, 0.12);
+    const starboardColor = new THREE.Color(0.18, 2.2, 1.15);
+    const aftX = bounds.min.x - size.x * 0.012;
+
+    for (const lateral of [-0.28, 0, 0.28]) {
+      addLight(aftX, center.y - size.y * 0.08, center.z + size.z * lateral, engineColor);
+    }
+    for (let index = 0; index < 10; index += 1) {
+      const along = 0.16 + index * 0.071;
+      const side = index % 2 === 0 ? -1 : 1;
+      const ripple = Math.sin(index * 2.3 + seed) * 0.05;
+      addLight(
+        bounds.min.x + size.x * along,
+        center.y + size.y * (0.12 + ripple),
+        center.z + side * size.z * 0.46,
+        windowColor,
+      );
+    }
+    addLight(center.x, center.y + size.y * 0.18, bounds.min.z - size.z * 0.015, portColor);
+    addLight(center.x, center.y + size.y * 0.18, bounds.max.z + size.z * 0.015, starboardColor);
+
+    const lightGeometry = trackGeometry(new THREE.BufferGeometry());
+    lightGeometry.setAttribute("position", new THREE.Float32BufferAttribute(positions, 3));
+    lightGeometry.setAttribute("color", new THREE.Float32BufferAttribute(colors, 3));
+    return new THREE.Points(lightGeometry, shipLightMaterial);
+  };
 
   let assetLoadCancelled = false;
   const disposeLoadedScene = (loadedScene: THREE.Object3D) => {
@@ -2168,48 +2269,82 @@ function createDeepSpaceWorld(isMobile: boolean, balancedQuality: boolean, softw
     });
   };
 
-  const carrierLoad = new Promise<void>((resolve) => {
-    new GLTFLoader().load(
-      `${BASE_PATH}/models/Carrier.glb`,
-      (gltf) => {
-        if (assetLoadCancelled) {
-          disposeLoadedScene(gltf.scene);
+  for (const slot of shipSlots) {
+    const shipLoad = new Promise<void>((resolve) => {
+      new GLTFLoader().load(
+        `${BASE_PATH}/models/${slot.file}`,
+        (gltf) => {
+          if (assetLoadCancelled) {
+            disposeLoadedScene(gltf.scene);
+            resolve();
+            return;
+          }
+
+          const sourceMaterials = new Set<THREE.Material>();
+          const shipMaterial = trackMaterial(
+            new THREE.MeshStandardMaterial({
+              color: 0xffffff,
+              vertexColors: true,
+              metalness: 0.78,
+              roughness: 0.3,
+              emissive: 0x02090d,
+              emissiveIntensity: 0.16,
+            }),
+          );
+          gltf.scene.traverse((object) => {
+            if (!(object instanceof THREE.Mesh)) return;
+            const sourceGeometry = object.geometry;
+            const gameGeometry = trackGeometry(sourceGeometry.clone());
+            gameGeometry.computeVertexNormals();
+            applyProceduralShipPaint(
+              gameGeometry,
+              slot.baseColor,
+              slot.accentColor,
+              slot.paintSeed,
+            );
+            object.geometry = gameGeometry;
+            sourceGeometry.dispose();
+            const meshMaterials = Array.isArray(object.material)
+              ? object.material
+              : [object.material];
+            for (const meshMaterial of meshMaterials) sourceMaterials.add(meshMaterial);
+            object.material = shipMaterial;
+          });
+          for (const sourceMaterial of sourceMaterials) sourceMaterial.dispose();
+
+          const sourceBounds = new THREE.Box3().setFromObject(gltf.scene);
+          const sourceCenter = sourceBounds.getCenter(new THREE.Vector3());
+          gltf.scene.position.copy(sourceCenter).multiplyScalar(-1);
+          const orientedShip = new THREE.Group();
+          orientedShip.rotation.y = slot.yawCorrection;
+          orientedShip.add(gltf.scene);
+          orientedShip.updateMatrixWorld(true);
+          const orientedBounds = new THREE.Box3().setFromObject(orientedShip);
+          const orientedSize = orientedBounds.getSize(new THREE.Vector3());
+          const modelScale =
+            slot.targetSize /
+            Math.max(orientedSize.x, orientedSize.y, orientedSize.z, 0.001);
+          const shipContent = new THREE.Group();
+          shipContent.scale.setScalar(modelScale);
+          shipContent.add(orientedShip);
+          shipContent.add(createShipLights(orientedBounds, slot.paintSeed));
+          slot.object.clear();
+          // Placeholder ships carry their own fallback scale. The loaded model
+          // has already been normalized to targetSize, so reset the container
+          // before mounting it or smaller escorts are scaled down twice.
+          slot.object.scale.setScalar(1);
+          slot.object.add(shipContent);
           resolve();
-          return;
-        }
-
-        const sourceMaterials = new Set<THREE.Material>();
-        gltf.scene.traverse((object) => {
-          if (!(object instanceof THREE.Mesh)) return;
-          const sourceGeometry = object.geometry;
-          const gameGeometry = trackGeometry(sourceGeometry.clone());
-          gameGeometry.computeVertexNormals();
-          object.geometry = gameGeometry;
-          sourceGeometry.dispose();
-          const meshMaterials = Array.isArray(object.material) ? object.material : [object.material];
-          for (const meshMaterial of meshMaterials) sourceMaterials.add(meshMaterial);
-          object.material = hullMaterial;
-        });
-        for (const sourceMaterial of sourceMaterials) sourceMaterial.dispose();
-
-        const bounds = new THREE.Box3().setFromObject(gltf.scene);
-        const size = bounds.getSize(new THREE.Vector3());
-        const center = bounds.getCenter(new THREE.Vector3());
-        const scale = 10.8 / Math.max(size.x, size.y, size.z, 0.001);
-        gltf.scene.scale.setScalar(scale);
-        gltf.scene.position.copy(center).multiplyScalar(-scale);
-        flagship.clear();
-        flagship.add(gltf.scene);
-        resolve();
-      },
-      undefined,
-      () => {
-        // The procedural silhouette remains as a graceful offline fallback.
-        resolve();
-      },
-    );
-  });
-  criticalAssetLoads.push(carrierLoad);
+        },
+        undefined,
+        () => {
+          // The procedural silhouette remains as a graceful offline fallback.
+          resolve();
+        },
+      );
+    });
+    criticalAssetLoads.push(shipLoad);
+  }
 
   const ringGeometry = trackGeometry(new THREE.TorusGeometry(planetRadius * 1.13, 0.022, 4, 128));
   const ringMaterial = trackMaterial(
