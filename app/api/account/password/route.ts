@@ -15,7 +15,7 @@ export async function POST(request: Request) {
     return Response.json({ error: "Invalid request origin." }, { status: 403 });
   }
   if (!getAuthEnvironment().providers.manual) {
-    return Response.json({ error: "Manual sign-in is not configured." }, { status: 503 });
+    return Response.json({ error: "Manual sign-in is temporarily unavailable." }, { status: 503 });
   }
 
   const requestHeaders = await headers();

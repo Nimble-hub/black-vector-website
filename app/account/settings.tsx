@@ -376,7 +376,7 @@ export function AccountSettings({
             ) : (
               <form className="settings-form contact-channel-required" onSubmit={changeEmail}>
                 <h2>ENTER YOUR EMAIL</h2>
-                <p>We will send a verification link before replacing the private Steam placeholder.</p>
+                <p>We will send a verification link before adding this address to your account.</p>
                 <label><span>EMAIL ADDRESS</span><input name="newEmail" type="email" autoComplete="email" required autoFocus /></label>
                 <button type="submit" disabled={busy || !providers.manual}>SEND VERIFICATION</button>
               </form>
@@ -453,7 +453,7 @@ export function AccountSettings({
                 return (
                   <article key={provider}>
                     <span className="connection-mark">{provider === "credential" ? "BV" : provider.slice(0, 2).toUpperCase()}</span>
-                    <div><strong>{providerLabels[provider]}</strong><small>{record ? "CONNECTED" : available ? "AVAILABLE" : "AWAITING CONFIG"}</small></div>
+                    <div><strong>{providerLabels[provider]}</strong><small>{record ? "CONNECTED" : available ? "AVAILABLE" : "CURRENTLY UNAVAILABLE"}</small></div>
                     {record ? (
                       provider !== "credential" && <button disabled={busy || accounts.length <= 1} onClick={() => void unlink(record)}>DISCONNECT</button>
                     ) : provider === "steam" && available ? (

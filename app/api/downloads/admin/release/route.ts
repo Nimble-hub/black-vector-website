@@ -37,7 +37,7 @@ export async function POST(request: Request) {
   const input = parsed.data;
   const stored = await getRuntimeEnv().GAME_BUILDS.head(input.objectKey);
   if (!stored) {
-    return Response.json({ error: "The referenced R2 object does not exist." }, { status: 404 });
+    return Response.json({ error: "The selected build file could not be found." }, { status: 404 });
   }
 
   const now = Date.now();

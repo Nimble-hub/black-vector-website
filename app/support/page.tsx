@@ -83,7 +83,7 @@ export default function SupportPage() {
             </div>
             <div>
               <dt>PAYMENTS</dt>
-              <dd>DISABLED</dd>
+              <dd>NOT YET OPEN</dd>
             </div>
           </dl>
         </aside>
@@ -97,7 +97,7 @@ export default function SupportPage() {
           </div>
           <p>
             Every tier will receive a defined reward package before support
-            opens. Prices are planned; rewards remain under review.
+            opens. Full details will be published before contributions begin.
           </p>
         </div>
         <div className="support-price-grid">
@@ -108,8 +108,8 @@ export default function SupportPage() {
                 <small>COMING SOON</small>
               </div>
               <h3><sup>$</sup>{price}</h3>
-              <p>Supporter rewards are being developed for this contribution level.</p>
-              <strong>REWARDS // TBD</strong>
+              <p>Full reward details will be published before this tier opens.</p>
+              <strong>DETAILS // COMING SOON</strong>
             </article>
           ))}
         </div>

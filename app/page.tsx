@@ -236,7 +236,7 @@ export default function Home() {
         <div className="section-rail" aria-hidden="true">
           <span>02</span>
           <i />
-          <small>WORKING CANON</small>
+          <small>HISTORICAL RECORD</small>
         </div>
         <div className="section-heading split-heading">
           <div>
@@ -315,16 +315,16 @@ export default function Home() {
         <div className="section-rail" aria-hidden="true">
           <span>03</span>
           <i />
-          <small>BUILD STATUS</small>
+          <small>DEVELOPMENT</small>
         </div>
         <div className="development-grid">
           <div>
             <p className="eyebrow">IN ACTIVE DEVELOPMENT</p>
             <h2 id="development-title">THE FLEET IS STILL FORMING.</h2>
             <p className="section-lede">
-              Black Vector is in active independent development. Systems,
-              presentation, and the larger universe are being assembled for the
-              first external players.
+              Black Vector is in active independent development, with private
+              playtesting planned as its fleet-command systems and universe
+              continue to expand.
             </p>
           </div>
           <dl className="status-deck">

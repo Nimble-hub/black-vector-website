@@ -50,7 +50,7 @@ export default function NimbleGameStudiosPage() {
           height={900}
           priority
         />
-        <p className="ngs-kicker">Independent game studio // Site in development</p>
+        <p className="ngs-kicker">Independent game studio // Strategy &amp; science fiction</p>
         <h1 id="ngs-title">We build worlds worth commanding.</h1>
         <p className="ngs-summary">
           Nimble Game Studios is an independent developer creating ambitious

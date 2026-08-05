@@ -282,7 +282,7 @@ test("puts access near the top and provides a dedicated build terminal", async (
   assert.match(supportPage, /future Black Vector game copy/i);
   assert.match(supportPage, /SIX WAYS TO BACK DEVELOPMENT/);
   assert.match(supportPage, /\[30, 50, 75, 100, 150, 200\]/);
-  assert.match(supportPage, /REWARDS \/\/ TBD/);
+  assert.match(supportPage, /DETAILS \/\/ COMING SOON/);
   assert.match(supportPage, /SUPPORT OPENS LATER/);
   assert.match(supportPage, /\\u2197/);
   assert.doesNotMatch(supportPage, /&nearr;/);
@@ -293,6 +293,26 @@ test("puts access near the top and provides a dedicated build terminal", async (
   assert.match(legalPage, /not be charitable contributions or\s+tax-deductible gifts/i);
   assert.match(legalPage, /ownership, equity, profit sharing/i);
   assert.match(legalPage, /parent or legal guardian/i);
+});
+
+test("keeps internal production notes out of the public interface", async () => {
+  const [home, support, auth, account, studio, authRoute, passwordRoute, releaseRoute] = await Promise.all([
+    readFile(new URL("app/page.tsx", root), "utf8"),
+    readFile(new URL("app/support/page.tsx", root), "utf8"),
+    readFile(new URL("app/auth-screen.tsx", root), "utf8"),
+    readFile(new URL("app/account/settings.tsx", root), "utf8"),
+    readFile(new URL("app/nimble-game-studios/page.tsx", root), "utf8"),
+    readFile(new URL("app/api/auth/[...all]/route.ts", root), "utf8"),
+    readFile(new URL("app/api/account/password/route.ts", root), "utf8"),
+    readFile(new URL("app/api/downloads/admin/release/route.ts", root), "utf8"),
+  ]);
+
+  const internalCopy = /AWAITING CONFIG|production credentials|staged but|WORKING CANON|BUILD STATUS|Site in development|REWARDS \/\/ TBD|Complete secure checkout testing|BEFORE CHECKOUT OPENS|private Steam placeholder|R2 object|not configured/i;
+  for (const source of [home, support, auth, account, studio, authRoute, passwordRoute, releaseRoute]) {
+    assert.doesNotMatch(source, internalCopy);
+  }
+  assert.match(auth, /CURRENTLY UNAVAILABLE/);
+  assert.match(studio, /Strategy &amp; science fiction/);
 });
 
 test("provides consistent route navigation, recovery paths, and bookmarkable account tabs", async () => {

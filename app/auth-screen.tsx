@@ -160,17 +160,17 @@ export function AuthScreen({ mode, returnTo }: AuthScreenProps) {
           }}>
             <span className="connection-mark">ST</span>
             <strong>CONTINUE WITH STEAM</strong>
-            <small>{providers?.steam ? "OPENID SECURE" : "AWAITING CONFIG"}</small>
+            <small>{providers?.steam ? "OPENID SECURE" : "CURRENTLY UNAVAILABLE"}</small>
           </button>
           <button type="button" disabled={providerDisabled("google")} onClick={() => void startSocial("google")}>
             <span className="connection-mark">G</span>
             <strong>CONTINUE WITH GOOGLE</strong>
-            <small>{providers?.google ? "OAUTH 2.0" : "AWAITING CONFIG"}</small>
+            <small>{providers?.google ? "OAUTH 2.0" : "CURRENTLY UNAVAILABLE"}</small>
           </button>
           <button type="button" disabled={providerDisabled("discord")} onClick={() => void startSocial("discord")}>
             <span className="connection-mark">DC</span>
             <strong>CONTINUE WITH DISCORD</strong>
-            <small>{providers?.discord ? "OAUTH 2.0" : "AWAITING CONFIG"}</small>
+            <small>{providers?.discord ? "OAUTH 2.0" : "CURRENTLY UNAVAILABLE"}</small>
           </button>
         </div>
 
@@ -220,7 +220,7 @@ export function AuthScreen({ mode, returnTo }: AuthScreenProps) {
 
         {message && <p className="auth-message" role="status">{message}</p>}
         {!systemReady && providers && (
-          <p className="auth-message is-notice">Account services are staged but are not live until production credentials are connected.</p>
+          <p className="auth-message is-notice">Sign-in is temporarily unavailable. Please try again shortly.</p>
         )}
 
         <div className="auth-switch">

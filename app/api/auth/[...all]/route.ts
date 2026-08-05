@@ -6,7 +6,7 @@ export const dynamic = "force-dynamic";
 
 function unavailable() {
   return Response.json(
-    { error: "Authentication is awaiting production configuration." },
+    { error: "Authentication is temporarily unavailable." },
     { status: 503, headers: { "Cache-Control": "no-store" } },
   );
 }
