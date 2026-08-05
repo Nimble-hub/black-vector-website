@@ -727,6 +727,27 @@ test("resolves the hyperspace camera, FOV, and interface on one handoff curve", 
   );
 });
 
+test("layers a production galaxy panorama behind the live 360-degree starfield", async () => {
+  const intro = await readFile(
+    new URL("app/hyperspace-intro.tsx", root),
+    "utf8",
+  );
+  await Promise.all([
+    access(new URL("public/textures/bv-deep-space-galaxy-v1.webp", root)),
+    access(
+      new URL("public/textures/bv-deep-space-galaxy-v1-mobile.webp", root),
+    ),
+  ]);
+
+  assert.match(intro, /bv-deep-space-galaxy-v1-mobile\.webp/);
+  assert.match(intro, /bv-deep-space-galaxy-v1\.webp/);
+  assert.match(intro, /new THREE\.SphereGeometry/);
+  assert.match(intro, /side: THREE\.BackSide/);
+  assert.match(intro, /galaxyBackdrop\.renderOrder = -20/);
+  assert.match(intro, /const surroundStarCount/);
+  assert.match(intro, /const azimuth = Math\.random\(\) \* Math\.PI \* 2/);
+});
+
 test("exposes a persistent cinematic master volume beside the audio toggle", async () => {
   const [audio, intro, header, polish] = await Promise.all([
     readFile(new URL("app/hyperspace-audio.ts", root), "utf8"),

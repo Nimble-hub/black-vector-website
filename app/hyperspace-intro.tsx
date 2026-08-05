@@ -1657,6 +1657,46 @@ function createDeepSpaceWorld(isMobile: boolean, balancedQuality: boolean, softw
     return material;
   };
 
+  // A single authored equirectangular sky gives the destination a large-scale
+  // galactic composition and true 360-degree continuity. The procedural stars
+  // remain in front for parallax, spectral variation, and subtle live twinkle.
+  const galaxyTexture = loadCriticalTexture(
+    `${BASE_PATH}/textures/${
+      isMobile || softwareRendering
+        ? "bv-deep-space-galaxy-v1-mobile.webp"
+        : "bv-deep-space-galaxy-v1.webp"
+    }`,
+  );
+  galaxyTexture.colorSpace = THREE.SRGBColorSpace;
+  galaxyTexture.wrapS = THREE.RepeatWrapping;
+  galaxyTexture.wrapT = THREE.ClampToEdgeWrapping;
+  galaxyTexture.minFilter = THREE.LinearMipmapLinearFilter;
+  galaxyTexture.magFilter = THREE.LinearFilter;
+  galaxyTexture.anisotropy = softwareRendering ? 1 : isMobile ? 2 : 4;
+  textures.push(galaxyTexture);
+  const galaxyGeometry = trackGeometry(
+    new THREE.SphereGeometry(
+      392,
+      softwareRendering ? 32 : 48,
+      softwareRendering ? 16 : 24,
+    ),
+  );
+  const galaxyMaterial = trackMaterial(
+    new THREE.MeshBasicMaterial({
+      map: galaxyTexture,
+      color: 0xffffff,
+      side: THREE.BackSide,
+      depthTest: false,
+      depthWrite: false,
+      toneMapped: false,
+    }),
+  );
+  const galaxyBackdrop = new THREE.Mesh(galaxyGeometry, galaxyMaterial);
+  galaxyBackdrop.frustumCulled = false;
+  galaxyBackdrop.renderOrder = -20;
+  galaxyBackdrop.rotation.set(-0.035, -0.02, -0.055);
+  group.add(galaxyBackdrop);
+
   // Keep the destination sky richly populated at every depth. This remains a
   // single Points draw call, so the added density costs vertices rather than
   // additional scene objects or materials.
@@ -2379,8 +2419,9 @@ function createDeepSpaceWorld(isMobile: boolean, balancedQuality: boolean, softw
     for (const material of materials) material.opacity = eased;
     engineMaterial.opacity = eased * 0.92;
     ringMaterial.opacity = eased * 0.46;
-    starUniforms.uOpacity.value = eased * 0.92;
-    veilUniforms.uOpacity.value = eased;
+    galaxyMaterial.opacity = eased * (softwareRendering ? 0.56 : isMobile ? 0.6 : 0.68);
+    starUniforms.uOpacity.value = eased * 0.84;
+    veilUniforms.uOpacity.value = eased * 0.34;
     lowerStormLayer.uniforms.uOpacity.value = eased * 0.92;
     anvilStormLayer.uniforms.uOpacity.value = eased * 0.7;
     upperStormLayer.uniforms.uOpacity.value = eased * 0.58;
@@ -2393,6 +2434,7 @@ function createDeepSpaceWorld(isMobile: boolean, balancedQuality: boolean, softw
     if (!group.visible) return;
     starUniforms.uTime.value = elapsedSeconds;
     veilUniforms.uTime.value = elapsedSeconds;
+    galaxyBackdrop.rotation.y = -0.02 + Math.sin(elapsedSeconds * 0.0012) * 0.0015;
     deepStars.rotation.z = Math.sin(elapsedSeconds * 0.004) * 0.003;
     stellarVeil.rotation.z = -0.035 + Math.sin(elapsedSeconds * 0.0025) * 0.004;
     lowerStormLayer.uniforms.uTime.value = elapsedSeconds;
