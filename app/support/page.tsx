@@ -224,7 +224,7 @@ export default function SupportPage() {
           <Link href={`${BASE_PATH}/privacy`}>PRIVACY NOTICE</Link>
           <Link href={`${BASE_PATH}/legal`}>LEGAL NOTICES</Link>
           <a href={DISCORD_INVITE_URL} target="_blank" rel="noreferrer">
-            JOIN THE NGS DISCORD <span aria-hidden="true">&nearr;</span>
+            JOIN THE NGS DISCORD <span aria-hidden="true">{"\u2197"}</span>
           </a>
         </div>
       </footer>

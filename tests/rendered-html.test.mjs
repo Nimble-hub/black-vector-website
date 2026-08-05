@@ -284,6 +284,8 @@ test("puts access near the top and provides a dedicated build terminal", async (
   assert.match(supportPage, /\[30, 50, 75, 100, 150, 200\]/);
   assert.match(supportPage, /REWARDS \/\/ TBD/);
   assert.match(supportPage, /SUPPORT OPENS LATER/);
+  assert.match(supportPage, /\\u2197/);
+  assert.doesNotMatch(supportPage, /&nearr;/);
   assert.match(supportPage, /Prices, tier structure, and rewards are subject to change/i);
   assert.doesNotMatch(supportPage, /api\/support\/checkout/);
   assert.match(legalPage, /Preliminary tiers and rewards/i);
