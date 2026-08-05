@@ -727,25 +727,20 @@ test("resolves the hyperspace camera, FOV, and interface on one handoff curve", 
   );
 });
 
-test("layers a production galaxy panorama behind the live 360-degree starfield", async () => {
+test("art-directs a deterministic 360-degree procedural galaxy", async () => {
   const intro = await readFile(
     new URL("app/hyperspace-intro.tsx", root),
     "utf8",
   );
-  await Promise.all([
-    access(new URL("public/textures/bv-deep-space-galaxy-v1.webp", root)),
-    access(
-      new URL("public/textures/bv-deep-space-galaxy-v1-mobile.webp", root),
-    ),
-  ]);
 
-  assert.match(intro, /bv-deep-space-galaxy-v1-mobile\.webp/);
-  assert.match(intro, /bv-deep-space-galaxy-v1\.webp/);
-  assert.match(intro, /new THREE\.SphereGeometry/);
-  assert.match(intro, /side: THREE\.BackSide/);
-  assert.match(intro, /galaxyBackdrop\.renderOrder = -20/);
+  assert.match(intro, /let starRandomState = 0x8f31c7d5/);
+  assert.match(intro, /const randomStar = \(\) =>/);
   assert.match(intro, /const surroundStarCount/);
-  assert.match(intro, /const azimuth = Math\.random\(\) \* Math\.PI \* 2/);
+  assert.match(intro, /const azimuth = randomStar\(\) \* Math\.PI \* 2/);
+  assert.match(intro, /const galacticBulge/);
+  assert.match(intro, /const laneSide/);
+  assert.match(intro, /float diffraction/);
+  assert.doesNotMatch(intro, /bv-deep-space-galaxy-v1/);
 });
 
 test("exposes a persistent cinematic master volume beside the audio toggle", async () => {

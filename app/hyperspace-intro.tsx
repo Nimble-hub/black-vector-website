@@ -1058,22 +1058,24 @@ const environmentStarVertexShader = `
   varying vec3 vStarColor;
   varying float vStarAlpha;
   varying float vGlint;
+  varying float vPhase;
 
   void main() {
     vec4 viewPosition = modelViewMatrix * vec4(position, 1.0);
     gl_Position = projectionMatrix * viewPosition;
-    float twinkleAmount = mix(0.014, 0.065, aGlint);
+    float twinkleAmount = mix(0.008, 0.045, aGlint);
     float twinkle = 1.0 - twinkleAmount
       + sin(uTime * (0.42 + aPhase * 0.28) + aPhase * 31.0) * twinkleAmount;
     float glintPulse = 0.88 + sin(uTime * 0.68 + aPhase * 47.0) * 0.12;
     gl_PointSize = clamp(
       aSize * (260.0 / max(-viewPosition.z, 1.0)) * mix(1.0, glintPulse, aGlint),
       0.65,
-      7.5
+      9.5
     );
     vStarColor = color;
     vStarAlpha = aIntensity * twinkle * uOpacity;
     vGlint = aGlint;
+    vPhase = aPhase;
   }
 `;
 
@@ -1083,21 +1085,38 @@ const environmentStarFragmentShader = `
   varying vec3 vStarColor;
   varying float vStarAlpha;
   varying float vGlint;
+  varying float vPhase;
 
   void main() {
     vec2 point = gl_PointCoord - 0.5;
     float radius = length(point);
-    float core = 1.0 - smoothstep(0.025, 0.14, radius);
-    float halo = 1.0 - smoothstep(0.08, 0.5, radius);
-    // Hero stars used to draw identical cyan cross-rays. Against the exit
-    // dust those repeated sprites read as patterned blue streaks, so keep the
-    // glint photographic and radial instead.
-    float compactGlint = (1.0 - smoothstep(0.025, 0.22, radius)) * vGlint;
-    float haloWeight = mix(0.12, 0.27, vGlint);
-    float alpha = max(core, halo * haloWeight + compactGlint * 0.18) * vStarAlpha;
+    float core = 1.0 - smoothstep(0.018, 0.115, radius);
+    float halo = 1.0 - smoothstep(0.055, 0.5, radius);
+    float compactGlint = (1.0 - smoothstep(0.018, 0.19, radius)) * vGlint;
+    float angle = vPhase * 6.2831853;
+    float cosine = cos(angle);
+    float sine = sin(angle);
+    vec2 rotated = mat2(cosine, -sine, sine, cosine) * point;
+    float longRay = exp(-abs(rotated.y) * 92.0)
+      * (1.0 - smoothstep(0.045, 0.48, abs(rotated.x)));
+    float shortRay = exp(-abs(rotated.x) * 118.0)
+      * (1.0 - smoothstep(0.035, 0.34, abs(rotated.y)));
+    float diffraction = (longRay + shortRay * 0.56) * vGlint;
+    float haloWeight = mix(0.085, 0.22, vGlint);
+    float alpha = max(
+      core,
+      halo * haloWeight + compactGlint * 0.15 + diffraction * 0.34
+    ) * vStarAlpha;
     vec3 whiteCore = vec3(0.985, 0.997, 1.0);
-    vec3 color = mix(vStarColor, whiteCore, core * 0.68 + compactGlint * 0.42);
-    gl_FragColor = vec4(color * (0.72 + core * 1.65 + compactGlint * 0.74), alpha);
+    vec3 color = mix(
+      vStarColor,
+      whiteCore,
+      core * 0.76 + compactGlint * 0.42 + diffraction * 0.3
+    );
+    gl_FragColor = vec4(
+      color * (0.62 + core * 1.92 + compactGlint * 0.84 + diffraction * 1.1),
+      alpha
+    );
   }
 `;
 
@@ -1657,46 +1676,6 @@ function createDeepSpaceWorld(isMobile: boolean, balancedQuality: boolean, softw
     return material;
   };
 
-  // A single authored equirectangular sky gives the destination a large-scale
-  // galactic composition and true 360-degree continuity. The procedural stars
-  // remain in front for parallax, spectral variation, and subtle live twinkle.
-  const galaxyTexture = loadCriticalTexture(
-    `${BASE_PATH}/textures/${
-      isMobile || softwareRendering
-        ? "bv-deep-space-galaxy-v1-mobile.webp"
-        : "bv-deep-space-galaxy-v1.webp"
-    }`,
-  );
-  galaxyTexture.colorSpace = THREE.SRGBColorSpace;
-  galaxyTexture.wrapS = THREE.RepeatWrapping;
-  galaxyTexture.wrapT = THREE.ClampToEdgeWrapping;
-  galaxyTexture.minFilter = THREE.LinearMipmapLinearFilter;
-  galaxyTexture.magFilter = THREE.LinearFilter;
-  galaxyTexture.anisotropy = softwareRendering ? 1 : isMobile ? 2 : 4;
-  textures.push(galaxyTexture);
-  const galaxyGeometry = trackGeometry(
-    new THREE.SphereGeometry(
-      392,
-      softwareRendering ? 32 : 48,
-      softwareRendering ? 16 : 24,
-    ),
-  );
-  const galaxyMaterial = trackMaterial(
-    new THREE.MeshBasicMaterial({
-      map: galaxyTexture,
-      color: 0xffffff,
-      side: THREE.BackSide,
-      depthTest: false,
-      depthWrite: false,
-      toneMapped: false,
-    }),
-  );
-  const galaxyBackdrop = new THREE.Mesh(galaxyGeometry, galaxyMaterial);
-  galaxyBackdrop.frustumCulled = false;
-  galaxyBackdrop.renderOrder = -20;
-  galaxyBackdrop.rotation.set(-0.035, -0.02, -0.055);
-  group.add(galaxyBackdrop);
-
   // Keep the destination sky richly populated at every depth. This remains a
   // single Points draw call, so the added density costs vertices rather than
   // additional scene objects or materials.
@@ -1710,30 +1689,56 @@ function createDeepSpaceWorld(isMobile: boolean, balancedQuality: boolean, softw
   const starPhases = new Float32Array(starCount);
   const starGlints = new Float32Array(starCount);
   const starColor = new THREE.Color();
+  let starRandomState = 0x8f31c7d5;
+  const randomStar = () => {
+    starRandomState = (starRandomState + 0x6d2b79f5) >>> 0;
+    let value = starRandomState;
+    value = Math.imul(value ^ (value >>> 15), value | 1);
+    value ^= value + Math.imul(value ^ (value >>> 7), value | 61);
+    return ((value ^ (value >>> 14)) >>> 0) / 4294967296;
+  };
   const starClusterCenters = [
     [-0.68, 0.34],
     [0.46, -0.13],
     [0.76, 0.4],
     [-0.08, 0.11],
+    [-0.34, -0.46],
   ] as const;
   for (let index = 0; index < starCount; index += 1) {
     // Keep the stellar field on a genuinely distant shell. Nearby stars read
     // like small objects floating beside the planet and flatten the scene.
-    const depth = 180 + Math.pow(Math.random(), 0.52) * 150;
+    const depth = 180 + Math.pow(randomStar(), 0.52) * 150;
     const wrapsScene = index >= frontStarCount;
-    const clusterRoll = Math.random();
-    const clusterIndex = !wrapsScene && clusterRoll < 0.17 ? Math.floor(Math.random() * starClusterCenters.length) : -1;
+    const clusterRoll = randomStar();
+    const clusterIndex =
+      !wrapsScene && clusterRoll < 0.19
+        ? Math.floor(randomStar() * starClusterCenters.length)
+        : -1;
     let screenX: number;
     let screenY: number;
     let sitsInStellarBand = false;
+    let bandStrength = 1;
     const positionOffset = index * 3;
     if (wrapsScene) {
       // Populate an actual celestial sphere around the viewer. Keeping this in
       // the existing Points geometry gives the environment complete 360-degree
       // coverage without introducing another draw call.
-      const azimuth = Math.random() * Math.PI * 2;
-      sitsInStellarBand = Math.random() < 0.42;
-      const elevation = sitsInStellarBand ? Math.sin(azimuth * 2.35 + 0.8) * 0.075 + (Math.random() - 0.5) * (0.12 + Math.pow(Math.random(), 2.1) * 0.34) : Math.asin(Math.random() * 2 - 1);
+      const azimuth = randomStar() * Math.PI * 2;
+      const galacticBulge = 0.5 + 0.5 * Math.cos(azimuth - 4.48);
+      sitsInStellarBand = randomStar() < 0.5 + galacticBulge * 0.14;
+      const bandCenter =
+        Math.sin(azimuth * 1.18 + 0.74) * 0.15 +
+        Math.sin(azimuth * 2.84 - 0.35) * 0.042;
+      const laneSide = randomStar() < 0.5 ? -1 : 1;
+      const laneDistance =
+        0.032 +
+        Math.pow(randomStar(), 1.82) * (0.14 + galacticBulge * 0.07);
+      const elevation = sitsInStellarBand
+        ? bandCenter +
+          laneSide * laneDistance +
+          (randomStar() - 0.5) * 0.042
+        : Math.asin(randomStar() * 2 - 1);
+      bandStrength = sitsInStellarBand ? 0.92 + galacticBulge * 0.52 : 0.86;
       const latitudeRadius = Math.cos(elevation);
       starPositions[positionOffset] = Math.sin(azimuth) * latitudeRadius * depth;
       starPositions[positionOffset + 1] = Math.sin(elevation) * depth;
@@ -1742,19 +1747,26 @@ function createDeepSpaceWorld(isMobile: boolean, balancedQuality: boolean, softw
       screenY = 8;
     } else if (clusterIndex >= 0) {
       const cluster = starClusterCenters[clusterIndex];
-      const clusterAngle = Math.random() * Math.PI * 2;
-      const clusterRadius = Math.pow(Math.random(), 2.05) * (0.08 + Math.random() * 0.16);
+      const clusterAngle = randomStar() * Math.PI * 2;
+      const clusterRadius =
+        Math.pow(randomStar(), 2.15) * (0.07 + randomStar() * 0.17);
       screenX = cluster[0] + Math.cos(clusterAngle) * clusterRadius;
       screenY = cluster[1] + Math.sin(clusterAngle) * clusterRadius * 0.68;
       sitsInStellarBand = true;
+      bandStrength = 1.24;
     } else {
       // A majority of this branch now fills the full celestial shell. The
       // denser band remains visible, but no longer leaves broad black fields
       // above and below the composition.
-      sitsInStellarBand = Math.random() < 0.43;
-      screenX = (Math.random() - 0.5) * 2.42;
+      sitsInStellarBand = randomStar() < 0.5;
+      screenX = (randomStar() - 0.5) * 2.42;
       const bandCenter = 0.16 - screenX * 0.23 + Math.sin(screenX * 3.2) * 0.045;
-      screenY = sitsInStellarBand ? bandCenter + (Math.random() - 0.5) * (0.1 + Math.pow(Math.random(), 2.25) * 0.29) : (Math.random() - 0.5) * 1.56;
+      const laneSide = randomStar() < 0.5 ? -1 : 1;
+      const laneDistance = 0.045 + Math.pow(randomStar(), 1.9) * 0.19;
+      screenY = sitsInStellarBand
+        ? bandCenter + laneSide * laneDistance + (randomStar() - 0.5) * 0.035
+        : (randomStar() - 0.5) * 1.56;
+      bandStrength = sitsInStellarBand ? 1.1 : 0.88;
     }
     if (!wrapsScene) {
       starPositions[positionOffset] = screenX * depth;
@@ -1762,15 +1774,15 @@ function createDeepSpaceWorld(isMobile: boolean, balancedQuality: boolean, softw
       starPositions[positionOffset + 2] = -depth;
     }
 
-    const temperature = Math.random();
-    if (clusterIndex === 0 && temperature < 0.5) starColor.set(0x7dddf4);
-    else if (clusterIndex === 1 && temperature < 0.34) starColor.set(0xffcf91);
-    else if (clusterIndex === 2 && temperature < 0.44) starColor.set(0x9a9fff);
-    else if (temperature < 0.58) starColor.set(0xdce9ef);
-    else if (temperature < 0.74) starColor.set(0x86d9f0);
-    else if (temperature < 0.86) starColor.set(0x9aa9ff);
-    else if (temperature < 0.96) starColor.set(0xffd6a1);
-    else starColor.set(0xff9b72);
+    const temperature = randomStar();
+    if (clusterIndex === 0 && temperature < 0.42) starColor.set(0x9ce8f6);
+    else if (clusterIndex === 1 && temperature < 0.31) starColor.set(0xffd5a3);
+    else if (clusterIndex === 2 && temperature < 0.38) starColor.set(0xb4b7ff);
+    else if (temperature < 0.68) starColor.set(0xeaf2f4);
+    else if (temperature < 0.83) starColor.set(0xa4dded);
+    else if (temperature < 0.91) starColor.set(0xb7bdff);
+    else if (temperature < 0.98) starColor.set(0xffd7aa);
+    else starColor.set(0xffa27d);
     starColors[positionOffset] = starColor.r;
     starColors[positionOffset + 1] = starColor.g;
     starColors[positionOffset + 2] = starColor.b;
@@ -1780,13 +1792,22 @@ function createDeepSpaceWorld(isMobile: boolean, balancedQuality: boolean, softw
     const projectedPlanetRadius = planetRadius / -planetPosition.z;
     const distanceFromPlanet = Math.hypot(screenX - projectedPlanetX, screenY - projectedPlanetY);
     const clearsPlanetaryNeighborhood = distanceFromPlanet > projectedPlanetRadius * 1.85;
-    const heroStar = clearsPlanetaryNeighborhood && Math.random() < (wrapsScene ? 0.005 : 0.014);
-    const midStar = !heroStar && Math.random() < 0.105;
-    starSizes[index] = heroStar ? 2.8 + Math.random() * 2.2 : midStar ? 1.45 + Math.random() * 1.35 : 0.6 + Math.pow(Math.random(), 1.95) * 0.8;
-    const densityBoost = clusterIndex >= 0 ? 1.12 : sitsInStellarBand ? 1.05 : 1.1;
-    starIntensities[index] = heroStar ? 0.82 + Math.random() * 0.18 : (0.36 + Math.pow(Math.random(), 0.78) * 0.48) * densityBoost;
-    starPhases[index] = Math.random();
-    starGlints[index] = heroStar ? 0.58 + Math.random() * 0.42 : 0;
+    const heroStar =
+      clearsPlanetaryNeighborhood &&
+      randomStar() < (wrapsScene ? 0.0035 : 0.011);
+    const midStar = !heroStar && randomStar() < 0.092;
+    starSizes[index] = heroStar
+      ? (3.1 + randomStar() * 2.4) * Math.min(bandStrength, 1.2)
+      : midStar
+        ? (1.35 + randomStar() * 1.25) * Math.min(bandStrength, 1.16)
+        : (0.48 + Math.pow(randomStar(), 2.15) * 0.76) *
+          Math.min(bandStrength, 1.12);
+    const densityBoost = clusterIndex >= 0 ? 1.16 : bandStrength;
+    starIntensities[index] = heroStar
+      ? 0.88 + randomStar() * 0.12
+      : (0.25 + Math.pow(randomStar(), 0.72) * 0.53) * densityBoost;
+    starPhases[index] = randomStar();
+    starGlints[index] = heroStar ? 0.62 + randomStar() * 0.38 : 0;
   }
   const starGeometry = trackGeometry(new THREE.BufferGeometry());
   starGeometry.setAttribute("position", new THREE.BufferAttribute(starPositions, 3));
@@ -1816,7 +1837,7 @@ function createDeepSpaceWorld(isMobile: boolean, balancedQuality: boolean, softw
   deepStars.renderOrder = -12;
   group.add(deepStars);
 
-  const veilCount = isMobile ? 500 : softwareRendering ? 600 : balancedQuality ? 720 : 980;
+  const veilCount = isMobile ? 760 : softwareRendering ? 920 : balancedQuality ? 1320 : 1880;
   const veilPositions = new Float32Array(veilCount * 3);
   const veilColors = new Float32Array(veilCount * 3);
   const veilSizes = new Float32Array(veilCount);
@@ -1824,26 +1845,36 @@ function createDeepSpaceWorld(isMobile: boolean, balancedQuality: boolean, softw
   const veilPhases = new Float32Array(veilCount);
   const veilColor = new THREE.Color();
   for (let index = 0; index < veilCount; index += 1) {
-    const depth = 175 + Math.random() * 145;
-    const bandX = (Math.random() - 0.5) * 2.28;
-    const clusterWave = Math.sin(bandX * 2.7 + 0.8) * 0.055;
-    const bandY = 0.16 - bandX * 0.23 + clusterWave + (Math.random() - 0.5) * (0.12 + Math.pow(Math.random(), 1.7) * 0.24);
+    const depth = 205 + randomStar() * 120;
+    const azimuth = randomStar() * Math.PI * 2;
+    const galacticBulge = 0.5 + 0.5 * Math.cos(azimuth - 4.48);
+    const bandCenter =
+      Math.sin(azimuth * 1.18 + 0.74) * 0.15 +
+      Math.sin(azimuth * 2.84 - 0.35) * 0.042;
+    const laneSide = randomStar() < 0.5 ? -1 : 1;
+    const elevation =
+      bandCenter +
+      laneSide * (0.055 + Math.pow(randomStar(), 1.5) * 0.18) +
+      (randomStar() - 0.5) * 0.065;
+    const latitudeRadius = Math.cos(elevation);
     const positionOffset = index * 3;
-    veilPositions[positionOffset] = bandX * depth;
-    veilPositions[positionOffset + 1] = bandY * depth;
-    veilPositions[positionOffset + 2] = -depth;
+    veilPositions[positionOffset] = Math.sin(azimuth) * latitudeRadius * depth;
+    veilPositions[positionOffset + 1] = Math.sin(elevation) * depth;
+    veilPositions[positionOffset + 2] = -Math.cos(azimuth) * latitudeRadius * depth;
 
-    const hueChoice = Math.random();
-    if (hueChoice < 0.52) veilColor.set(0x237f9d);
-    else if (hueChoice < 0.78) veilColor.set(0x334b9a);
-    else if (hueChoice < 0.93) veilColor.set(0x694a8e);
-    else veilColor.set(0x9a603f);
+    const hueChoice = randomStar();
+    if (hueChoice < 0.48) veilColor.set(0x1e718a);
+    else if (hueChoice < 0.76) veilColor.set(0x293d82);
+    else if (hueChoice < 0.93) veilColor.set(0x5b3b78);
+    else veilColor.set(0x825037);
     veilColors[positionOffset] = veilColor.r;
     veilColors[positionOffset + 1] = veilColor.g;
     veilColors[positionOffset + 2] = veilColor.b;
-    veilSizes[index] = 18 + Math.pow(Math.random(), 0.64) * 32;
-    veilIntensities[index] = 0.019 + Math.pow(Math.random(), 1.6) * 0.043;
-    veilPhases[index] = Math.random();
+    veilSizes[index] = 24 + Math.pow(randomStar(), 0.7) * 42;
+    veilIntensities[index] =
+      (0.012 + Math.pow(randomStar(), 1.75) * 0.032) *
+      (0.82 + galacticBulge * 0.36);
+    veilPhases[index] = randomStar();
   }
   const veilGeometry = trackGeometry(new THREE.BufferGeometry());
   veilGeometry.setAttribute("position", new THREE.BufferAttribute(veilPositions, 3));
@@ -2419,9 +2450,8 @@ function createDeepSpaceWorld(isMobile: boolean, balancedQuality: boolean, softw
     for (const material of materials) material.opacity = eased;
     engineMaterial.opacity = eased * 0.92;
     ringMaterial.opacity = eased * 0.46;
-    galaxyMaterial.opacity = eased * (softwareRendering ? 0.56 : isMobile ? 0.6 : 0.68);
-    starUniforms.uOpacity.value = eased * 0.84;
-    veilUniforms.uOpacity.value = eased * 0.34;
+    starUniforms.uOpacity.value = eased * 0.94;
+    veilUniforms.uOpacity.value = eased * 0.86;
     lowerStormLayer.uniforms.uOpacity.value = eased * 0.92;
     anvilStormLayer.uniforms.uOpacity.value = eased * 0.7;
     upperStormLayer.uniforms.uOpacity.value = eased * 0.58;
@@ -2434,7 +2464,6 @@ function createDeepSpaceWorld(isMobile: boolean, balancedQuality: boolean, softw
     if (!group.visible) return;
     starUniforms.uTime.value = elapsedSeconds;
     veilUniforms.uTime.value = elapsedSeconds;
-    galaxyBackdrop.rotation.y = -0.02 + Math.sin(elapsedSeconds * 0.0012) * 0.0015;
     deepStars.rotation.z = Math.sin(elapsedSeconds * 0.004) * 0.003;
     stellarVeil.rotation.z = -0.035 + Math.sin(elapsedSeconds * 0.0025) * 0.004;
     lowerStormLayer.uniforms.uTime.value = elapsedSeconds;
