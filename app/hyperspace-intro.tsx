@@ -2476,12 +2476,14 @@ export function HyperspaceIntro() {
   );
 
   const engage = useCallback((audioEnabled: boolean) => {
-    audioRef.current?.setMuted(!audioEnabled);
+    const audio = audioRef.current;
+    audio?.setMuted(!audioEnabled);
+    if (audioEnabled) audio?.unlockFromGesture();
     window.localStorage.setItem("black-vector-audio-muted", String(!audioEnabled));
     window.dispatchEvent(new Event(AUDIO_SYNC_EVENT));
     setNeedsEngagement(false);
     setExperienceReady(true);
-    void audioRef.current?.start();
+    void audio?.start();
   }, []);
 
   const finish = useCallback((audioFadeSeconds = 0.1) => {
@@ -3436,11 +3438,7 @@ export function HyperspaceIntro() {
           <button className="cinema-gate-skip" type="button" onClick={skipIntro}>
             SKIP HYPERSPACE
           </button>
-          <small>
-            {mobileVisitor
-              ? "AUDIO IS OFF BY DEFAULT ON MOBILE"
-              : "SELECT AUDIO BEFORE TRANSIT"}
-          </small>
+          {!mobileVisitor && <small>SELECT AUDIO BEFORE TRANSIT</small>}
         </div>
       )}
       <div

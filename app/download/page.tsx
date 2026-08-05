@@ -46,10 +46,7 @@ export default function DownloadPage() {
             access status.
           </p>
           <div className="download-page-actions">
-            <Link className="primary-action" href={`${BASE_PATH}/playtest`}>
-              JOIN THE PLAYTEST <span aria-hidden="true">→</span>
-            </Link>
-            <Link className="secondary-action" href={`${BASE_PATH}/account`}>
+            <Link className="primary-action" href={`${BASE_PATH}/account`}>
               OPEN ACCOUNT <span aria-hidden="true">→</span>
             </Link>
           </div>

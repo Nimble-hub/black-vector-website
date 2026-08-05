@@ -81,6 +81,23 @@ export class HyperspaceAudio {
     this.getStructuralNoiseBuffer(context);
   }
 
+  unlockFromGesture() {
+    const context = this.getContext();
+    if (!context) return;
+
+    // Mobile browsers may suspend a newly-created AudioContext again while
+    // the soundtrack is still being fetched and decoded. Start one silent
+    // sample during the tap itself so the later buffered sources inherit a
+    // context that was activated by the visitor's gesture.
+    const primer = context.createBufferSource();
+    primer.buffer = context.createBuffer(1, 1, context.sampleRate);
+    primer.connect(context.destination);
+    primer.addEventListener("ended", () => primer.disconnect(), { once: true });
+    primer.start();
+    void context.resume();
+    this.prepare();
+  }
+
   async start() {
     const playbackEpoch = ++this.playbackEpoch;
     const context = this.getContext();

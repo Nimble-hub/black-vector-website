@@ -35,15 +35,17 @@ export function StandaloneHeader({
           <sup className="trademark-symbol">&trade;</sup>
         </Link>
         <nav className="standalone-nav" aria-label="Site navigation">
-          {navigation.map((item) => (
-            <Link
-              href={`${basePath}${item.href}`}
-              aria-current={current === item.id ? "page" : undefined}
-              key={item.id}
-            >
-              {item.label}
-            </Link>
-          ))}
+          {navigation.map((item) =>
+            current === item.id ? (
+              <span aria-current="page" key={item.id}>
+                {item.label}
+              </span>
+            ) : (
+              <Link href={`${basePath}${item.href}`} key={item.id}>
+                {item.label}
+              </Link>
+            ),
+          )}
         </nav>
       </header>
     </>

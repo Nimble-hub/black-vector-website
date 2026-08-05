@@ -337,8 +337,10 @@ test("provides consistent route navigation, recovery paths, and bookmarkable acc
   }
   assert.match(header, /SKIP TO MAIN CONTENT/);
   assert.match(header, /aria-current/);
+  assert.match(header, /<span aria-current="page"/);
   assert.match(support, /current="support"/);
   assert.match(download, /current="download"/);
+  assert.doesNotMatch(download, /JOIN THE PLAYTEST/);
   for (const policy of [terms, privacy, legal]) {
     assert.match(policy, /PolicySwitcher/);
     assert.match(policy, /BACK TO TOP/);
@@ -484,13 +486,17 @@ test("presents the production game pitch and cleanly hands transit audio to the 
   assert.match(intro, /SKIP HYPERSPACE/);
   assert.match(intro, /CONTINUE SILENT/);
   assert.match(intro, /SELECT AUDIO BEFORE TRANSIT/);
+  assert.doesNotMatch(intro, /AUDIO IS OFF BY DEFAULT ON MOBILE/);
+  assert.match(intro, /audio\?\.unlockFromGesture\(\)/);
   assert.match(intro, /className=\{mobileVisitor \? "cinema-gate-primary" : undefined\}/);
   assert.match(intro, /const skipIntro = useCallback/);
   assert.match(audio, /playbackEpoch/);
   assert.match(audio, /finishTransit/);
   assert.doesNotMatch(audio, /if \(muted\) \{\s*this\.stop/);
   assert.match(audio, /this\.updateMasterGain\(\)/);
-  assert.match(intro, /void audioRef\.current\?\.start\(\)/);
+  assert.match(audio, /unlockFromGesture\(\)/);
+  assert.match(audio, /context\.createBuffer\(1, 1, context\.sampleRate\)/);
+  assert.match(intro, /void audio\?\.start\(\)/);
   assert.doesNotMatch(intro, /if \(!muted\) void audio\.startMusic\(\)/);
   assert.match(styles, /\.site-header\s*\{[\s\S]*position:\s*fixed/);
   assert.match(header, /aria-expanded=\{menuOpen\}/);
