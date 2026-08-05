@@ -139,6 +139,80 @@ export const playtestProfile = sqliteTable("playtest_profile", {
     .notNull(),
 });
 
+export const gameBuild = sqliteTable(
+  "game_build",
+  {
+    id: text("id").primaryKey(),
+    channel: text("channel", { enum: ["playtest", "release"] })
+      .default("playtest")
+      .notNull(),
+    platform: text("platform", { enum: ["windows"] })
+      .default("windows")
+      .notNull(),
+    version: text("version").notNull(),
+    objectKey: text("object_key").notNull().unique(),
+    filename: text("filename").notNull(),
+    sizeBytes: integer("size_bytes").notNull(),
+    sha256: text("sha256"),
+    releaseNotes: text("release_notes"),
+    state: text("state", { enum: ["draft", "published", "retired"] })
+      .default("draft")
+      .notNull(),
+    publishedAt: integer("published_at", { mode: "timestamp_ms" }),
+    createdAt: integer("created_at", { mode: "timestamp_ms" })
+      .default(now)
+      .notNull(),
+    updatedAt: integer("updated_at", { mode: "timestamp_ms" })
+      .default(now)
+      .$onUpdate(() => new Date())
+      .notNull(),
+  },
+  (table) => [
+    index("idx_game_build_distribution").on(
+      table.channel,
+      table.platform,
+      table.state,
+      table.publishedAt,
+    ),
+  ],
+);
+
+export const gameDownloadEntitlement = sqliteTable(
+  "game_download_entitlement",
+  {
+    id: text("id").primaryKey(),
+    userId: text("user_id")
+      .notNull()
+      .references(() => user.id, { onDelete: "cascade" }),
+    channel: text("channel", { enum: ["playtest", "release"] })
+      .default("playtest")
+      .notNull(),
+    active: integer("active", { mode: "boolean" }).default(true).notNull(),
+    expiresAt: integer("expires_at", { mode: "timestamp_ms" }),
+    grantedBy: text("granted_by").references(() => user.id, {
+      onDelete: "set null",
+    }),
+    createdAt: integer("created_at", { mode: "timestamp_ms" })
+      .default(now)
+      .notNull(),
+    updatedAt: integer("updated_at", { mode: "timestamp_ms" })
+      .default(now)
+      .$onUpdate(() => new Date())
+      .notNull(),
+  },
+  (table) => [
+    uniqueIndex("uidx_game_download_entitlement_user_channel").on(
+      table.userId,
+      table.channel,
+    ),
+    index("idx_game_download_entitlement_access").on(
+      table.userId,
+      table.active,
+      table.expiresAt,
+    ),
+  ],
+);
+
 export const communityStaffRole = sqliteTable(
   "community_staff_role",
   {

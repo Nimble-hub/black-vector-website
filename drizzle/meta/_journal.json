@@ -64,6 +64,13 @@
       "when": 1785811124981,
       "tag": "0008_neutral_callsigns",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "6",
+      "when": 1785907095306,
+      "tag": "0009_quick_rattler",
+      "breakpoints": true
     }
   ]
 }

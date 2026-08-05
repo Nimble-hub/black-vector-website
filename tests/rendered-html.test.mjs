@@ -226,6 +226,32 @@ test("ships the realtime community hub and account profile media controls", asyn
   ]);
 });
 
+test("keeps private game builds offline until a verified release is published", async () => {
+  const [schema, statusRoute, downloadRoute, releaseRoute, card, config] =
+    await Promise.all([
+      readFile(new URL("db/schema.ts", root), "utf8"),
+      readFile(new URL("app/api/downloads/status/route.ts", root), "utf8"),
+      readFile(new URL("app/api/downloads/current/route.ts", root), "utf8"),
+      readFile(
+        new URL("app/api/downloads/admin/release/route.ts", root),
+        "utf8",
+      ),
+      readFile(new URL("app/download-access-card.tsx", root), "utf8"),
+      readFile(new URL("wrangler.jsonc", root), "utf8"),
+    ]);
+
+  assert.match(schema, /gameBuild/);
+  assert.match(schema, /gameDownloadEntitlement/);
+  assert.match(statusRoute, /state: "offline"/);
+  assert.match(statusRoute, /email_verification_required/);
+  assert.match(downloadRoute, /accept-ranges/);
+  assert.match(downloadRoute, /content-range/);
+  assert.match(downloadRoute, /private, no-store/);
+  assert.match(releaseRoute, /Administrator access required/);
+  assert.match(card, /DISTRIBUTION NODE \/\/ OFFLINE/);
+  assert.match(config, /GAME_BUILDS/);
+});
+
 test("enforces community ownership and staff moderation roles", async () => {
   const [
     schema,

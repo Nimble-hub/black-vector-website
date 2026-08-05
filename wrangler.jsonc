@@ -40,6 +40,10 @@
     {
       "binding": "CINEMATIC_MEDIA",
       "bucket_name": "black-vector-cinematic-media"
+    },
+    {
+      "binding": "GAME_BUILDS",
+      "bucket_name": "black-vector-game-builds"
     }
   ],
   "durable_objects": {

@@ -1281,6 +1281,69 @@ h1 span {
 .access-action:not(.is-disabled):hover { color: var(--ivory); border-color: var(--ivory); }
 .access-action.is-disabled { color: rgba(155, 170, 179, 0.38); border-color: rgba(155, 170, 179, 0.16); }
 
+.download-node-card {
+  position: relative;
+  overflow: hidden;
+}
+
+.download-node-card::after {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(180deg, transparent 0%, rgba(68, 202, 209, 0.025) 48%, transparent 52%);
+  content: "";
+  pointer-events: none;
+  transform: translateY(-100%);
+}
+
+.download-node-card[data-download-state="checking"]::after {
+  animation: download-node-scan 1.8s linear infinite;
+}
+
+.download-node-state {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+}
+
+.download-node-state i {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: rgba(155, 170, 179, 0.38);
+  box-shadow: 0 0 0 3px rgba(155, 170, 179, 0.05);
+}
+
+.download-node-card[data-download-state="offline"] .download-node-state,
+.download-node-card[data-download-state="offline"] .access-action {
+  color: rgba(203, 159, 72, 0.72);
+}
+
+.download-node-card[data-download-state="offline"] .download-node-state i {
+  background: #cb9f48;
+  box-shadow: 0 0 10px rgba(203, 159, 72, 0.42);
+}
+
+.download-node-card[data-download-state="ready"] .download-node-state,
+.download-node-card[data-download-state="ready"] .access-action {
+  color: var(--cyan);
+}
+
+.download-node-card[data-download-state="ready"] .download-node-state i {
+  background: var(--cyan);
+  box-shadow: 0 0 12px rgba(68, 202, 209, 0.7);
+}
+
+.download-build-meta {
+  margin: 16px 0 0 !important;
+  color: rgba(68, 202, 209, 0.72) !important;
+  font: 8px/1.5 Consolas, "Cascadia Mono", monospace !important;
+  letter-spacing: 0.12em;
+}
+
+@keyframes download-node-scan {
+  to { transform: translateY(100%); }
+}
+
 .access-note {
   margin: 28px 0 0;
   color: rgba(155, 170, 179, 0.42);

@@ -3,6 +3,7 @@ import Image from "next/image";
 import { preload } from "react-dom";
 import { HyperspaceIntro } from "./hyperspace-intro";
 import { SiteHeader } from "./site-header";
+import { DownloadAccessCard } from "./download-access-card";
 
 const BASE_PATH = process.env.NEXT_PUBLIC_BASE_PATH ?? "";
 const DISCORD_INVITE_URL =
@@ -38,17 +39,6 @@ const accessOptions = [
     readyLabel: "OPEN STOREFRONT",
     pendingLabel: "STOREFRONT PENDING",
     status: "NOT YET FOR SALE",
-  },
-  {
-    id: "download",
-    index: "03",
-    title: "Download a build",
-    description:
-      "Approved testers will receive the correct build and deployment notes through the playtest channel.",
-    href: process.env.NEXT_PUBLIC_DOWNLOAD_URL,
-    readyLabel: "DOWNLOAD BUILD",
-    pendingLabel: "PRIVATE BUILDS ONLY",
-    status: "ACCESS CONTROLLED",
   },
 ] as const;
 
@@ -430,11 +420,13 @@ export default function Home() {
               )}
             </article>
           ))}
+          <DownloadAccessCard basePath={BASE_PATH} />
         </div>
 
         <p className="access-note">
-          No public build or purchase destination is connected yet. Official
-          links will appear here only when ready.
+          Build delivery remains private and access-controlled. The download
+          node activates only when a verified release is deployed for approved
+          accounts.
         </p>
       </section>
 
