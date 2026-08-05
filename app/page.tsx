@@ -468,6 +468,7 @@ export default function Home() {
             DISCORD
           </a>
           <a href={`${BASE_PATH}/account`}>ACCOUNT</a>
+          <a href={`${BASE_PATH}/nimble-game-studios`}>NGS</a>
           <a href={`${BASE_PATH}/legal`}>LEGAL</a>
         </div>
       </footer>
