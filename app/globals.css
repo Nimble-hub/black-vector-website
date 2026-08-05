@@ -559,6 +559,126 @@ h1 span {
   color: var(--cyan);
 }
 
+.discord-action {
+  position: relative;
+  isolation: isolate;
+  display: grid;
+  grid-template-columns: 30px minmax(0, 1fr) auto;
+  min-width: 218px;
+  min-height: 50px;
+  align-items: center;
+  gap: 10px;
+  overflow: hidden;
+  padding: 7px 12px 7px 9px;
+  border: 1px solid rgba(124, 136, 255, 0.58);
+  background:
+    linear-gradient(112deg, rgba(88, 101, 242, 0.2), rgba(4, 12, 18, 0.88) 62%),
+    rgba(3, 10, 15, 0.82);
+  box-shadow:
+    0 13px 36px rgba(0, 0, 0, 0.25),
+    inset 0 0 28px rgba(88, 101, 242, 0.06);
+  clip-path: polygon(0 0, calc(100% - 10px) 0, 100% 10px, 100% 100%, 0 100%);
+  color: var(--ivory);
+  font-family: Consolas, "Cascadia Mono", monospace;
+  text-decoration: none;
+  transition:
+    transform 180ms ease,
+    border-color 180ms ease,
+    background 180ms ease,
+    box-shadow 180ms ease;
+}
+
+.discord-action::before {
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  background: linear-gradient(105deg, transparent 20%, rgba(128, 221, 231, 0.09) 48%, transparent 76%);
+  content: "";
+  opacity: 0;
+  transform: translateX(-38%);
+  transition: opacity 180ms ease, transform 440ms cubic-bezier(.16,.72,.26,1);
+}
+
+.discord-action-mark {
+  position: relative;
+  display: flex;
+  width: 30px;
+  height: 30px;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  border: 1px solid rgba(154, 164, 255, 0.78);
+  border-radius: 8px 8px 10px 10px;
+  background: linear-gradient(145deg, #6672f4, #4854d6);
+  box-shadow: 0 0 18px rgba(88, 101, 242, 0.28);
+}
+
+.discord-action-mark::after {
+  position: absolute;
+  bottom: 5px;
+  width: 11px;
+  height: 4px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.88);
+  border-radius: 50%;
+  content: "";
+}
+
+.discord-action-mark i {
+  width: 3px;
+  height: 4px;
+  border-radius: 50%;
+  background: #fff;
+  box-shadow: 0 0 6px rgba(255, 255, 255, 0.65);
+}
+
+.discord-action-copy {
+  display: grid;
+  gap: 4px;
+}
+
+.discord-action-copy small {
+  color: rgba(157, 166, 255, 0.88);
+  font-size: 6px;
+  font-weight: 700;
+  letter-spacing: 0.13em;
+}
+
+.discord-action-copy strong {
+  font-size: 9px;
+  letter-spacing: 0.13em;
+}
+
+.discord-action > b {
+  color: rgba(157, 166, 255, 0.92);
+  font-size: 15px;
+  font-weight: 400;
+  transition: color 180ms ease, transform 180ms ease;
+}
+
+.discord-action:hover,
+.discord-action:focus-visible {
+  border-color: rgba(157, 166, 255, 0.96);
+  background:
+    linear-gradient(112deg, rgba(88, 101, 242, 0.31), rgba(6, 18, 25, 0.96) 66%),
+    rgba(3, 10, 15, 0.9);
+  box-shadow:
+    0 17px 48px rgba(0, 0, 0, 0.34),
+    0 0 26px rgba(88, 101, 242, 0.16);
+  transform: translateY(-2px);
+}
+
+.discord-action:hover::before,
+.discord-action:focus-visible::before {
+  opacity: 1;
+  transform: translateX(28%);
+}
+
+.discord-action:hover > b,
+.discord-action:focus-visible > b {
+  color: #fff;
+  transform: translate(2px, -2px);
+}
+
 .text-action {
   display: inline-block;
   padding: 12px 0;
@@ -1667,7 +1787,11 @@ nav[aria-label="Community navigation"] a:focus-visible {
   .audio-toggle { min-height: 36px; }
   .hero-actions { align-items: flex-start; flex-direction: column; gap: 9px; }
   .hero-actions .primary-action,
-  .hero-actions .secondary-action { width: min(100%, 250px); min-height: 48px; justify-content: space-between; }
+  .hero-actions .secondary-action,
+  .hero-actions .discord-action { width: min(100%, 250px); min-height: 48px; }
+  .hero-actions .primary-action,
+  .hero-actions .secondary-action { justify-content: space-between; }
+  .discord-action { min-width: 0; }
   .replay-action { margin-left: 0; }
   .scroll-cue { display: none; }
   .hero-playtest-cta { display: none; }

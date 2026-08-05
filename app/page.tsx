@@ -5,6 +5,8 @@ import { HyperspaceIntro } from "./hyperspace-intro";
 import { SiteHeader } from "./site-header";
 
 const BASE_PATH = process.env.NEXT_PUBLIC_BASE_PATH ?? "";
+const DISCORD_INVITE_URL =
+  process.env.NEXT_PUBLIC_DISCORD_URL ?? "https://discord.gg/PAasrdjBqe";
 
 export const metadata: Metadata = {
   title: "Black Vector | Large-Scale Fleet-Command RTS",
@@ -154,6 +156,23 @@ export default function Home() {
             </a>
             <a className="secondary-action" href={`${BASE_PATH}/playtest`}>
               JOIN THE PLAYTEST <span aria-hidden="true">&#8594;</span>
+            </a>
+            <a
+              className="discord-action"
+              href={DISCORD_INVITE_URL}
+              target="_blank"
+              rel="noreferrer"
+              aria-label="Join the Nimble Games Studio Discord community (opens in a new tab)"
+            >
+              <span className="discord-action-mark" aria-hidden="true">
+                <i />
+                <i />
+              </span>
+              <span className="discord-action-copy">
+                <small>NGS COMMUNITY // LIVE</small>
+                <strong>JOIN DISCORD</strong>
+              </span>
+              <b aria-hidden="true">&#8599;</b>
             </a>
             <button
               className="text-action replay-action"
@@ -424,6 +443,9 @@ export default function Home() {
           <a href="#development">DEVELOPMENT</a>
           <a href="#access">ACCESS</a>
           <a href={`${BASE_PATH}/community`}>COMMUNITY</a>
+          <a href={DISCORD_INVITE_URL} target="_blank" rel="noreferrer">
+            DISCORD
+          </a>
           <a href={`${BASE_PATH}/account`}>ACCOUNT</a>
         </div>
       </footer>

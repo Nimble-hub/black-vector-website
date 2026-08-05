@@ -167,6 +167,11 @@ test("routes the hero playtest call-to-action by authentication state", async ()
 
   assert.match(home, /hero-playtest-cta/);
   assert.match(home, /JOIN THE PLAYTEST/);
+  assert.match(home, /discord-action/);
+  assert.match(home, /JOIN DISCORD/);
+  assert.match(home, /NEXT_PUBLIC_DISCORD_URL/);
+  assert.match(home, /https:\/\/discord\.gg\/PAasrdjBqe/);
+  assert.match(home, /target="_blank"/);
   assert.match(home, /id=\{option\.id\}/);
   assert.match(playtestRoute, /getSession/);
   assert.match(playtestRoute, /\/#download/);
