@@ -9,10 +9,10 @@ export async function GET() {
     : null;
 
   if (session) {
-    return Response.redirect(`${environment.baseURL}/#download`, 302);
+    return Response.redirect(`${environment.baseURL}/download`, 302);
   }
 
-  const returnTo = encodeURIComponent("/#download");
+  const returnTo = encodeURIComponent("/download");
   return Response.redirect(
     `${environment.baseURL}/register?returnTo=${returnTo}&intent=playtest`,
     302,

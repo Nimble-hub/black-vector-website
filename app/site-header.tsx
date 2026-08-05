@@ -3,10 +3,10 @@
 import { useEffect, useState } from "react";
 
 const sectionLinks = [
+  { id: "access", label: "ACCESS" },
   { id: "game", label: "GAME" },
   { id: "universe", label: "UNIVERSE" },
   { id: "development", label: "DEVELOPMENT" },
-  { id: "access", label: "PLAYTEST" },
 ] as const;
 
 export function SiteHeader({ basePath = "" }: { basePath?: string }) {
@@ -56,8 +56,8 @@ export function SiteHeader({ basePath = "" }: { basePath?: string }) {
 
   return (
     <>
-      <a className="skip-link" href="#game">
-        SKIP TO GAME OVERVIEW
+      <a className="skip-link" href="#access">
+        SKIP TO ACCESS OPTIONS
       </a>
       <header className="site-header">
         <a
@@ -89,6 +89,9 @@ export function SiteHeader({ basePath = "" }: { basePath?: string }) {
               {item.label}
             </a>
           ))}
+          <a href={`${basePath}/download`} onClick={closeMenu}>
+            DOWNLOAD
+          </a>
           <a href={`${basePath}/community`} onClick={closeMenu}>
             COMMUNITY
           </a>

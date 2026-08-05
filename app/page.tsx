@@ -3,7 +3,7 @@ import Image from "next/image";
 import { preload } from "react-dom";
 import { HyperspaceIntro } from "./hyperspace-intro";
 import { SiteHeader } from "./site-header";
-import { DownloadAccessCard } from "./download-access-card";
+import { AccessSection } from "./access-section";
 
 const BASE_PATH = process.env.NEXT_PUBLIC_BASE_PATH ?? "";
 const DISCORD_INVITE_URL =
@@ -14,33 +14,6 @@ export const metadata: Metadata = {
   description:
     "Build fleets, capture strategic territory, grow a wartime economy, and command massive real-time battles across human space.",
 };
-
-const accessOptions = [
-  {
-    id: "playtest",
-    index: "01",
-    title: "Join the playtest",
-    description:
-      "Help shape command readability, pacing, fleet behavior, and the decisions that define Black Vector.",
-    href:
-      process.env.NEXT_PUBLIC_PLAYTEST_URL ||
-      `${BASE_PATH}/register?returnTo=%2Faccount&intent=playtest`,
-    readyLabel: "REGISTER FOR ACCESS",
-    pendingLabel: "INTAKE PREPARING",
-    status: "PRE-RELEASE TESTING",
-  },
-  {
-    id: "purchase",
-    index: "02",
-    title: "Purchase the game",
-    description:
-      "The official storefront will become the permanent home for ownership, updates, and release information.",
-    href: process.env.NEXT_PUBLIC_PURCHASE_URL,
-    readyLabel: "OPEN STOREFRONT",
-    pendingLabel: "STOREFRONT PENDING",
-    status: "NOT YET FOR SALE",
-  },
-] as const;
 
 const gamePillars = [
   {
@@ -204,6 +177,8 @@ export default function Home() {
           <i aria-hidden="true" />
         </a>
       </section>
+
+      <AccessSection basePath={BASE_PATH} />
 
       <section
         className="site-section game-overview"
@@ -373,63 +348,6 @@ export default function Home() {
         </div>
       </section>
 
-      <section
-        className="site-section access-section"
-        id="access"
-        aria-labelledby="access-title"
-      >
-        <div className="access-heading">
-          <p className="eyebrow">PLAYTEST &amp; RELEASE ACCESS</p>
-          <h2 id="access-title">TAKE YOUR PLACE IN THE FLEET.</h2>
-          <p>
-            Playtest, storefront, and build delivery have distinct channels.
-            Each terminal below activates as its official destination comes
-            online.
-          </p>
-        </div>
-
-        <div className="access-grid">
-          {accessOptions.map((option) => (
-            <article className="access-card" id={option.id} key={option.id}>
-              <div className="access-card-top">
-                <span>{option.index}</span>
-                <small>{option.status}</small>
-              </div>
-              <h3>{option.title}</h3>
-              <p>{option.description}</p>
-              {option.href ? (
-                <a
-                  className="access-action"
-                  href={option.href}
-                  {...(option.href.startsWith("http")
-                    ? { target: "_blank", rel: "noreferrer" }
-                    : {})}
-                >
-                  {option.readyLabel}{" "}
-                  <span aria-hidden="true">
-                    {option.href.startsWith("http") ? "↗" : "→"}
-                  </span>
-                </a>
-              ) : (
-                <span
-                  className="access-action is-disabled"
-                  aria-disabled="true"
-                >
-                  {option.pendingLabel}
-                </span>
-              )}
-            </article>
-          ))}
-          <DownloadAccessCard basePath={BASE_PATH} />
-        </div>
-
-        <p className="access-note">
-          Build delivery remains private and access-controlled. The download
-          node activates only when a verified release is deployed for approved
-          accounts.
-        </p>
-      </section>
-
       <footer className="site-footer">
         <a
           className="wordmark footer-wordmark"
@@ -455,6 +373,7 @@ export default function Home() {
           <a href="#universe">UNIVERSE</a>
           <a href="#development">DEVELOPMENT</a>
           <a href="#access">ACCESS</a>
+          <a href={`${BASE_PATH}/download`}>DOWNLOAD</a>
           <a href={`${BASE_PATH}/community`}>COMMUNITY</a>
           <a href={DISCORD_INVITE_URL} target="_blank" rel="noreferrer">
             DISCORD

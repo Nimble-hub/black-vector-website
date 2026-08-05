@@ -21,11 +21,11 @@ test("packages a server runtime and D1 migration", async () => {
 });
 
 test("keeps account linking explicit and exposes every requested sign-in path", async () => {
-  const [auth, authScreen, settings, home] = await Promise.all([
+  const [auth, authScreen, settings, playtestRoute] = await Promise.all([
     readFile(new URL("lib/auth.ts", root), "utf8"),
     readFile(new URL("app/auth-screen.tsx", root), "utf8"),
     readFile(new URL("app/account/settings.tsx", root), "utf8"),
-    readFile(new URL("app/page.tsx", root), "utf8"),
+    readFile(new URL("app/playtest/route.ts", root), "utf8"),
   ]);
 
   assert.match(auth, /disableImplicitLinking:\s*true/);
@@ -37,7 +37,7 @@ test("keeps account linking explicit and exposes every requested sign-in path", 
   assert.match(authScreen, /OR MANUAL ACCOUNT/);
   assert.match(settings, /CONNECTED ACCOUNTS/);
   assert.match(settings, /ACTIVATE MANUAL SIGN-IN/);
-  assert.match(home, /register\?returnTo=%2Faccount/);
+  assert.match(playtestRoute, /\/register\?returnTo=/);
 
   await Promise.all([
     access(new URL("app/api/auth/[...all]/route.ts", root)),
@@ -160,8 +160,9 @@ test("secures and exposes manual-account password recovery", async () => {
 });
 
 test("routes the hero playtest call-to-action by authentication state", async () => {
-  const [home, playtestRoute] = await Promise.all([
+  const [home, accessSection, playtestRoute] = await Promise.all([
     readFile(new URL("app/page.tsx", root), "utf8"),
+    readFile(new URL("app/access-section.tsx", root), "utf8"),
     readFile(new URL("app/playtest/route.ts", root), "utf8"),
   ]);
 
@@ -174,9 +175,9 @@ test("routes the hero playtest call-to-action by authentication state", async ()
   assert.match(home, /NEXT_PUBLIC_DISCORD_URL/);
   assert.match(home, /https:\/\/discord\.gg\/PAasrdjBqe/);
   assert.match(home, /target="_blank"/);
-  assert.match(home, /id=\{option\.id\}/);
+  assert.match(accessSection, /id=\{option\.id\}/);
   assert.match(playtestRoute, /getSession/);
-  assert.match(playtestRoute, /\/#download/);
+  assert.match(playtestRoute, /\/download/);
   assert.match(playtestRoute, /\/register\?returnTo=/);
 });
 
@@ -248,8 +249,26 @@ test("keeps private game builds offline until a verified release is published", 
   assert.match(downloadRoute, /content-range/);
   assert.match(downloadRoute, /private, no-store/);
   assert.match(releaseRoute, /Administrator access required/);
-  assert.match(card, /DISTRIBUTION NODE \/\/ OFFLINE/);
+  assert.match(card, /GAME DOWNLOAD \/\/ OFFLINE/);
   assert.match(config, /GAME_BUILDS/);
+});
+
+test("puts access near the top and provides a dedicated build terminal", async () => {
+  const [home, accessSection, downloadPage, downloadCard] = await Promise.all([
+    readFile(new URL("app/page.tsx", root), "utf8"),
+    readFile(new URL("app/access-section.tsx", root), "utf8"),
+    readFile(new URL("app/download/page.tsx", root), "utf8"),
+    readFile(new URL("app/download-access-card.tsx", root), "utf8"),
+  ]);
+
+  assert.ok(home.indexOf("<AccessSection") < home.indexOf("game-overview"));
+  assert.match(accessSection, /Join the playtest/i);
+  assert.match(accessSection, /Purchase the game/i);
+  assert.match(accessSection, /OPEN DOWNLOAD TERMINAL/);
+  assert.match(downloadPage, /BLACK VECTOR BUILD TERMINAL/);
+  assert.match(downloadPage, /variant="terminal"/);
+  assert.match(downloadCard, /DOWNLOAD BLACK VECTOR/);
+  assert.match(downloadCard, /api\/downloads\/current/);
 });
 
 test("keeps Stripe support checkout fail-closed and separate from game access", async () => {
@@ -353,7 +372,8 @@ test("presents the production game pitch and cleanly hands transit audio to the 
   assert.doesNotMatch(intro, /if \(!muted\) void audio\.startMusic\(\)/);
   assert.match(styles, /\.site-header\s*\{[\s\S]*position:\s*fixed/);
   assert.match(header, /aria-expanded=\{menuOpen\}/);
-  assert.match(header, /SKIP TO GAME OVERVIEW/);
+  assert.match(header, /SKIP TO ACCESS OPTIONS/);
+  assert.match(header, /\/download/);
   assert.match(header, /COMMUNITY/);
   assert.match(header, /ACCOUNT/);
 });

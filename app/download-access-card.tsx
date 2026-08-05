@@ -14,6 +14,8 @@ type DownloadStatus = {
   state: DownloadState;
   version?: string;
   sizeBytes?: number;
+  platform?: string;
+  filename?: string;
   downloadUrl?: string;
 };
 
@@ -23,23 +25,23 @@ const STATE_COPY: Record<
 > = {
   checking: {
     status: "NODE HANDSHAKE",
-    label: "CHECKING DISTRIBUTION NODE",
+    label: "CHECKING BUILD AVAILABILITY",
     detail: "Secure build channel handshake in progress.",
   },
   offline: {
     status: "NODE OFFLINE",
-    label: "DISTRIBUTION NODE // OFFLINE",
+    label: "GAME DOWNLOAD // OFFLINE",
     detail: "No approved build is deployed. This terminal will activate for the first private playtest.",
   },
   auth_required: {
     status: "IDENTITY REQUIRED",
-    label: "SIGN IN FOR BUILD ACCESS",
+    label: "SIGN IN TO DOWNLOAD",
     detail: "The private build channel is online. Authenticate to check your playtest clearance.",
-    href: "/login?returnTo=%2F%23download",
+    href: "/login?returnTo=%2Fdownload",
   },
   email_verification_required: {
     status: "VERIFICATION REQUIRED",
-    label: "VERIFY CONTACT CHANNEL",
+    label: "VERIFY EMAIL TO DOWNLOAD",
     detail: "Confirm your contact email before receiving private build access.",
     href: "/account",
   },
@@ -51,7 +53,7 @@ const STATE_COPY: Record<
   },
   ready: {
     status: "NODE ONLINE",
-    label: "DOWNLOAD APPROVED BUILD",
+    label: "DOWNLOAD BLACK VECTOR",
     detail: "Your account is cleared for the current private playtest build.",
   },
 };
@@ -63,7 +65,13 @@ function formatBytes(bytes?: number) {
   return `${(bytes / 1024 ** exponent).toFixed(exponent > 2 ? 1 : 0)} ${units[exponent]}`;
 }
 
-export function DownloadAccessCard({ basePath = "" }: { basePath?: string }) {
+export function DownloadAccessCard({
+  basePath = "",
+  variant = "card",
+}: {
+  basePath?: string;
+  variant?: "card" | "terminal";
+}) {
   const [download, setDownload] = useState<DownloadStatus>({ state: "checking" });
 
   useEffect(() => {
@@ -97,12 +105,15 @@ export function DownloadAccessCard({ basePath = "" }: { basePath?: string }) {
 
   return (
     <article
-      className="access-card download-node-card"
+      className={`access-card download-node-card${
+        variant === "terminal" ? " download-terminal-card" : ""
+      }`}
       data-download-state={download.state}
       id="download"
+      aria-live="polite"
     >
       <div className="access-card-top">
-        <span>03</span>
+        <span>{variant === "terminal" ? "BUILD CHANNEL // WINDOWS" : "03"}</span>
         <small className="download-node-state">
           <i aria-hidden="true" />
           {copy.status}
@@ -114,10 +125,19 @@ export function DownloadAccessCard({ basePath = "" }: { basePath?: string }) {
         <p className="download-build-meta">
           {download.version ? `BUILD ${download.version}` : "CURRENT BUILD"}
           {size ? ` // ${size}` : ""}
+          {download.filename ? ` // ${download.filename}` : ""}
         </p>
       ) : null}
       {href ? (
-        <a className="access-action" href={href}>
+        <a
+          className="access-action"
+          href={href}
+          aria-label={
+            download.state === "ready"
+              ? "Download the current Black Vector Windows build"
+              : undefined
+          }
+        >
           {copy.label} <span aria-hidden="true">→</span>
         </a>
       ) : (
