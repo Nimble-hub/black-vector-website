@@ -267,11 +267,14 @@ test("puts access near the top and provides a dedicated build terminal", async (
   assert.match(accessSection, /Support development/i);
   assert.doesNotMatch(accessSection, /Purchase the game/i);
   assert.match(accessSection, /\$\{basePath\}\/support/);
+  assert.match(accessSection, /className="access-card access-card-link"/);
   assert.match(accessSection, /OPEN DOWNLOAD TERMINAL/);
   assert.match(downloadPage, /BLACK VECTOR BUILD TERMINAL/);
   assert.match(downloadPage, /variant="terminal"/);
   assert.match(downloadCard, /DOWNLOAD BLACK VECTOR/);
   assert.match(downloadCard, /api\/downloads\/current/);
+  assert.match(downloadCard, /href=\{`\$\{basePath\}\/download`\}/);
+  assert.match(downloadCard, /OPEN DOWNLOAD PAGE/);
   assert.match(supportPage, /SUPPORT PROGRAM \/\/ NOT YET OPEN/);
   assert.match(supportPage, /Support is not yet open/i);
   assert.match(supportPage, /not be charitable or\s+tax-deductible/i);

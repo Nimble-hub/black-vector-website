@@ -7,8 +7,7 @@ const accessOptions = [
     title: "Join the playtest",
     description:
       "Create a commander profile and apply for access to private Black Vector playtests.",
-    readyLabel: "JOIN THE PLAYTEST",
-    pendingLabel: "PLAYTEST INTAKE // OFFLINE",
+    actionLabel: "JOIN THE PLAYTEST",
     status: "PRE-RELEASE TESTING",
   },
   {
@@ -17,8 +16,7 @@ const accessOptions = [
     title: "Support development",
     description:
       "Preview the upcoming supporter program, rewards, and ways to help fund development.",
-    readyLabel: "PREVIEW THE PROGRAM",
-    pendingLabel: "SUPPORT PROGRAM // COMING SOON",
+    actionLabel: "PREVIEW THE PROGRAM",
     status: "TIERS IN DEVELOPMENT",
   },
 ] as const;
@@ -48,33 +46,32 @@ export function AccessSection({ basePath = "" }: { basePath?: string }) {
         {accessOptions.map((option) => {
           const href =
             option.id === "playtest" ? playtestHref : `${basePath}/support`;
+          const isExternal = href.startsWith("http");
+
           return (
-            <article className="access-card" id={option.id} key={option.id}>
+            <a
+              className="access-card access-card-link"
+              id={option.id}
+              href={href}
+              key={option.id}
+              aria-label={`${option.title}: ${option.actionLabel}`}
+              {...(isExternal
+                ? { target: "_blank", rel: "noreferrer" }
+                : {})}
+            >
               <div className="access-card-top">
                 <span>{option.index}</span>
                 <small>{option.status}</small>
               </div>
               <h3>{option.title}</h3>
               <p>{option.description}</p>
-              {href ? (
-                <a
-                  className="access-action"
-                  href={href}
-                  {...(href.startsWith("http")
-                    ? { target: "_blank", rel: "noreferrer" }
-                    : {})}
-                >
-                  {option.readyLabel}{" "}
-                  <span aria-hidden="true">
-                    {href.startsWith("http") ? "↗" : "→"}
-                  </span>
-                </a>
-              ) : (
-                <span className="access-action is-disabled" aria-disabled="true">
-                  {option.pendingLabel}
+              <span className="access-action">
+                {option.actionLabel}{" "}
+                <span aria-hidden="true">
+                  {isExternal ? <>&#8599;</> : <>&#8594;</>}
                 </span>
-              )}
-            </article>
+              </span>
+            </a>
           );
         })}
         <DownloadAccessCard basePath={basePath} />
@@ -86,7 +83,7 @@ export function AccessSection({ basePath = "" }: { basePath?: string }) {
           an active playtest.
         </p>
         <a className="access-page-link" href={`${basePath}/download`}>
-          OPEN DOWNLOAD TERMINAL <span aria-hidden="true">→</span>
+          OPEN DOWNLOAD TERMINAL <span aria-hidden="true">&#8594;</span>
         </a>
       </div>
     </section>

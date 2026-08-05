@@ -103,17 +103,41 @@ export function DownloadAccessCard({
         : null;
   const size = formatBytes(download.sizeBytes);
 
+  if (variant === "card") {
+    return (
+      <a
+        className="access-card access-card-link download-node-card"
+        data-download-state={download.state}
+        id="download"
+        href={`${basePath}/download`}
+        aria-label="Open the Black Vector download page"
+        aria-live="polite"
+      >
+        <div className="access-card-top">
+          <span>03</span>
+          <small className="download-node-state">
+            <i aria-hidden="true" />
+            {copy.status}
+          </small>
+        </div>
+        <h3>Black Vector for Windows</h3>
+        <p>{copy.detail}</p>
+        <span className="access-action">
+          OPEN DOWNLOAD PAGE <span aria-hidden="true">&#8594;</span>
+        </span>
+      </a>
+    );
+  }
+
   return (
     <article
-      className={`access-card download-node-card${
-        variant === "terminal" ? " download-terminal-card" : ""
-      }`}
+      className="access-card download-node-card download-terminal-card"
       data-download-state={download.state}
       id="download"
       aria-live="polite"
     >
       <div className="access-card-top">
-        <span>{variant === "terminal" ? "BUILD CHANNEL // WINDOWS" : "03"}</span>
+        <span>BUILD CHANNEL // WINDOWS</span>
         <small className="download-node-state">
           <i aria-hidden="true" />
           {copy.status}

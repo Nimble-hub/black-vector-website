@@ -646,6 +646,25 @@ h1 span {
   transform: translateY(-3px);
 }
 
+.access-card-link {
+  color: inherit;
+  cursor: pointer;
+  text-decoration: none;
+}
+
+.access-card-link:focus-visible {
+  border-color: rgba(88, 213, 220, 0.82);
+  outline: 2px solid rgba(88, 213, 220, 0.52);
+  outline-offset: 4px;
+  transform: translateY(-3px);
+}
+
+.access-card-link:hover .access-action,
+.access-card-link:focus-visible .access-action {
+  border-color: var(--ivory);
+  color: var(--ivory);
+}
+
 .access-card-top small {
   color: rgba(183, 196, 201, 0.58);
   font-size: 8px;
