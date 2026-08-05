@@ -32,13 +32,8 @@ export default function LegalPage() {
           Games Studio in connection with computer game software, online game
           services, playtesting, and related entertainment services.
         </p>
-        <p>
-          The ™ symbol identifies an unregistered trademark claim. It does not
-          represent federal registration. The ® symbol is not used for BLACK
-          VECTOR unless and until the applicable mark is federally registered.
-        </p>
 
-        <h2>Copyright</h2>
+        <h2>Ownership</h2>
         <p>
           © 2026 Nimble Games Studio. Original Black Vector artwork, writing,
           audio, visual presentation, game materials, and website content are
