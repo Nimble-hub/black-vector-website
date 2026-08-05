@@ -69,7 +69,9 @@ export function SiteHeader({ basePath = "" }: { basePath?: string }) {
           <span className="wordmark-mark" aria-hidden="true">
             BV
           </span>
-          <span>BLACK VECTOR</span>
+          <span>
+            BLACK VECTOR<sup className="trademark-symbol">™</sup>
+          </span>
         </a>
 
         <nav

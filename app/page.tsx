@@ -447,9 +447,17 @@ export default function Home() {
           <span className="wordmark-mark" aria-hidden="true">
             BV
           </span>
-          <span>BLACK VECTOR</span>
+          <span>
+            BLACK VECTOR<sup className="trademark-symbol">™</sup>
+          </span>
         </a>
-        <p>A large-scale fleet-command RTS from Nimble Games Studio.</p>
+        <p className="footer-legal">
+          <span>A large-scale fleet-command RTS from Nimble Games Studio.</span>
+          <small>
+            © 2026 Nimble Games Studio. BLACK VECTOR™ is a trademark of
+            Nimble Games Studio. All rights reserved.
+          </small>
+        </p>
         <div>
           <a href="#game">GAME</a>
           <a href="#universe">UNIVERSE</a>
@@ -460,6 +468,7 @@ export default function Home() {
             DISCORD
           </a>
           <a href={`${BASE_PATH}/account`}>ACCOUNT</a>
+          <a href={`${BASE_PATH}/legal`}>LEGAL</a>
         </div>
       </footer>
     </main>

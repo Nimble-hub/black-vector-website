@@ -775,7 +775,9 @@ export function CommunityConsole({
       <header className={styles.header}>
         <Link className={styles.wordmark} href="/">
           <span>BV</span>
-          <strong>BLACK VECTOR</strong>
+          <strong>
+            BLACK VECTOR<sup className="trademark-symbol">™</sup>
+          </strong>
         </Link>
         <div className={styles.title}>
           <small>PUBLIC NETWORK // COMMUNITY NODE</small>
@@ -1530,7 +1532,7 @@ export function CommunityConsole({
         )}
       </section>
       <footer className={styles.footer}>
-        <span>COMMUNITY RELAY // PUBLIC</span>
+        <span>© 2026 NIMBLE GAMES STUDIO // BLACK VECTOR™</span>
         <span>RESPECT THE CREW. REPORT CLEARLY. ARGUE THE IDEA.</span>
       </footer>
       {notice && (

@@ -90,7 +90,7 @@ export default async function AccountPage({
   return (
     <main className="account-shell">
       <header className="account-header">
-        <Link className="auth-wordmark" href="/"><span>BV</span> BLACK VECTOR</Link>
+        <Link className="auth-wordmark" href="/"><span>BV</span> BLACK VECTOR<sup className="trademark-symbol">™</sup></Link>
         <nav className="account-global-nav" aria-label="Account navigation">
           <Link href="/">HOME</Link>
           <Link href="/community">COMMUNITY</Link>

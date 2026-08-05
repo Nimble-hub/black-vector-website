@@ -1307,6 +1307,21 @@ h1 span {
   font-size: 12px;
 }
 
+.footer-legal {
+  display: grid;
+  gap: 7px;
+  max-width: 520px;
+}
+
+.footer-legal small {
+  color: rgba(155, 170, 179, 0.38);
+  font-family: Consolas, "Cascadia Mono", monospace;
+  font-size: 7px;
+  line-height: 1.55;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
 .site-footer > div {
   display: flex;
   flex-wrap: wrap;
@@ -1325,6 +1340,93 @@ h1 span {
 .site-footer > div a:hover { color: var(--cyan); }
 .footer-wordmark { font-size: 11px; }
 .footer-wordmark .wordmark-mark { width: 30px; height: 30px; }
+
+.trademark-symbol {
+  position: relative;
+  top: -0.35em;
+  margin-left: 0.22em;
+  color: currentColor;
+  font-family: Arial, sans-serif;
+  font-size: 0.46em;
+  font-weight: 600;
+  line-height: 0;
+  letter-spacing: 0;
+}
+
+.legal-shell {
+  min-height: 100svh;
+  padding: 120px clamp(24px, 7vw, 112px) 80px;
+  background:
+    linear-gradient(rgba(68, 202, 209, 0.025) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(68, 202, 209, 0.025) 1px, transparent 1px),
+    radial-gradient(circle at 76% 10%, rgba(68, 202, 209, 0.08), transparent 30%),
+    #03070a;
+  background-size: 56px 56px, 56px 56px, auto, auto;
+}
+
+.legal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: min(980px, 100%);
+  margin: 0 auto 48px;
+}
+
+.legal-header nav {
+  display: flex;
+  gap: 24px;
+}
+
+.legal-header nav a {
+  color: rgba(155, 170, 179, 0.72);
+  font-family: Consolas, "Cascadia Mono", monospace;
+  font-size: 9px;
+  letter-spacing: 0.13em;
+  text-decoration: none;
+}
+
+.legal-header nav a:hover { color: var(--cyan); }
+
+.legal-document {
+  width: min(980px, 100%);
+  margin: 0 auto;
+  padding: clamp(32px, 6vw, 72px);
+  border: 1px solid rgba(145, 195, 201, 0.2);
+  background: rgba(3, 9, 13, 0.92);
+  box-shadow: 0 32px 90px rgba(0, 0, 0, 0.36);
+}
+
+.legal-document h1 {
+  max-width: 800px;
+  margin: 12px 0 28px;
+  color: var(--ivory);
+  font-size: clamp(38px, 7vw, 76px);
+  line-height: 0.94;
+  letter-spacing: -0.045em;
+}
+
+.legal-document h2 {
+  margin: 42px 0 12px;
+  color: var(--cyan);
+  font-family: Consolas, "Cascadia Mono", monospace;
+  font-size: 11px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+.legal-document p {
+  max-width: 760px;
+  margin: 0 0 16px;
+  color: rgba(183, 196, 201, 0.78);
+  font-size: 15px;
+  line-height: 1.72;
+}
+
+@media (max-width: 640px) {
+  .legal-header { align-items: flex-start; gap: 24px; }
+  .legal-header nav { flex-direction: column; gap: 10px; text-align: right; }
+  .legal-document { padding: 30px 22px; }
+}
 
 /* Identity and account surfaces intentionally remain lightweight: the 3D theater
    does not load behind authentication, so slower devices get an immediate form. */

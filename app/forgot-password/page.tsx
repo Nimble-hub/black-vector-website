@@ -30,7 +30,7 @@ export default function ForgotPasswordPage() {
 
   return (
     <main className="auth-shell">
-      <Link className="auth-wordmark" href="/"><span>BV</span> BLACK VECTOR</Link>
+      <Link className="auth-wordmark" href="/"><span>BV</span> BLACK VECTOR<sup className="trademark-symbol">™</sup></Link>
       <section className="auth-panel compact-auth-panel">
         <p className="eyebrow">RECOVERY CHANNEL // ENCRYPTED</p>
         <h1>RESET ACCESS KEY.</h1>

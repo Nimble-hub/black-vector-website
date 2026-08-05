@@ -104,7 +104,7 @@ export function AuthScreen({ mode, returnTo }: AuthScreenProps) {
   return (
     <main className="auth-shell">
       <Link className="auth-wordmark" href="/" aria-label="Return to Black Vector">
-        <span>BV</span> BLACK VECTOR
+        <span>BV</span> BLACK VECTOR<sup className="trademark-symbol">™</sup>
       </Link>
       <section className="auth-panel" aria-labelledby="auth-title">
         <div className="auth-panel-heading">
