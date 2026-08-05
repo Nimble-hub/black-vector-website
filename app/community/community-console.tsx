@@ -1533,7 +1533,11 @@ export function CommunityConsole({
       </section>
       <footer className={styles.footer}>
         <span>© 2026 NIMBLE GAME STUDIOS // BLACK VECTOR™</span>
-        <span>RESPECT THE CREW. REPORT CLEARLY. ARGUE THE IDEA.</span>
+        <nav aria-label="Community policies">
+          <Link href="/terms">TERMS OF SERVICE</Link>
+          <Link href="/privacy">PRIVACY NOTICE</Link>
+          <Link href="/legal">LEGAL NOTICES</Link>
+        </nav>
       </footer>
       {notice && (
         <button className={styles.notice} onClick={() => setNotice("")}>

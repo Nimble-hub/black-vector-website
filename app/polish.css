@@ -2280,6 +2280,20 @@ h1 span {
   white-space: nowrap;
 }
 
+.support-policy-actions {
+  display: grid;
+  gap: 12px;
+  justify-items: start;
+}
+
+.support-policy-actions a {
+  display: inline-flex;
+  min-height: 32px;
+  align-items: center;
+  gap: 14px;
+  border-bottom: 1px solid rgba(88, 213, 220, 0.28);
+}
+
 .support-tier-disclaimer a:hover,
 .support-tier-disclaimer a:focus-visible,
 .support-legal-link:hover,

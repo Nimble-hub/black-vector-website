@@ -4,6 +4,7 @@ import { getRuntimeEnv } from "./runtime-env";
 export const SUPPORT_MINIMUM_CENTS = 500;
 export const SUPPORT_MAXIMUM_CENTS = 50_000;
 export const SUPPORT_CURRENCY = "usd";
+export const SUPPORT_TERMS_VERSION = "2026-08-04";
 
 export function isSupportCheckoutEnabled() {
   const runtime = getRuntimeEnv();

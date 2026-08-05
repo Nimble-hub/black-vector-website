@@ -144,9 +144,14 @@ export default function SupportPage() {
             will be shown before any payment is accepted. Displayed tiers do not
             create a reservation, purchase, or entitlement.
           </p>
-          <Link href={`${BASE_PATH}/legal#support-program`}>
-            REVIEW SUPPORTER NOTICE <span aria-hidden="true">&rarr;</span>
-          </Link>
+          <div className="support-policy-actions" aria-label="Support program terms">
+            <Link href={`${BASE_PATH}/terms#support`}>
+              TERMS OF SERVICE <span aria-hidden="true">&rarr;</span>
+            </Link>
+            <Link href={`${BASE_PATH}/legal#support-program`}>
+              SUPPORTER NOTICE <span aria-hidden="true">&rarr;</span>
+            </Link>
+          </div>
         </div>
 
         <div className="support-priority-intro">
@@ -215,7 +220,9 @@ export default function SupportPage() {
           Want to follow the discussion while the program is prepared?
         </p>
         <div>
-          <Link href={`${BASE_PATH}/legal`}>TERMS &amp; LEGAL</Link>
+          <Link href={`${BASE_PATH}/terms`}>TERMS OF SERVICE</Link>
+          <Link href={`${BASE_PATH}/privacy`}>PRIVACY NOTICE</Link>
+          <Link href={`${BASE_PATH}/legal`}>LEGAL NOTICES</Link>
           <a href={DISCORD_INVITE_URL} target="_blank" rel="noreferrer">
             JOIN THE NGS DISCORD <span aria-hidden="true">&nearr;</span>
           </a>

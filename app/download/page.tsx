@@ -105,7 +105,9 @@ export default function DownloadPage() {
         <p>&copy; 2026 Nimble Game Studios. All rights reserved.</p>
         <div>
           <Link href={`${BASE_PATH}/support`}>SUPPORT DEVELOPMENT</Link>
-          <Link href={`${BASE_PATH}/legal`}>TERMS &amp; LEGAL</Link>
+          <Link href={`${BASE_PATH}/terms`}>TERMS OF SERVICE</Link>
+          <Link href={`${BASE_PATH}/privacy`}>PRIVACY NOTICE</Link>
+          <Link href={`${BASE_PATH}/legal`}>LEGAL NOTICES</Link>
         </div>
       </footer>
     </main>

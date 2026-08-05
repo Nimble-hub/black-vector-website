@@ -307,12 +307,48 @@ test("keeps Stripe support checkout fail-closed and separate from game access", 
   assert.match(schema, /stripeWebhookEvent/);
   assert.match(config, /"SUPPORT_CHECKOUT_ENABLED": "false"/);
   assert.match(checkoutRoute, /isSupportCheckoutEnabled/);
+  assert.match(checkoutRoute, /termsAccepted:\s*z\.literal\(true\)/);
+  assert.match(checkoutRoute, /termsVersion:\s*z\.literal\(SUPPORT_TERMS_VERSION\)/);
+  assert.match(checkoutRoute, /terms_version/);
   assert.match(checkoutRoute, /payment_method_types: \["card"\]/);
   assert.match(webhookRoute, /constructEventAsync/);
   assert.match(webhookRoute, /Stripe\.createSubtleCryptoProvider/);
   assert.doesNotMatch(checkoutRoute, /gameDownloadEntitlement/);
   assert.doesNotMatch(webhookRoute, /game_download_entitlement/);
   assert.match(setup, /do not grant a game copy/i);
+});
+
+test("publishes service terms and privacy disclosures at decision points", async () => {
+  const [terms, privacy, auth, home, support, download, legal, account, community] =
+    await Promise.all([
+      readFile(new URL("app/terms/page.tsx", root), "utf8"),
+      readFile(new URL("app/privacy/page.tsx", root), "utf8"),
+      readFile(new URL("app/auth-screen.tsx", root), "utf8"),
+      readFile(new URL("app/page.tsx", root), "utf8"),
+      readFile(new URL("app/support/page.tsx", root), "utf8"),
+      readFile(new URL("app/download/page.tsx", root), "utf8"),
+      readFile(new URL("app/legal/page.tsx", root), "utf8"),
+      readFile(new URL("app/account/page.tsx", root), "utf8"),
+      readFile(new URL("app/community/community-console.tsx", root), "utf8"),
+    ]);
+
+  assert.match(terms, /Terms of Service/);
+  assert.match(terms, /at least 13 years old/);
+  assert.match(terms, /Prototype, playtests, and downloadable builds/);
+  assert.match(terms, /Future supporter program and payments/);
+  assert.match(terms, /August 4, 2026/);
+  assert.match(privacy, /Privacy Notice/);
+  assert.match(privacy, /We do not sell personal information/);
+  assert.match(privacy, /Cloudflare/);
+  assert.match(privacy, /Stripe/);
+  assert.match(auth, /acceptedPolicies/);
+  assert.match(auth, /I agree to the/);
+  assert.match(auth, /Terms of Service/);
+  assert.match(auth, /Privacy Notice/);
+  for (const source of [home, support, download, legal, account, community]) {
+    assert.match(source, /\/terms/);
+    assert.match(source, /\/privacy/);
+  }
 });
 
 test("enforces community ownership and staff moderation roles", async () => {

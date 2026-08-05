@@ -13,6 +13,7 @@ import {
   SUPPORT_CURRENCY,
   SUPPORT_MAXIMUM_CENTS,
   SUPPORT_MINIMUM_CENTS,
+  SUPPORT_TERMS_VERSION,
 } from "@/lib/support-checkout";
 
 export const dynamic = "force-dynamic";
@@ -24,6 +25,8 @@ const checkoutInput = z.object({
     .min(SUPPORT_MINIMUM_CENTS)
     .max(SUPPORT_MAXIMUM_CENTS),
   recognitionOptIn: z.boolean().default(false),
+  termsAccepted: z.literal(true),
+  termsVersion: z.literal(SUPPORT_TERMS_VERSION),
 });
 
 function unavailable() {
@@ -44,7 +47,10 @@ export async function POST(request: Request) {
 
   const parsed = checkoutInput.safeParse(await request.json().catch(() => null));
   if (!parsed.success) {
-    return Response.json({ error: "Invalid support amount." }, { status: 400 });
+    return Response.json(
+      { error: "Confirm the current supporter terms before checkout." },
+      { status: 400 },
+    );
   }
 
   const authSession = await getAuth().api.getSession({ headers: await headers() });
@@ -88,9 +94,15 @@ export async function POST(request: Request) {
             },
           },
         ],
-        metadata: { contribution_id: contributionId },
+        metadata: {
+          contribution_id: contributionId,
+          terms_version: parsed.data.termsVersion,
+        },
         payment_intent_data: {
-          metadata: { contribution_id: contributionId },
+          metadata: {
+            contribution_id: contributionId,
+            terms_version: parsed.data.termsVersion,
+          },
         },
         success_url: `${baseURL}/support/complete?session_id={CHECKOUT_SESSION_ID}`,
         cancel_url: `${baseURL}/`,

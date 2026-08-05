@@ -1485,10 +1485,118 @@ h1 span {
   line-height: 1.72;
 }
 
+.policy-document section {
+  scroll-margin-top: 32px;
+}
+
+.policy-document p strong {
+  color: rgba(235, 234, 226, 0.9);
+}
+
+.policy-document p a,
+.legal-contact a {
+  color: var(--cyan);
+  text-underline-offset: 4px;
+}
+
+.policy-document ul {
+  display: grid;
+  max-width: 760px;
+  gap: 10px;
+  margin: 0 0 18px;
+  padding-left: 22px;
+  color: rgba(183, 196, 201, 0.78);
+  font-size: 15px;
+  line-height: 1.62;
+}
+
+.policy-document li::marker {
+  color: var(--cyan);
+}
+
+.policy-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 28px;
+  margin: -8px 0 34px;
+  color: rgba(155, 170, 179, 0.48);
+  font: 8px/1.5 Consolas, "Cascadia Mono", monospace;
+  letter-spacing: 0.13em;
+}
+
+.legal-callout {
+  max-width: 820px;
+  margin: 0 0 34px;
+  padding: 22px 24px;
+  border: 1px solid rgba(68, 202, 209, 0.22);
+  border-left: 2px solid var(--cyan);
+  background: linear-gradient(90deg, rgba(68, 202, 209, 0.065), transparent);
+}
+
+.legal-callout > strong {
+  display: block;
+  margin-bottom: 10px;
+  color: var(--cyan);
+  font: 700 8px/1.4 Consolas, "Cascadia Mono", monospace;
+  letter-spacing: 0.14em;
+}
+
+.legal-callout p {
+  margin: 0;
+  color: rgba(220, 222, 216, 0.84);
+}
+
+.policy-toc {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 0 0 46px;
+}
+
+.policy-toc a,
+.legal-policy-links a {
+  display: inline-flex;
+  min-height: 38px;
+  align-items: center;
+  padding: 0 13px;
+  border: 1px solid rgba(155, 170, 179, 0.16);
+  color: rgba(191, 204, 208, 0.7);
+  font: 700 7px/1 Consolas, "Cascadia Mono", monospace;
+  letter-spacing: 0.11em;
+  text-decoration: none;
+  transition: border-color 160ms ease, color 160ms ease, background 160ms ease;
+}
+
+.policy-toc a:hover,
+.policy-toc a:focus-visible,
+.legal-policy-links a:hover,
+.legal-policy-links a:focus-visible {
+  border-color: rgba(68, 202, 209, 0.5);
+  background: rgba(68, 202, 209, 0.06);
+  color: var(--ivory);
+}
+
+.legal-contact {
+  margin-top: 48px;
+  padding-top: 4px;
+  border-top: 1px solid rgba(155, 170, 179, 0.12);
+}
+
+.legal-policy-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 42px;
+  padding-top: 26px;
+  border-top: 1px solid rgba(155, 170, 179, 0.12);
+}
+
 @media (max-width: 640px) {
   .legal-header { align-items: flex-start; gap: 24px; }
   .legal-header nav { flex-direction: column; gap: 10px; text-align: right; }
   .legal-document { padding: 30px 22px; }
+  .legal-callout { padding: 18px; }
+  .policy-toc a { flex: 1 1 calc(50% - 8px); }
 }
 
 .ngs-shell {
@@ -1721,6 +1829,71 @@ h1 span {
   letter-spacing: 0.08em;
 }
 
+.auth-policy-consent {
+  display: grid;
+  grid-template-columns: 24px minmax(0, 1fr);
+  align-items: start;
+  gap: 12px;
+  margin: -12px 0 24px;
+  padding: 15px 16px;
+  border: 1px solid rgba(68, 202, 209, 0.18);
+  background: rgba(68, 202, 209, 0.035);
+}
+
+.auth-policy-consent label {
+  position: relative;
+  display: grid;
+  width: 24px;
+  height: 24px;
+  place-items: center;
+  cursor: pointer;
+}
+
+.auth-policy-consent input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  opacity: 0;
+}
+
+.auth-policy-consent label span {
+  display: grid;
+  width: 20px;
+  height: 20px;
+  place-items: center;
+  border: 1px solid rgba(155, 170, 179, 0.42);
+  background: rgba(2, 5, 8, 0.86);
+}
+
+.auth-policy-consent input:focus-visible + span {
+  outline: 2px solid var(--cyan);
+  outline-offset: 2px;
+}
+
+.auth-policy-consent input:checked + span {
+  border-color: var(--cyan);
+  background: var(--cyan);
+}
+
+.auth-policy-consent input:checked + span::after {
+  color: #031014;
+  content: "\2713";
+  font: 700 13px/1 Arial, sans-serif;
+}
+
+.auth-policy-consent p {
+  margin: 1px 0 0;
+  color: rgba(202, 211, 211, 0.78);
+  font-size: 12px;
+  line-height: 1.65;
+}
+
+.auth-policy-consent a {
+  color: var(--cyan);
+  text-underline-offset: 3px;
+}
+
 .connection-mark {
   display: grid;
   width: 30px;
@@ -1835,6 +2008,54 @@ h1 span {
   font-size: 8px;
   letter-spacing: 0.09em;
   text-align: center;
+}
+
+.auth-security-note p {
+  margin: 0;
+}
+
+.auth-security-note nav {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 10px 18px;
+  margin-top: 10px;
+}
+
+.auth-security-note a {
+  color: rgba(68, 202, 209, 0.7);
+  text-decoration: none;
+}
+
+.account-policy-footer {
+  display: flex;
+  width: min(1460px, calc(100% - 48px));
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 14px 28px;
+  margin: 32px auto 0;
+  padding-top: 24px;
+  border-top: 1px solid rgba(155, 170, 179, 0.12);
+  color: rgba(155, 170, 179, 0.42);
+  font: 7px/1.5 Consolas, "Cascadia Mono", monospace;
+  letter-spacing: 0.11em;
+  text-transform: uppercase;
+}
+
+.account-policy-footer nav {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px 22px;
+}
+
+.account-policy-footer a {
+  color: rgba(68, 202, 209, 0.72);
+  text-decoration: none;
+}
+
+.account-policy-footer a:hover,
+.account-policy-footer a:focus-visible {
+  color: var(--ivory);
 }
 
 .account-shell { padding: 0 0 70px; }

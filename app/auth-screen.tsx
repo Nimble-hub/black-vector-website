@@ -31,6 +31,7 @@ export function AuthScreen({ mode, returnTo }: AuthScreenProps) {
   const [systemReady, setSystemReady] = useState(false);
   const [busy, setBusy] = useState<string | null>(null);
   const [message, setMessage] = useState<string>("");
+  const [acceptedPolicies, setAcceptedPolicies] = useState(false);
 
   useEffect(() => {
     void fetch("/api/auth/providers", { cache: "no-store" })
@@ -43,7 +44,14 @@ export function AuthScreen({ mode, returnTo }: AuthScreenProps) {
       .catch(() => setProviders({ manual: false, google: false, discord: false, steam: false }));
   }, []);
 
+  const confirmPolicyAcceptance = () => {
+    if (mode !== "register" || acceptedPolicies) return true;
+    setMessage("Review and accept the Terms of Service and Privacy Notice before creating an account.");
+    return false;
+  };
+
   const startSocial = async (provider: "google" | "discord") => {
+    if (!confirmPolicyAcceptance()) return;
     setBusy(provider);
     setMessage("");
     try {
@@ -62,6 +70,7 @@ export function AuthScreen({ mode, returnTo }: AuthScreenProps) {
 
   const submitManual = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
+    if (!confirmPolicyAcceptance()) return;
     setBusy("manual");
     setMessage("");
     const form = new FormData(event.currentTarget);
@@ -85,6 +94,7 @@ export function AuthScreen({ mode, returnTo }: AuthScreenProps) {
         if (result.error) throw new Error(result.error.message);
         setMessage("Verification transmitted. Check your email to activate the account.");
         event.currentTarget.reset();
+        setAcceptedPolicies(false);
       } else {
         const result = await authClient.signIn.email({ email, password, callbackURL });
         if (result.error) throw new Error(result.error.message);
@@ -98,7 +108,8 @@ export function AuthScreen({ mode, returnTo }: AuthScreenProps) {
   };
 
   const providerDisabled = (provider: keyof ProviderAvailability) => (
-    busy !== null || !systemReady || providers?.[provider] !== true
+    busy !== null || !systemReady || providers?.[provider] !== true ||
+    (mode === "register" && !acceptedPolicies)
   );
 
   return (
@@ -117,8 +128,31 @@ export function AuthScreen({ mode, returnTo }: AuthScreenProps) {
           </p>
         </div>
 
+        {mode === "register" && (
+          <div className="auth-policy-consent">
+            <label htmlFor="accept-policies">
+              <input
+                id="accept-policies"
+                type="checkbox"
+                checked={acceptedPolicies}
+                onChange={(event) => {
+                  setAcceptedPolicies(event.target.checked);
+                  if (event.target.checked) setMessage("");
+                }}
+              />
+              <span aria-hidden="true" />
+            </label>
+            <p>
+              I agree to the <Link href="/terms" target="_blank">Terms of Service</Link>
+              {" "}and acknowledge the{" "}
+              <Link href="/privacy" target="_blank">Privacy Notice</Link>.
+            </p>
+          </div>
+        )}
+
         <div className="connection-grid" aria-label="Connected sign-in options">
           <button type="button" disabled={providerDisabled("steam")} onClick={() => {
+            if (!confirmPolicyAcceptance()) return;
             setBusy("steam");
             // Steam OpenID must leave the app as a full-document navigation.
             // eslint-disable-next-line @next/next/no-location-assign-relative-destination
@@ -204,7 +238,14 @@ export function AuthScreen({ mode, returnTo }: AuthScreenProps) {
           )}
         </div>
       </section>
-      <p className="auth-security-note">Passwords are hashed server-side. External credentials never pass through Black Vector.</p>
+      <div className="auth-security-note">
+        <p>Passwords are hashed server-side. External credentials never pass through Black Vector.</p>
+        <nav aria-label="Account policies">
+          <Link href="/terms">TERMS OF SERVICE</Link>
+          <Link href="/privacy">PRIVACY NOTICE</Link>
+          <Link href="/legal">LEGAL NOTICES</Link>
+        </nav>
+      </div>
     </main>
   );
 }

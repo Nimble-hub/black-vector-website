@@ -124,6 +124,14 @@ export default async function AccountPage({
           developmentUpdatesOptIn: profiles[0].developmentUpdatesOptIn,
         } : null}
       />
+      <footer className="account-policy-footer">
+        <span>&copy; 2026 Nimble Game Studios. All rights reserved.</span>
+        <nav aria-label="Account policies">
+          <Link href="/terms">TERMS OF SERVICE</Link>
+          <Link href="/privacy">PRIVACY NOTICE</Link>
+          <Link href="/legal">LEGAL NOTICES</Link>
+        </nav>
+      </footer>
     </main>
   );
 }

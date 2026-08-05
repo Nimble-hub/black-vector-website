@@ -381,7 +381,9 @@ export default function Home() {
           </a>
           <a href={`${BASE_PATH}/account`}>ACCOUNT</a>
           <a href={`${BASE_PATH}/nimble-game-studios`}>NGS</a>
-          <a href={`${BASE_PATH}/legal`}>LEGAL</a>
+          <a href={`${BASE_PATH}/terms`}>TERMS</a>
+          <a href={`${BASE_PATH}/privacy`}>PRIVACY</a>
+          <a href={`${BASE_PATH}/legal`}>LEGAL NOTICES</a>
         </div>
       </footer>
     </main>

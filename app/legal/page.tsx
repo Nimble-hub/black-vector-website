@@ -25,10 +25,9 @@ export default function LegalPage() {
         </Link>
         <nav aria-label="Legal page navigation">
           <Link href={`${BASE_PATH}/`}>HOME</Link>
-          <Link href={`${BASE_PATH}/support`}>SUPPORT</Link>
-          <Link href={`${BASE_PATH}/community`}>COMMUNITY</Link>
-          <Link href={`${BASE_PATH}/account`}>ACCOUNT</Link>
-          <Link href={`${BASE_PATH}/legal`} aria-current="page">LEGAL</Link>
+          <Link href={`${BASE_PATH}/terms`}>TERMS</Link>
+          <Link href={`${BASE_PATH}/privacy`}>PRIVACY</Link>
+          <Link href={`${BASE_PATH}/legal`} aria-current="page">LEGAL NOTICES</Link>
         </nav>
       </header>
 
@@ -106,6 +105,11 @@ export default function LegalPage() {
           belong to their respective owners. Their appearance identifies
           supported services and does not imply sponsorship or endorsement.
         </p>
+
+        <div className="legal-policy-links" aria-label="Related policies">
+          <Link href={`${BASE_PATH}/terms`}>READ TERMS OF SERVICE</Link>
+          <Link href={`${BASE_PATH}/privacy`}>READ PRIVACY NOTICE</Link>
+        </div>
       </article>
     </main>
   );
