@@ -29,13 +29,13 @@ export default function LegalPage() {
         <h2>Black Vector trademark</h2>
         <p>
           BLACK VECTOR™ and the BLACK VECTOR logo are trademarks of Nimble
-          Games Studio in connection with computer game software, online game
+          Game Studios in connection with computer game software, online game
           services, playtesting, and related entertainment services.
         </p>
 
         <h2>Ownership</h2>
         <p>
-          © 2026 Nimble Games Studio. Original Black Vector artwork, writing,
+          © 2026 Nimble Game Studios. Original Black Vector artwork, writing,
           audio, visual presentation, game materials, and website content are
           protected by applicable copyright law. All rights reserved.
         </p>

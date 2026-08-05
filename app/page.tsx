@@ -171,7 +171,7 @@ export default function Home() {
               href={DISCORD_INVITE_URL}
               target="_blank"
               rel="noreferrer"
-              aria-label="Join the Nimble Games Studio Discord community (opens in a new tab)"
+              aria-label="Join the Nimble Game Studios Discord community (opens in a new tab)"
             >
               <span className="discord-action-brand" aria-hidden="true">
                 <Image
@@ -452,10 +452,10 @@ export default function Home() {
           </span>
         </a>
         <p className="footer-legal">
-          <span>A large-scale fleet-command RTS from Nimble Games Studio.</span>
+          <span>A large-scale fleet-command RTS from Nimble Game Studios.</span>
           <small>
-            © 2026 Nimble Games Studio. BLACK VECTOR™ is a trademark of
-            Nimble Games Studio. All rights reserved.
+            © 2026 Nimble Game Studios. BLACK VECTOR™ is a trademark of
+            Nimble Game Studios. All rights reserved.
           </small>
         </p>
         <div>

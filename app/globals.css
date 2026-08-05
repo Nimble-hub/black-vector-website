@@ -1428,6 +1428,108 @@ h1 span {
   .legal-document { padding: 30px 22px; }
 }
 
+.ngs-shell {
+  position: relative;
+  display: grid;
+  min-height: 100svh;
+  place-items: center;
+  overflow: hidden;
+  padding: 48px 24px;
+  background:
+    radial-gradient(circle at 50% 108%, rgba(0, 159, 218, 0.14), transparent 42%),
+    radial-gradient(circle at 16% 12%, rgba(255, 76, 0, 0.08), transparent 34%),
+    #020407;
+}
+
+.ngs-shell::before {
+  position: absolute;
+  inset: 0;
+  background:
+    linear-gradient(rgba(255, 255, 255, 0.025) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.025) 1px, transparent 1px);
+  background-size: 72px 72px;
+  content: "";
+  mask-image: radial-gradient(circle, #000 0%, transparent 76%);
+  pointer-events: none;
+}
+
+.ngs-holding {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  width: min(920px, 100%);
+  justify-items: center;
+  text-align: center;
+}
+
+.ngs-logo {
+  width: min(680px, 88vw);
+  height: auto;
+  filter: drop-shadow(0 18px 60px rgba(0, 159, 218, 0.14));
+}
+
+.ngs-kicker {
+  margin: 30px 0 16px;
+  color: rgba(78, 201, 232, 0.86);
+  font-family: Consolas, "Cascadia Mono", monospace;
+  font-size: 9px;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+}
+
+.ngs-holding h1 {
+  max-width: 780px;
+  margin: 0;
+  color: #f0eee8;
+  font-size: clamp(34px, 6vw, 70px);
+  font-weight: 700;
+  line-height: 0.98;
+  letter-spacing: -0.045em;
+}
+
+.ngs-summary {
+  max-width: 650px;
+  margin: 24px 0 0;
+  color: rgba(183, 196, 201, 0.72);
+  font-size: clamp(14px, 2vw, 17px);
+  line-height: 1.7;
+}
+
+.ngs-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 12px;
+  margin-top: 36px;
+}
+
+.ngs-actions a {
+  min-width: 190px;
+  padding: 16px 22px;
+  border: 1px solid rgba(78, 201, 232, 0.28);
+  color: rgba(224, 236, 239, 0.82);
+  font-family: Consolas, "Cascadia Mono", monospace;
+  font-size: 9px;
+  letter-spacing: 0.14em;
+  text-decoration: none;
+  transition: border-color 180ms ease, background 180ms ease, color 180ms ease;
+}
+
+.ngs-actions a:hover {
+  border-color: rgba(78, 201, 232, 0.72);
+  background: rgba(78, 201, 232, 0.08);
+  color: #fff;
+}
+
+.ngs-footnote {
+  margin: 64px 0 0;
+  color: rgba(183, 196, 201, 0.34);
+  font-family: Consolas, "Cascadia Mono", monospace;
+  font-size: 8px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
 /* Identity and account surfaces intentionally remain lightweight: the 3D theater
    does not load behind authentication, so slower devices get an immediate form. */
 .auth-shell,

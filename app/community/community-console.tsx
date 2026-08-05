@@ -1532,7 +1532,7 @@ export function CommunityConsole({
         )}
       </section>
       <footer className={styles.footer}>
-        <span>© 2026 NIMBLE GAMES STUDIO // BLACK VECTOR™</span>
+        <span>© 2026 NIMBLE GAME STUDIOS // BLACK VECTOR™</span>
         <span>RESPECT THE CREW. REPORT CLEARLY. ARGUE THE IDEA.</span>
       </footer>
       {notice && (
