@@ -13,6 +13,9 @@ export type BlackVectorRuntimeEnv = {
   STEAM_API_KEY?: string;
   RESEND_API_KEY?: string;
   AUTH_EMAIL_FROM?: string;
+  STRIPE_SECRET_KEY?: string;
+  STRIPE_WEBHOOK_SECRET?: string;
+  SUPPORT_CHECKOUT_ENABLED?: string;
 };
 
 export function getRuntimeEnv(): BlackVectorRuntimeEnv {

@@ -252,6 +252,28 @@ test("keeps private game builds offline until a verified release is published", 
   assert.match(config, /GAME_BUILDS/);
 });
 
+test("keeps Stripe support checkout fail-closed and separate from game access", async () => {
+  const [schema, checkoutRoute, webhookRoute, config, setup] =
+    await Promise.all([
+      readFile(new URL("db/schema.ts", root), "utf8"),
+      readFile(new URL("app/api/support/checkout/route.ts", root), "utf8"),
+      readFile(new URL("app/api/support/webhook/route.ts", root), "utf8"),
+      readFile(new URL("wrangler.jsonc", root), "utf8"),
+      readFile(new URL("docs/STRIPE-CHECKOUT-SETUP.md", root), "utf8"),
+    ]);
+
+  assert.match(schema, /supportContribution/);
+  assert.match(schema, /stripeWebhookEvent/);
+  assert.match(config, /"SUPPORT_CHECKOUT_ENABLED": "false"/);
+  assert.match(checkoutRoute, /isSupportCheckoutEnabled/);
+  assert.match(checkoutRoute, /payment_method_types: \["card"\]/);
+  assert.match(webhookRoute, /constructEventAsync/);
+  assert.match(webhookRoute, /Stripe\.createSubtleCryptoProvider/);
+  assert.doesNotMatch(checkoutRoute, /gameDownloadEntitlement/);
+  assert.doesNotMatch(webhookRoute, /game_download_entitlement/);
+  assert.match(setup, /do not grant a game copy/i);
+});
+
 test("enforces community ownership and staff moderation roles", async () => {
   const [
     schema,

@@ -213,6 +213,71 @@ export const gameDownloadEntitlement = sqliteTable(
   ],
 );
 
+export const supportContribution = sqliteTable(
+  "support_contribution",
+  {
+    id: text("id").primaryKey(),
+    userId: text("user_id").references(() => user.id, {
+      onDelete: "set null",
+    }),
+    supporterEmail: text("supporter_email"),
+    amountCents: integer("amount_cents").notNull(),
+    currency: text("currency").default("usd").notNull(),
+    status: text("status", {
+      enum: [
+        "pending",
+        "paid",
+        "expired",
+        "failed",
+        "partially_refunded",
+        "refunded",
+        "disputed",
+      ],
+    })
+      .default("pending")
+      .notNull(),
+    stripeCheckoutSessionId: text("stripe_checkout_session_id").unique(),
+    stripePaymentIntentId: text("stripe_payment_intent_id").unique(),
+    amountRefundedCents: integer("amount_refunded_cents").default(0).notNull(),
+    recognitionOptIn: integer("recognition_opt_in", { mode: "boolean" })
+      .default(false)
+      .notNull(),
+    paidAt: integer("paid_at", { mode: "timestamp_ms" }),
+    createdAt: integer("created_at", { mode: "timestamp_ms" })
+      .default(now)
+      .notNull(),
+    updatedAt: integer("updated_at", { mode: "timestamp_ms" })
+      .default(now)
+      .$onUpdate(() => new Date())
+      .notNull(),
+  },
+  (table) => [
+    index("idx_support_contribution_user_created").on(
+      table.userId,
+      table.createdAt,
+    ),
+    index("idx_support_contribution_status_created").on(
+      table.status,
+      table.createdAt,
+    ),
+  ],
+);
+
+export const stripeWebhookEvent = sqliteTable(
+  "stripe_webhook_event",
+  {
+    id: text("id").primaryKey(),
+    type: text("type").notNull(),
+    createdAt: integer("created_at", { mode: "timestamp_ms" })
+      .default(now)
+      .notNull(),
+    processedAt: integer("processed_at", { mode: "timestamp_ms" })
+      .default(now)
+      .notNull(),
+  },
+  (table) => [index("idx_stripe_webhook_event_processed").on(table.processedAt)],
+);
+
 export const communityStaffRole = sqliteTable(
   "community_staff_role",
   {
@@ -527,7 +592,18 @@ export const userRelations = relations(user, ({ many, one }) => ({
   playtestProfile: one(playtestProfile),
   forumThreads: many(forumThread),
   forumPosts: many(forumPost),
+  supportContributions: many(supportContribution),
 }));
+
+export const supportContributionRelations = relations(
+  supportContribution,
+  ({ one }) => ({
+    user: one(user, {
+      fields: [supportContribution.userId],
+      references: [user.id],
+    }),
+  }),
+);
 
 export const forumThreadRelations = relations(forumThread, ({ many, one }) => ({
   author: one(user, { fields: [forumThread.authorId], references: [user.id] }),

@@ -9,7 +9,8 @@
   "vars": {
     "BETTER_AUTH_URL": "https://blackvector.win",
     "BETTER_AUTH_TRUSTED_ORIGINS": "https://blackvector.win,https://www.blackvector.win,https://black-vector-website.curtisl-conrad.workers.dev",
-    "AUTH_EMAIL_FROM": "Black Vector <access@blackvector.win>"
+    "AUTH_EMAIL_FROM": "Black Vector <access@blackvector.win>",
+    "SUPPORT_CHECKOUT_ENABLED": "false"
   },
   "routes": [
     {

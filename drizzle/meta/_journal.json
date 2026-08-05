@@ -71,6 +71,13 @@
       "when": 1785907095306,
       "tag": "0009_quick_rattler",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "6",
+      "when": 1785909494445,
+      "tag": "0010_fearless_gressill",
+      "breakpoints": true
     }
   ]
 }
