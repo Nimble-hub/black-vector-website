@@ -16,17 +16,17 @@ const clearanceSteps = [
   {
     index: "01",
     title: "Create an account",
-    copy: "Connect an identity or create a Black Vector account to enter the playtest candidate pool.",
+    copy: "Create a Black Vector account or connect an existing identity to apply for private testing.",
   },
   {
     index: "02",
     title: "Verify your email",
-    copy: "A verified contact channel is required for access windows, build notices, and account recovery.",
+    copy: "Verify your email to receive playtest invitations, release notices, and account support.",
   },
   {
     index: "03",
-    title: "Receive clearance",
-    copy: "Private builds unlock here when your account is approved and an active playtest release is deployed.",
+    title: "Receive access",
+    copy: "Approved playtesters can download an active release directly from this page.",
   },
 ] as const;
 
@@ -40,6 +40,7 @@ export default function DownloadPage() {
         <nav aria-label="Download page navigation">
           <Link href={`${BASE_PATH}/`}>HOME</Link>
           <Link href={`${BASE_PATH}/playtest`}>JOIN PLAYTEST</Link>
+          <Link href={`${BASE_PATH}/support`}>SUPPORT</Link>
           <Link href={`${BASE_PATH}/account`}>ACCOUNT</Link>
           <Link href={`${BASE_PATH}/community`}>COMMUNITY</Link>
         </nav>
@@ -50,9 +51,9 @@ export default function DownloadPage() {
           <p className="eyebrow">SECURE DISTRIBUTION // PRIVATE PLAYTEST</p>
           <h1 id="download-page-title">BLACK VECTOR BUILD TERMINAL.</h1>
           <p>
-            This is the official delivery point for playable Black Vector
-            builds. The terminal below checks release availability and your
-            account clearance automatically.
+            Approved playtesters can download current Black Vector builds here.
+            Sign in with a verified account to view release availability and
+            access status.
           </p>
           <div className="download-page-actions">
             <Link className="primary-action" href={`${BASE_PATH}/playtest`}>
@@ -88,9 +89,8 @@ export default function DownloadPage() {
           ))}
         </div>
         <p className="download-security-note">
-          Builds remain unavailable unless a current release exists and your
-          signed-in account has explicit access. When online, the disabled
-          status control above becomes the authenticated game download button.
+          Build access is limited to verified accounts approved for an active
+          private playtest release.
         </p>
       </section>
     </main>

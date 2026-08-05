@@ -374,6 +374,7 @@ export default function Home() {
           <a href="#development">DEVELOPMENT</a>
           <a href="#access">ACCESS</a>
           <a href={`${BASE_PATH}/download`}>DOWNLOAD</a>
+          <a href={`${BASE_PATH}/support`}>SUPPORT</a>
           <a href={`${BASE_PATH}/community`}>COMMUNITY</a>
           <a href={DISCORD_INVITE_URL} target="_blank" rel="noreferrer">
             DISCORD

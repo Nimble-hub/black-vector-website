@@ -254,21 +254,29 @@ test("keeps private game builds offline until a verified release is published", 
 });
 
 test("puts access near the top and provides a dedicated build terminal", async () => {
-  const [home, accessSection, downloadPage, downloadCard] = await Promise.all([
+  const [home, accessSection, downloadPage, downloadCard, supportPage] = await Promise.all([
     readFile(new URL("app/page.tsx", root), "utf8"),
     readFile(new URL("app/access-section.tsx", root), "utf8"),
     readFile(new URL("app/download/page.tsx", root), "utf8"),
     readFile(new URL("app/download-access-card.tsx", root), "utf8"),
+    readFile(new URL("app/support/page.tsx", root), "utf8"),
   ]);
 
   assert.ok(home.indexOf("<AccessSection") < home.indexOf("game-overview"));
   assert.match(accessSection, /Join the playtest/i);
-  assert.match(accessSection, /Purchase the game/i);
+  assert.match(accessSection, /Support development/i);
+  assert.doesNotMatch(accessSection, /Purchase the game/i);
+  assert.match(accessSection, /\$\{basePath\}\/support/);
   assert.match(accessSection, /OPEN DOWNLOAD TERMINAL/);
   assert.match(downloadPage, /BLACK VECTOR BUILD TERMINAL/);
   assert.match(downloadPage, /variant="terminal"/);
   assert.match(downloadCard, /DOWNLOAD BLACK VECTOR/);
   assert.match(downloadCard, /api\/downloads\/current/);
+  assert.match(supportPage, /SUPPORT PROGRAM \/\/ NOT YET OPEN/);
+  assert.match(supportPage, /Support is not yet open/i);
+  assert.match(supportPage, /not be charitable or\s+tax-deductible/i);
+  assert.match(supportPage, /future Black Vector game copy/i);
+  assert.doesNotMatch(supportPage, /api\/support\/checkout/);
 });
 
 test("keeps Stripe support checkout fail-closed and separate from game access", async () => {

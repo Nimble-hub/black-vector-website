@@ -92,6 +92,9 @@ export function SiteHeader({ basePath = "" }: { basePath?: string }) {
           <a href={`${basePath}/download`} onClick={closeMenu}>
             DOWNLOAD
           </a>
+          <a href={`${basePath}/support`} onClick={closeMenu}>
+            SUPPORT
+          </a>
           <a href={`${basePath}/community`} onClick={closeMenu}>
             COMMUNITY
           </a>

@@ -24,35 +24,35 @@ const STATE_COPY: Record<
   { status: string; label: string; detail: string; href?: string }
 > = {
   checking: {
-    status: "NODE HANDSHAKE",
+    status: "CHECKING STATUS",
     label: "CHECKING BUILD AVAILABILITY",
-    detail: "Secure build channel handshake in progress.",
+    detail: "Retrieving the latest release status.",
   },
   offline: {
-    status: "NODE OFFLINE",
+    status: "NO ACTIVE RELEASE",
     label: "GAME DOWNLOAD // OFFLINE",
-    detail: "No approved build is deployed. This terminal will activate for the first private playtest.",
+    detail: "Black Vector builds will become available here when the next private playtest begins.",
   },
   auth_required: {
     status: "IDENTITY REQUIRED",
     label: "SIGN IN TO DOWNLOAD",
-    detail: "The private build channel is online. Authenticate to check your playtest clearance.",
+    detail: "Sign in to view your playtest access and available releases.",
     href: "/login?returnTo=%2Fdownload",
   },
   email_verification_required: {
     status: "VERIFICATION REQUIRED",
     label: "VERIFY EMAIL TO DOWNLOAD",
-    detail: "Confirm your contact email before receiving private build access.",
+    detail: "Verify your email before downloading a private playtest build.",
     href: "/account",
   },
   access_required: {
     status: "CLEARANCE REQUIRED",
     label: "REQUEST PLAYTEST ACCESS",
-    detail: "Your account is connected, but this release is limited to approved playtesters.",
+    detail: "Apply for playtest access to become eligible for private builds.",
     href: "/account?tab=playtest",
   },
   ready: {
-    status: "NODE ONLINE",
+    status: "RELEASE AVAILABLE",
     label: "DOWNLOAD BLACK VECTOR",
     detail: "Your account is cleared for the current private playtest build.",
   },
@@ -119,7 +119,7 @@ export function DownloadAccessCard({
           {copy.status}
         </small>
       </div>
-      <h3>Download a build</h3>
+      <h3>Black Vector for Windows</h3>
       <p>{copy.detail}</p>
       {download.state === "ready" && (download.version || size) ? (
         <p className="download-build-meta">
