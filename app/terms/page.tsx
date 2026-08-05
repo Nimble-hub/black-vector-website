@@ -1,5 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { PolicySwitcher } from "@/app/policy-switcher";
+import { StandaloneHeader } from "@/app/standalone-header";
 
 const BASE_PATH = process.env.NEXT_PUBLIC_BASE_PATH ?? "";
 const EFFECTIVE_DATE = "August 4, 2026";
@@ -14,25 +16,11 @@ export const dynamic = "force-dynamic";
 
 export default function TermsPage() {
   return (
-    <main className="legal-shell">
-      <header className="legal-header">
-        <Link
-          className="auth-wordmark"
-          href={`${BASE_PATH}/`}
-          aria-label="Return to Black Vector home"
-        >
-          <span>BV</span> BLACK VECTOR
-          <sup className="trademark-symbol">&trade;</sup>
-        </Link>
-        <nav aria-label="Policy navigation">
-          <Link href={`${BASE_PATH}/`}>HOME</Link>
-          <Link href={`${BASE_PATH}/terms`} aria-current="page">TERMS</Link>
-          <Link href={`${BASE_PATH}/privacy`}>PRIVACY</Link>
-          <Link href={`${BASE_PATH}/legal`}>LEGAL NOTICES</Link>
-        </nav>
-      </header>
+    <main className="legal-shell" id="top">
+      <StandaloneHeader basePath={BASE_PATH} variant="legal" />
 
-      <article className="legal-document policy-document">
+      <article className="legal-document policy-document" id="main-content" tabIndex={-1}>
+        <PolicySwitcher basePath={BASE_PATH} current="terms" />
         <p className="eyebrow">SERVICE TERMS // NIMBLE GAME STUDIOS</p>
         <h1>Terms of Service.</h1>
         <div className="policy-meta" aria-label="Terms dates">
@@ -297,6 +285,7 @@ export default function TermsPage() {
         </section>
 
         <div className="legal-policy-links" aria-label="Related policies">
+          <a href="#top">BACK TO TOP</a>
           <Link href={`${BASE_PATH}/privacy`}>READ PRIVACY NOTICE</Link>
           <Link href={`${BASE_PATH}/legal`}>VIEW LEGAL NOTICES</Link>
         </div>

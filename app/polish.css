@@ -714,7 +714,7 @@ h1 span {
 .download-shell {
   position: relative;
   min-height: 100svh;
-  overflow: hidden;
+  overflow-x: clip;
   padding: 34px max(24px, calc((100vw - 1480px) / 2)) 110px;
   background:
     radial-gradient(circle at 78% 26%, rgba(88, 213, 220, 0.12), transparent 30%),
@@ -1402,7 +1402,7 @@ h1 span {
 .support-shell {
   position: relative;
   min-height: 100svh;
-  overflow: hidden;
+  overflow-x: clip;
   padding: 34px max(24px, calc((100vw - 1480px) / 2)) 70px;
   background:
     radial-gradient(circle at 84% 18%, rgba(88, 213, 220, 0.12), transparent 28%),
@@ -2351,5 +2351,134 @@ h1 span {
   .legal-support-notice {
     margin-inline: -12px;
     padding-inline: 12px;
+  }
+}
+
+/* Shared navigation for routes outside the cinematic homepage. */
+.standalone-header {
+  position: sticky;
+  top: 0;
+  z-index: 40;
+  isolation: isolate;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: min(100%, 1480px);
+  min-height: 72px;
+  margin: 0 auto;
+  padding: 14px 0 17px;
+  border-bottom: 1px solid rgba(145, 195, 201, 0.2);
+  background: linear-gradient(180deg, rgba(2, 7, 10, 0.97), rgba(2, 7, 10, 0.88));
+  box-shadow: 0 18px 48px rgba(0, 0, 0, 0.24);
+  backdrop-filter: blur(18px);
+}
+
+.standalone-header::before {
+  position: absolute;
+  z-index: -1;
+  inset: 0 calc(50% - 50vw);
+  border-bottom: 1px solid rgba(145, 195, 201, 0.12);
+  background: inherit;
+  content: "";
+}
+
+.standalone-wordmark {
+  position: static;
+  flex: 0 0 auto;
+}
+
+.standalone-nav {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: clamp(16px, 2vw, 32px);
+}
+
+.standalone-nav a {
+  position: relative;
+  display: inline-flex;
+  min-height: 34px;
+  align-items: center;
+  color: rgba(205, 211, 209, 0.6);
+  font: 700 8px/1 Consolas, "Cascadia Mono", monospace;
+  letter-spacing: 0.13em;
+  text-decoration: none;
+  white-space: nowrap;
+  transition: color 160ms ease;
+}
+
+.standalone-nav a::after {
+  position: absolute;
+  right: 100%;
+  bottom: 2px;
+  left: 0;
+  height: 1px;
+  background: var(--cyan);
+  content: "";
+  transition: right 180ms ease;
+}
+
+.standalone-nav a:hover,
+.standalone-nav a:focus-visible,
+.standalone-nav a[aria-current="page"] {
+  color: var(--ivory);
+}
+
+.standalone-nav a:hover::after,
+.standalone-nav a:focus-visible::after,
+.standalone-nav a[aria-current="page"]::after {
+  right: 0;
+}
+
+.legal-shell {
+  padding-top: 34px;
+}
+
+.legal-header.standalone-header {
+  width: min(100%, 1480px);
+  margin: 0 auto 48px;
+}
+
+@media (max-width: 900px) {
+  .standalone-header,
+  .download-header.standalone-header,
+  .support-header.standalone-header,
+  .legal-header.standalone-header {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 10px;
+    padding: 11px 0 4px;
+  }
+
+  .standalone-nav,
+  .download-header .standalone-nav,
+  .support-header .standalone-nav,
+  .legal-header .standalone-nav {
+    width: 100%;
+    overflow-x: auto;
+    flex-wrap: nowrap;
+    gap: 22px;
+    padding: 1px 2px 8px;
+    scrollbar-width: none;
+    overscroll-behavior-inline: contain;
+  }
+
+  .standalone-nav::-webkit-scrollbar {
+    display: none;
+  }
+}
+
+@media (max-width: 700px) {
+  .download-shell,
+  .support-shell {
+    padding-top: 14px;
+  }
+
+  .legal-shell {
+    padding: 14px 18px 64px;
+  }
+
+  .legal-header.standalone-header {
+    margin-bottom: 24px;
   }
 }

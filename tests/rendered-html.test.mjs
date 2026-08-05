@@ -271,7 +271,7 @@ test("puts access near the top and provides a dedicated build terminal", async (
   assert.match(accessSection, /className="access-card access-card-link"/);
   assert.match(accessSection, /OPEN DOWNLOAD TERMINAL/);
   assert.match(downloadPage, /BLACK VECTOR PLAYTEST BUILDS/);
-  assert.match(downloadPage, /aria-current="page"/);
+  assert.match(downloadPage, /current="download"/);
   assert.match(downloadPage, /variant="terminal"/);
   assert.match(downloadCard, /DOWNLOAD BLACK VECTOR/);
   assert.match(downloadCard, /api\/downloads\/current/);
@@ -293,6 +293,47 @@ test("puts access near the top and provides a dedicated build terminal", async (
   assert.match(legalPage, /not be charitable contributions or\s+tax-deductible gifts/i);
   assert.match(legalPage, /ownership, equity, profit sharing/i);
   assert.match(legalPage, /parent or legal guardian/i);
+});
+
+test("provides consistent route navigation, recovery paths, and bookmarkable account tabs", async () => {
+  const [header, policies, notFound, support, download, terms, privacy, legal, account, settings, community] =
+    await Promise.all([
+      readFile(new URL("app/standalone-header.tsx", root), "utf8"),
+      readFile(new URL("app/policy-switcher.tsx", root), "utf8"),
+      readFile(new URL("app/not-found.tsx", root), "utf8"),
+      readFile(new URL("app/support/page.tsx", root), "utf8"),
+      readFile(new URL("app/download/page.tsx", root), "utf8"),
+      readFile(new URL("app/terms/page.tsx", root), "utf8"),
+      readFile(new URL("app/privacy/page.tsx", root), "utf8"),
+      readFile(new URL("app/legal/page.tsx", root), "utf8"),
+      readFile(new URL("app/account/page.tsx", root), "utf8"),
+      readFile(new URL("app/account/settings.tsx", root), "utf8"),
+      readFile(new URL("app/community/community-console.tsx", root), "utf8"),
+    ]);
+
+  for (const destination of ["HOME", "PLAYTEST", "DOWNLOAD", "SUPPORT", "COMMUNITY", "ACCOUNT"]) {
+    assert.match(header, new RegExp(destination));
+  }
+  assert.match(header, /SKIP TO MAIN CONTENT/);
+  assert.match(header, /aria-current/);
+  assert.match(support, /current="support"/);
+  assert.match(download, /current="download"/);
+  for (const policy of [terms, privacy, legal]) {
+    assert.match(policy, /PolicySwitcher/);
+    assert.match(policy, /BACK TO TOP/);
+  }
+  assert.match(policies, /TERMS OF SERVICE/);
+  assert.match(policies, /PRIVACY NOTICE/);
+  assert.match(policies, /LEGAL NOTICES/);
+  assert.match(notFound, /THIS SECTOR DOES NOT EXIST/);
+  assert.match(notFound, /RETURN HOME/);
+  assert.match(account, /SKIP TO ACCOUNT SETTINGS/);
+  assert.match(settings, /window\.history\.pushState/);
+  assert.match(settings, /popstate/);
+  assert.match(settings, /ArrowLeft/);
+  assert.match(settings, /role="tabpanel"/);
+  assert.match(community, /SKIP TO COMMUNITY/);
+  assert.match(community, /DOWNLOAD/);
 });
 
 test("keeps Stripe support checkout fail-closed and separate from game access", async () => {

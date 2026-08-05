@@ -1,6 +1,6 @@
 "use client";
 
-import { FormEvent, useMemo, useState } from "react";
+import { FormEvent, KeyboardEvent, useEffect, useMemo, useState } from "react";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { authClient } from "@/lib/auth-client";
@@ -70,6 +70,42 @@ export function AccountSettings({
   const linked = useMemo(() => new Map(accounts.map((item) => [item.providerId, item])), [accounts]);
   const verificationCallbackURL = `/auth/continue?returnTo=${encodeURIComponent(returnTo)}`;
   const hasSyntheticEmail = user.email.toLowerCase().endsWith(".invalid");
+
+  const changeTab = (nextTab: "profile" | "connections" | "security") => {
+    setTab(nextTab);
+    const url = new URL(window.location.href);
+    url.searchParams.set("tab", nextTab);
+    url.searchParams.delete("connection");
+    window.history.pushState(window.history.state, "", url);
+  };
+
+  useEffect(() => {
+    const restoreTabFromHistory = () => {
+      const requestedTab = new URL(window.location.href).searchParams.get("tab");
+      if (requestedTab === "profile" || requestedTab === "connections" || requestedTab === "security") {
+        setTab(requestedTab);
+      } else {
+        setTab("profile");
+      }
+    };
+    window.addEventListener("popstate", restoreTabFromHistory);
+    return () => window.removeEventListener("popstate", restoreTabFromHistory);
+  }, []);
+
+  const navigateAccountTabs = (event: KeyboardEvent<HTMLElement>) => {
+    if (!["ArrowLeft", "ArrowRight", "Home", "End"].includes(event.key)) return;
+    event.preventDefault();
+    const tabs = ["profile", "connections", "security"] as const;
+    const currentIndex = tabs.indexOf(tab);
+    const nextIndex = event.key === "Home"
+      ? 0
+      : event.key === "End"
+        ? tabs.length - 1
+        : (currentIndex + (event.key === "ArrowRight" ? 1 : -1) + tabs.length) % tabs.length;
+    const nextTab = tabs[nextIndex];
+    changeTab(nextTab);
+    document.getElementById(`account-tab-${nextTab}`)?.focus();
+  };
 
   const uploadAvatar = async (file: File) => {
     setBusy(true);
@@ -293,18 +329,23 @@ export function AccountSettings({
   };
 
   return (
-    <div className="account-console">
-      <aside className="account-sidebar">
+    <div className="account-console" id="account-content" tabIndex={-1}>
+      <aside
+        className="account-sidebar"
+        role="tablist"
+        aria-label="Account settings sections"
+        onKeyDown={navigateAccountTabs}
+      >
         <p>ACCOUNT SETTINGS</p>
-        <button className={tab === "profile" ? "is-active" : ""} onClick={() => setTab("profile")}>PROFILE &amp; PLAYTEST</button>
-        <button className={tab === "connections" ? "is-active" : ""} onClick={() => setTab("connections")}>CONNECTED ACCOUNTS</button>
-        <button className={tab === "security" ? "is-active" : ""} onClick={() => setTab("security")}>SECURITY</button>
-        <button className="account-signout" onClick={() => void authClient.signOut({ fetchOptions: { onSuccess: () => { router.push("/"); router.refresh(); } } })}>SIGN OUT</button>
+        <button type="button" role="tab" id="account-tab-profile" aria-controls="account-panel-profile" aria-selected={tab === "profile"} tabIndex={tab === "profile" ? 0 : -1} className={tab === "profile" ? "is-active" : ""} onClick={() => changeTab("profile")}>PROFILE &amp; PLAYTEST</button>
+        <button type="button" role="tab" id="account-tab-connections" aria-controls="account-panel-connections" aria-selected={tab === "connections"} tabIndex={tab === "connections" ? 0 : -1} className={tab === "connections" ? "is-active" : ""} onClick={() => changeTab("connections")}>CONNECTED ACCOUNTS</button>
+        <button type="button" role="tab" id="account-tab-security" aria-controls="account-panel-security" aria-selected={tab === "security"} tabIndex={tab === "security" ? 0 : -1} className={tab === "security" ? "is-active" : ""} onClick={() => changeTab("security")}>SECURITY</button>
+        <button type="button" className="account-signout" onClick={() => void authClient.signOut({ fetchOptions: { onSuccess: () => { router.push("/"); router.refresh(); } } })}>SIGN OUT</button>
       </aside>
 
       <section className="account-content">
         {tab === "profile" && (
-          <div className="account-view">
+          <div className="account-view" id="account-panel-profile" role="tabpanel" aria-labelledby="account-tab-profile">
             <div className="account-view-heading"><p className="eyebrow">PLAYER RECORD // PLAYTEST INTAKE</p><h1>PROFILE &amp; ACCESS.</h1><p>Choose how the development team can identify and contact you for future test waves.</p></div>
             {emailRequired && (
               <section className="account-email-required" role="alert">
@@ -403,7 +444,7 @@ export function AccountSettings({
         )}
 
         {tab === "connections" && (
-          <div className="account-view">
+          <div className="account-view" id="account-panel-connections" role="tabpanel" aria-labelledby="account-tab-connections">
             <div className="account-view-heading"><p className="eyebrow">IDENTITY GRAPH // EXPLICIT LINKING</p><h1>CONNECTED ACCOUNTS.</h1><p>Connections are never merged silently. Sign in to each provider here to add it to this profile.</p></div>
             <div className="linked-account-list">
               {(["steam", "google", "discord", "credential"] as const).map((provider) => {
@@ -428,7 +469,7 @@ export function AccountSettings({
         )}
 
         {tab === "security" && (
-          <div className="account-view">
+          <div className="account-view" id="account-panel-security" role="tabpanel" aria-labelledby="account-tab-security">
             <div className="account-view-heading"><p className="eyebrow">SECURITY CONTROL // SESSION AUTHORITY</p><h1>SECURE THE CHANNEL.</h1><p>Connected providers remain independent. Removing one never deletes the others.</p></div>
             {linked.has("credential") ? (
               <form className="settings-form" onSubmit={changePassword}>

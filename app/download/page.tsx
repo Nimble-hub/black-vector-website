@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { DownloadAccessCard } from "../download-access-card";
+import { StandaloneHeader } from "@/app/standalone-header";
 
 const BASE_PATH = process.env.NEXT_PUBLIC_BASE_PATH ?? "";
 
@@ -32,22 +33,10 @@ const clearanceSteps = [
 
 export default function DownloadPage() {
   return (
-    <main className="download-shell">
-      <header className="download-header">
-        <Link className="auth-wordmark download-wordmark" href={`${BASE_PATH}/`} aria-label="Return to Black Vector home">
-          <span>BV</span> BLACK VECTOR<sup className="trademark-symbol">™</sup>
-        </Link>
-        <nav aria-label="Download page navigation">
-          <Link href={`${BASE_PATH}/`}>HOME</Link>
-          <Link href={`${BASE_PATH}/playtest`}>JOIN PLAYTEST</Link>
-          <Link href={`${BASE_PATH}/support`}>SUPPORT</Link>
-          <Link href={`${BASE_PATH}/download`} aria-current="page">DOWNLOAD</Link>
-          <Link href={`${BASE_PATH}/account`}>ACCOUNT</Link>
-          <Link href={`${BASE_PATH}/community`}>COMMUNITY</Link>
-        </nav>
-      </header>
+    <main className="download-shell" id="top">
+      <StandaloneHeader basePath={BASE_PATH} current="download" variant="download" />
 
-      <section className="download-page-hero" aria-labelledby="download-page-title">
+      <section className="download-page-hero" id="main-content" tabIndex={-1} aria-labelledby="download-page-title">
         <div className="download-page-copy">
           <p className="eyebrow">PRIVATE PLAYTEST // WINDOWS</p>
           <h1 id="download-page-title">BLACK VECTOR PLAYTEST BUILDS.</h1>
@@ -104,6 +93,7 @@ export default function DownloadPage() {
       <footer className="download-footer">
         <p>&copy; 2026 Nimble Game Studios. All rights reserved.</p>
         <div>
+          <a href="#top">BACK TO TOP</a>
           <Link href={`${BASE_PATH}/support`}>SUPPORT DEVELOPMENT</Link>
           <Link href={`${BASE_PATH}/terms`}>TERMS OF SERVICE</Link>
           <Link href={`${BASE_PATH}/privacy`}>PRIVACY NOTICE</Link>

@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { StandaloneHeader } from "@/app/standalone-header";
 
 const BASE_PATH = process.env.NEXT_PUBLIC_BASE_PATH ?? "";
 const DISCORD_INVITE_URL =
@@ -42,27 +43,10 @@ const launchChecks = [
 
 export default function SupportPage() {
   return (
-    <main className="support-shell">
-      <header className="support-header">
-        <Link
-          className="auth-wordmark support-wordmark"
-          href={`${BASE_PATH}/`}
-          aria-label="Return to Black Vector home"
-        >
-          <span>BV</span> BLACK VECTOR
-          <sup className="trademark-symbol">&trade;</sup>
-        </Link>
-        <nav aria-label="Support page navigation">
-          <Link href={`${BASE_PATH}/`}>HOME</Link>
-          <Link href={`${BASE_PATH}/playtest`}>PLAYTEST</Link>
-          <Link href={`${BASE_PATH}/support`} aria-current="page">SUPPORT</Link>
-          <Link href={`${BASE_PATH}/download`}>DOWNLOAD</Link>
-          <Link href={`${BASE_PATH}/community`}>COMMUNITY</Link>
-          <Link href={`${BASE_PATH}/account`}>ACCOUNT</Link>
-        </nav>
-      </header>
+    <main className="support-shell" id="top">
+      <StandaloneHeader basePath={BASE_PATH} current="support" variant="support" />
 
-      <section className="support-hero" aria-labelledby="support-title">
+      <section className="support-hero" id="main-content" tabIndex={-1} aria-labelledby="support-title">
         <div className="support-hero-copy">
           <p className="eyebrow">INDEPENDENT DEVELOPMENT // COMING SOON</p>
           <h1 id="support-title">HELP BUILD BLACK VECTOR.</h1>
@@ -220,6 +204,7 @@ export default function SupportPage() {
           Want to follow the discussion while the program is prepared?
         </p>
         <div>
+          <a href="#top">BACK TO TOP</a>
           <Link href={`${BASE_PATH}/terms`}>TERMS OF SERVICE</Link>
           <Link href={`${BASE_PATH}/privacy`}>PRIVACY NOTICE</Link>
           <Link href={`${BASE_PATH}/legal`}>LEGAL NOTICES</Link>

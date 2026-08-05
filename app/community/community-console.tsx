@@ -772,6 +772,7 @@ export function CommunityConsole({
 
   return (
     <div className={styles.shell}>
+      <a className="skip-link" href="#community-console">SKIP TO COMMUNITY</a>
       <header className={styles.header}>
         <Link className={styles.wordmark} href="/">
           <span>BV</span>
@@ -786,6 +787,7 @@ export function CommunityConsole({
         <nav aria-label="Community navigation">
           <CommunityNotifications enabled={Boolean(currentUser)} />
           <Link href="/">HOME</Link>
+          <Link href="/download">DOWNLOAD</Link>
           <Link href="/playtest">PLAYTEST</Link>
           <Link href="/account">ACCOUNT</Link>
         </nav>
@@ -807,7 +809,7 @@ export function CommunityConsole({
         </section>
       )}
 
-      <section className={styles.console}>
+      <section className={styles.console} id="community-console" tabIndex={-1}>
         <aside
           className={`${styles.modeRail} ${currentUser?.role === "admin" ? controls.threeModes : ""}`}
         >
