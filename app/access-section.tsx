@@ -82,9 +82,6 @@ export function AccessSection({ basePath = "" }: { basePath?: string }) {
           Private builds are available only to verified accounts approved for
           an active playtest.
         </p>
-        <a className="access-page-link" href={`${basePath}/download`}>
-          OPEN DOWNLOAD TERMINAL <span aria-hidden="true">&#8594;</span>
-        </a>
       </div>
     </section>
   );

@@ -307,17 +307,26 @@ a:focus-visible {
 .cinema-gate .cinema-gate-primary { margin: 8px 0; }
 .cinema-gate-options .cinema-gate-primary { margin: 0; }
 .cinema-gate .cinema-gate-skip {
-  min-height: 30px;
-  padding: 0 8px;
-  border-color: transparent;
-  color: rgba(231, 226, 214, 0.48);
-  font-weight: 400;
+  min-height: 44px;
+  margin-top: 4px;
+  padding: 0 20px;
+  border-color: rgba(68, 202, 209, 0.58);
+  background: rgba(4, 14, 20, 0.86);
+  box-shadow:
+    inset 0 0 22px rgba(68, 202, 209, 0.055),
+    0 10px 30px rgba(0, 0, 0, 0.36);
+  color: rgba(240, 237, 228, 0.9);
+  font-weight: 700;
+  transition: border-color 160ms ease, background 160ms ease, color 160ms ease, box-shadow 160ms ease;
 }
 .cinema-gate .cinema-gate-skip:hover,
 .cinema-gate .cinema-gate-skip:focus-visible {
-  border-color: transparent;
-  background: transparent;
-  color: var(--ivory);
+  border-color: var(--cyan);
+  background: rgba(68, 202, 209, 0.14);
+  box-shadow:
+    inset 0 0 28px rgba(68, 202, 209, 0.09),
+    0 0 24px rgba(68, 202, 209, 0.16);
+  color: #fff;
 }
 
 .header-status {

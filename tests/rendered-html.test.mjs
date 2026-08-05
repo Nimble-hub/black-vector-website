@@ -269,7 +269,8 @@ test("puts access near the top and provides a dedicated build terminal", async (
   assert.doesNotMatch(accessSection, /Purchase the game/i);
   assert.match(accessSection, /\$\{basePath\}\/support/);
   assert.match(accessSection, /className="access-card access-card-link"/);
-  assert.match(accessSection, /OPEN DOWNLOAD TERMINAL/);
+  assert.doesNotMatch(accessSection, /OPEN DOWNLOAD TERMINAL/);
+  assert.match(accessSection, /Private builds are available only to verified accounts/);
   assert.match(downloadPage, /BLACK VECTOR PLAYTEST BUILDS/);
   assert.match(downloadPage, /current="download"/);
   assert.match(downloadPage, /variant="terminal"/);

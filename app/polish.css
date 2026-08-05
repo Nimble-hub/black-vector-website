@@ -692,23 +692,6 @@ h1 span {
   margin: 0;
 }
 
-.access-page-link {
-  flex: 0 0 auto;
-  padding: 13px 0 10px;
-  border-bottom: 1px solid rgba(88, 213, 220, 0.48);
-  color: var(--cyan);
-  font: 700 9px/1 Consolas, "Cascadia Mono", monospace;
-  letter-spacing: 0.12em;
-  text-decoration: none;
-  transition: color 160ms ease, border-color 160ms ease;
-}
-
-.access-page-link:hover,
-.access-page-link:focus-visible {
-  border-color: var(--ivory);
-  color: var(--ivory);
-}
-
 /* Standalone build delivery terminal. It deliberately avoids the 3D scene so
    a player can recover, verify, and download a build on low-power hardware. */
 .download-shell {
