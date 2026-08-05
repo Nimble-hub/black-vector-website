@@ -13,6 +13,7 @@ import {
   EMAIL_REQUIRED_MESSAGE_ID,
   hasVerifiedContactEmail,
 } from "@/lib/account-email";
+import { VALOR_NAME, VALOR_SYSTEM_ID } from "@/lib/valor";
 
 export const dynamic = "force-dynamic";
 
@@ -41,11 +42,11 @@ export async function GET(
         {
           id: EMAIL_REQUIRED_MESSAGE_ID,
           channel: `dm:${EMAIL_REQUIRED_CONVERSATION_ID}`,
-          userId: "black-vector-command",
-          displayName: "Black Vector Command",
+          userId: VALOR_SYSTEM_ID,
+          displayName: VALOR_NAME,
           avatarUrl: null,
           content:
-            "Commander, add and verify a contact email so we can reach you about playtest waves, access windows, security notices, and important Black Vector updates.",
+            "Commander, add and verify a contact email so I can reach you about playtest waves, access windows, security notices, and important Black Vector updates. — V.A.L.O.R.",
           createdAt: new Date(session.user.createdAt).getTime(),
           updatedAt: null,
           replyTo: null,

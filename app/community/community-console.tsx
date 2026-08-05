@@ -169,6 +169,11 @@ export function CommunityConsole({
   const [threadTitle, setThreadTitle] = useState("");
   const [threadBody, setThreadBody] = useState("");
   const [replyBody, setReplyBody] = useState("");
+  const [forumMentionUserIds, setForumMentionUserIds] = useState<string[]>([]);
+  const [forumQuery, setForumQuery] = useState("");
+  const [forumSort, setForumSort] = useState<"latest" | "active" | "unanswered">(
+    "latest",
+  );
   const [editingThread, setEditingThread] = useState(false);
   const [editingThreadTitle, setEditingThreadTitle] = useState("");
   const [editingThreadBody, setEditingThreadBody] = useState("");
@@ -203,6 +208,35 @@ export function CommunityConsole({
     setChatText(`${chatText.slice(0, atIndex)}@${member.name} `);
     setMentionUserIds((current) => [...new Set([...current, member.id])]);
   }, [chatText]);
+
+  const forumMentionMatch = useMemo(
+    () => replyBody.match(/(?:^|\s)@([^@\n]*)$/),
+    [replyBody],
+  );
+  const forumMentionSuggestions = useMemo(() => {
+    if (!forumMentionMatch || replyBody.endsWith(" ")) return [];
+    const query = forumMentionMatch[1].trim().toLocaleLowerCase();
+    return mentionMembers
+      .filter((member) => member.id !== currentUser?.id)
+      .filter(
+        (member) =>
+          !query || member.name.toLocaleLowerCase().includes(query),
+      )
+      .slice(0, 6);
+  }, [currentUser?.id, forumMentionMatch, mentionMembers, replyBody]);
+
+  const selectForumMention = useCallback(
+    (member: MentionMember) => {
+      const match = replyBody.match(/(?:^|\s)@([^@\n]*)$/);
+      if (!match || match.index === undefined) return;
+      const atIndex = match.index + match[0].lastIndexOf("@");
+      setReplyBody(`${replyBody.slice(0, atIndex)}@${member.name} `);
+      setForumMentionUserIds((current) => [
+        ...new Set([...current, member.id]),
+      ]);
+    },
+    [replyBody],
+  );
 
   useEffect(() => {
     const requestedChannel = new URLSearchParams(window.location.search).get("channel");
@@ -428,26 +462,75 @@ export function CommunityConsole({
       setNotice(data.error ?? "Thread could not be loaded.");
       return;
     }
+    setCategory(data.thread.category);
     setSelectedThread(data.thread);
     setReplies(data.replies ?? []);
   }, []);
 
+  const openForumThread = useCallback(
+    (threadId: string, updateAddress = true) => {
+      setMode("forum");
+      setSelectedId(threadId);
+      void loadThread(threadId);
+      if (updateAddress) {
+        const url = new URL(window.location.href);
+        url.searchParams.set("thread", threadId);
+        window.history.pushState({}, "", url);
+      }
+    },
+    [loadThread],
+  );
+
+  const closeForumThread = useCallback(() => {
+    setSelectedId(null);
+    setSelectedThread(null);
+    setReplies([]);
+    setEditingThread(false);
+    setReplyBody("");
+    setForumMentionUserIds([]);
+    const url = new URL(window.location.href);
+    url.searchParams.delete("thread");
+    window.history.replaceState({}, "", url);
+  }, []);
+
   useEffect(() => {
-    let ignore = false;
-    void fetch(`/api/community/forum?category=${category}`, {
-      cache: "no-store",
-    })
-      .then(
-        async (response) =>
-          (await response.json()) as { threads?: ForumThread[] },
-      )
-      .then((data) => {
-        if (!ignore) setThreads(data.threads ?? []);
-      });
-    return () => {
-      ignore = true;
+    const syncThreadAddress = () => {
+      const requestedThread = new URLSearchParams(window.location.search).get(
+        "thread",
+      );
+      if (requestedThread) {
+        openForumThread(requestedThread, false);
+      } else {
+        setSelectedId(null);
+        setSelectedThread(null);
+        setReplies([]);
+      }
     };
-  }, [category]);
+    syncThreadAddress();
+    window.addEventListener("popstate", syncThreadAddress);
+    return () => window.removeEventListener("popstate", syncThreadAddress);
+  }, [openForumThread]);
+
+  useEffect(() => {
+    if (mode !== "forum") return;
+    queueMicrotask(() => {
+      void loadThreads();
+      if (selectedId) void loadThread(selectedId);
+    });
+    const refresh = () => {
+      if (document.visibilityState !== "visible") return;
+      void loadThreads();
+      if (selectedId) void loadThread(selectedId);
+    };
+    const timer = window.setInterval(refresh, 10_000);
+    window.addEventListener("focus", refresh);
+    document.addEventListener("visibilitychange", refresh);
+    return () => {
+      window.clearInterval(timer);
+      window.removeEventListener("focus", refresh);
+      document.removeEventListener("visibilitychange", refresh);
+    };
+  }, [loadThread, loadThreads, mode, selectedId]);
 
   const loadStaff = useCallback(async (query = "") => {
     const response = await fetch(
@@ -513,6 +596,38 @@ export function CommunityConsole({
     () => FORUM_CATEGORIES.find((item) => item.id === category)!,
     [category],
   );
+  const visibleThreads = useMemo(() => {
+    const query = forumQuery.trim().toLocaleLowerCase();
+    const filtered = query
+      ? threads.filter((thread) =>
+          [thread.title, thread.body, thread.authorName].some((value) =>
+            value.toLocaleLowerCase().includes(query),
+          ),
+        )
+      : [...threads];
+    if (forumSort === "active") {
+      return filtered.sort(
+        (left, right) =>
+          right.replyCount - left.replyCount ||
+          new Date(right.updatedAt).getTime() -
+            new Date(left.updatedAt).getTime(),
+      );
+    }
+    if (forumSort === "unanswered") {
+      return filtered
+        .filter((thread) => thread.replyCount === 0)
+        .sort(
+          (left, right) =>
+            new Date(right.updatedAt).getTime() -
+            new Date(left.updatedAt).getTime(),
+        );
+    }
+    return filtered.sort(
+      (left, right) =>
+        new Date(right.updatedAt).getTime() -
+        new Date(left.updatedAt).getTime(),
+    );
+  }, [forumQuery, forumSort, threads]);
 
   async function transmit(event?: FormEvent) {
     event?.preventDefault();
@@ -612,7 +727,10 @@ export function CommunityConsole({
     const response = await fetch(`/api/community/forum/${selectedId}`, {
       method: "POST",
       headers: { "content-type": "application/json" },
-      body: JSON.stringify({ body: replyBody }),
+      body: JSON.stringify({
+        body: replyBody,
+        mentionUserIds: forumMentionUserIds,
+      }),
     });
     const data = (await response.json()) as {
       error?: string;
@@ -621,11 +739,40 @@ export function CommunityConsole({
     if (!response.ok || !data.reply)
       return setNotice(data.error ?? "Reply failed.");
     setReplyBody("");
+    setForumMentionUserIds([]);
     setReplies((current) => [...current, data.reply!]);
     setSelectedThread((current) =>
       current ? { ...current, replyCount: current.replyCount + 1 } : current,
     );
     void loadThreads();
+  }
+
+  function beginForumReply(item: ForumReply) {
+    setReplyBody((current) =>
+      current.trim() ? `${current.trimEnd()}\n@${item.authorName} ` : `@${item.authorName} `,
+    );
+    setForumMentionUserIds((current) => [
+      ...new Set([...current, item.authorId]),
+    ]);
+    window.requestAnimationFrame(() => {
+      const composer = document.getElementById(
+        "forum-reply-composer",
+      ) as HTMLTextAreaElement | null;
+      composer?.scrollIntoView({ behavior: "smooth", block: "center" });
+      composer?.focus();
+    });
+  }
+
+  async function copyThreadLink() {
+    if (!selectedThread) return;
+    const url = new URL("/community", window.location.origin);
+    url.searchParams.set("thread", selectedThread.id);
+    try {
+      await navigator.clipboard.writeText(url.toString());
+      setNotice("Thread link copied.");
+    } catch {
+      setNotice("Copy the thread address from your browser.");
+    }
   }
 
   async function saveThread() {
@@ -1095,9 +1242,7 @@ export function CommunityConsole({
                   className={category === item.id ? styles.active : ""}
                   onClick={() => {
                     setCategory(item.id);
-                    setSelectedId(null);
-                    setSelectedThread(null);
-                    setReplies([]);
+                    closeForumThread();
                   }}
                 >
                   <span>
@@ -1117,12 +1262,7 @@ export function CommunityConsole({
                 <div className={styles.threadView}>
                   <button
                     className={styles.back}
-                    onClick={() => {
-                      setSelectedId(null);
-                      setSelectedThread(null);
-                      setReplies([]);
-                      setEditingThread(false);
-                    }}
+                    onClick={closeForumThread}
                   >
                     ← BACK TO {activeCategory.label}
                   </button>
@@ -1179,10 +1319,18 @@ export function CommunityConsole({
                           />
                           <b>{selectedThread.authorName}</b>
                         </div>
-                        <p>{selectedThread.body}</p>
+                        <p>
+                          {renderMessageContent(
+                            selectedThread.body,
+                            mentionMembers,
+                          )}
+                        </p>
                       </>
                     )}
                     <div className={controls.threadActions}>
+                      <button onClick={() => void copyThreadLink()}>
+                        COPY LINK
+                      </button>
                       {currentUser?.id === selectedThread.authorId &&
                         !editingThread && (
                           <button
@@ -1269,8 +1417,11 @@ export function CommunityConsole({
                                 ? " · EDITED"
                                 : ""}
                             </time>
-                            {(ownsReply || canDelete) && (
+                            {currentUser && (
                               <div className={controls.itemActions}>
+                                <button onClick={() => beginForumReply(item)}>
+                                  REPLY
+                                </button>
                                 {ownsReply && (
                                   <button
                                     onClick={() => {
@@ -1327,21 +1478,54 @@ export function CommunityConsole({
                               </div>
                             </div>
                           ) : (
-                            <p>{item.body}</p>
+                            <p>
+                              {renderMessageContent(item.body, mentionMembers)}
+                            </p>
                           )}
                         </article>
                       );
                     })}
                   </div>
                   {currentUser && selectedThread.status !== "locked" ? (
-                    <form className={styles.replyComposer} onSubmit={reply}>
+                    <form
+                      className={styles.replyComposer}
+                      onSubmit={reply}
+                    >
                       <textarea
+                        id="forum-reply-composer"
                         value={replyBody}
                         onChange={(event) => setReplyBody(event.target.value)}
+                        onKeyDown={(event) => {
+                          if (
+                            forumMentionSuggestions.length &&
+                            (event.key === "Enter" || event.key === "Tab")
+                          ) {
+                            event.preventDefault();
+                            selectForumMention(forumMentionSuggestions[0]);
+                          }
+                        }}
                         maxLength={3000}
                         placeholder="Add to this transmission…"
                       />
                       <button>POST RESPONSE</button>
+                      {forumMentionSuggestions.length > 0 && (
+                        <div
+                          className={`${styles.mentionSuggestions} ${styles.forumMentionSuggestions}`}
+                          role="listbox"
+                          aria-label="Mention a member"
+                        >
+                          {forumMentionSuggestions.map((member) => (
+                            <button
+                              type="button"
+                              key={member.id}
+                              onClick={() => selectForumMention(member)}
+                            >
+                              <Avatar name={member.name} image={member.image} />
+                              <span>@{member.name}</span>
+                            </button>
+                          ))}
+                        </div>
+                      )}
                     </form>
                   ) : !currentUser ? (
                     <Link
@@ -1380,6 +1564,35 @@ export function CommunityConsole({
                       </Link>
                     )}
                   </header>
+                  <div className={styles.forumToolbar}>
+                    <label>
+                      <span>SEARCH</span>
+                      <input
+                        type="search"
+                        value={forumQuery}
+                        onChange={(event) => setForumQuery(event.target.value)}
+                        placeholder="Search subjects, reports, or authors"
+                      />
+                    </label>
+                    <label>
+                      <span>SORT</span>
+                      <select
+                        value={forumSort}
+                        onChange={(event) =>
+                          setForumSort(
+                            event.target.value as
+                              | "latest"
+                              | "active"
+                              | "unanswered",
+                          )
+                        }
+                      >
+                        <option value="latest">LATEST ACTIVITY</option>
+                        <option value="active">MOST ACTIVE</option>
+                        <option value="unanswered">UNANSWERED</option>
+                      </select>
+                    </label>
+                  </div>
                   {newThreadOpen && (
                     <form
                       className={styles.threadComposer}
@@ -1421,19 +1634,22 @@ export function CommunityConsole({
                     </form>
                   )}
                   <div className={styles.threadList}>
-                    {!threads.length && (
+                    {!visibleThreads.length && (
                       <div className={styles.empty}>
-                        <span>ARCHIVE EMPTY</span>
-                        <p>Open the first thread in this category.</p>
+                        <span>
+                          {threads.length ? "NO MATCHING SIGNALS" : "ARCHIVE EMPTY"}
+                        </span>
+                        <p>
+                          {threads.length
+                            ? "Adjust the search or sort filter."
+                            : "Open the first thread in this category."}
+                        </p>
                       </div>
                     )}
-                    {threads.map((thread) => (
+                    {visibleThreads.map((thread) => (
                       <button
                         key={thread.id}
-                        onClick={() => {
-                          setSelectedId(thread.id);
-                          void loadThread(thread.id);
-                        }}
+                        onClick={() => openForumThread(thread.id)}
                       >
                         <Avatar
                           name={thread.authorName}

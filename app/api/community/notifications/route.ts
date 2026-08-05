@@ -6,6 +6,8 @@ import type {
   CommunityNotification,
   CommunityNotificationType,
 } from "@/lib/community";
+import { ensureDisplayNameReminder } from "@/lib/display-name-reminders";
+import { VALOR_NAME } from "@/lib/valor";
 
 export const dynamic = "force-dynamic";
 
@@ -31,6 +33,13 @@ export async function GET() {
   if (!session) {
     return Response.json({ error: "Sign in to view notifications." }, { status: 401 });
   }
+  const profile = await getD1()
+    .prepare("SELECT display_name_set FROM user WHERE id = ? LIMIT 1")
+    .bind(session.user.id)
+    .first<{ display_name_set: number | boolean }>();
+  if (!Boolean(profile?.display_name_set)) {
+    await ensureDisplayNameReminder(session.user.id);
+  }
   const result = await getD1()
     .prepare(
       `SELECT n.id, n.type, n.title, n.body, n.href, n.read_at, n.created_at,
@@ -49,7 +58,7 @@ export async function GET() {
     title: row.title,
     body: row.body,
     href: row.href,
-    actorName: row.actor_name,
+    actorName: row.actor_name ?? VALOR_NAME,
     actorImage: row.actor_image,
     readAt: row.read_at,
     createdAt: row.created_at,

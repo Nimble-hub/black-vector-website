@@ -11,7 +11,10 @@ import { getPublicCommunityIdentity } from "@/lib/community-identity";
 
 export const dynamic = "force-dynamic";
 
-const replyInput = z.object({ body: z.string().trim().min(1).max(3000) });
+const replyInput = z.object({
+  body: z.string().trim().min(1).max(3000),
+  mentionUserIds: z.array(z.string().uuid()).max(10).default([]),
+});
 const threadEditInput = z.object({
   kind: z.literal("thread"),
   title: z.string().trim().min(4).max(100),
@@ -125,6 +128,27 @@ export async function POST(
     body: parsed.data.body,
     href: `/community?thread=${threadId}`,
   });
+  const mentionIds = [...new Set(parsed.data.mentionUserIds)].filter(
+    (userId) =>
+      userId !== identity.session.user.id && userId !== thread.authorId,
+  );
+  if (mentionIds.length) {
+    const placeholders = mentionIds.map(() => "?").join(", ");
+    const mentioned = await d1
+      .prepare(`SELECT id FROM user WHERE id IN (${placeholders})`)
+      .bind(...mentionIds)
+      .all<{ id: string }>();
+    for (const member of mentioned.results) {
+      await createCommunityNotification({
+        userId: member.id,
+        actorId: identity.session.user.id,
+        type: "mention",
+        title: `You were mentioned: ${thread.title}`,
+        body: parsed.data.body,
+        href: `/community?thread=${threadId}`,
+      });
+    }
+  }
   const publicIdentity = await getPublicCommunityIdentity(identity.session.user.id, {
     name: identity.session.user.name,
     image: identity.session.user.image || null,

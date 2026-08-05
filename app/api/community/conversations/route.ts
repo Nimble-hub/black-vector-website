@@ -10,6 +10,7 @@ import {
   EMAIL_REQUIRED_CONVERSATION_ID,
   hasVerifiedContactEmail,
 } from "@/lib/account-email";
+import { VALOR_NAME, VALOR_SYSTEM_ID } from "@/lib/valor";
 
 export const dynamic = "force-dynamic";
 
@@ -76,8 +77,8 @@ export async function GET() {
       id: EMAIL_REQUIRED_CONVERSATION_ID,
       updatedAt: new Date(session.user.createdAt).getTime(),
       member: {
-        id: "black-vector-command",
-        name: "Black Vector Command",
+        id: VALOR_SYSTEM_ID,
+        name: VALOR_NAME,
         image: null,
         online: true,
         presenceStatus: "online",

@@ -4,6 +4,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { CommunityNotification } from "@/lib/community";
+import { VALOR_INITIALS, VALOR_NAME } from "@/lib/valor";
 import styles from "./community.module.css";
 
 function relativeTime(timestamp: number) {
@@ -93,7 +94,10 @@ export function CommunityNotifications({ enabled }: { enabled: boolean }) {
         className={styles.notificationTrigger}
         aria-expanded={open}
         aria-label={`${unreadCount} unread notifications`}
-        onClick={() => setOpen((value) => !value)}
+        onClick={() => {
+          if (!open) void markAllRead();
+          setOpen((value) => !value);
+        }}
       >
         <span aria-hidden="true">◇</span>
         ALERTS
@@ -126,12 +130,20 @@ export function CommunityNotifications({ enabled }: { enabled: boolean }) {
                 {item.actorImage ? (
                   <Image src={item.actorImage} alt="" width={34} height={34} unoptimized />
                 ) : (
-                  <i>{item.actorName?.slice(0, 2).toUpperCase() ?? "BV"}</i>
+                  <i>
+                    {item.actorName === VALOR_NAME
+                      ? VALOR_INITIALS
+                      : item.actorName?.slice(0, 2).toUpperCase() ?? VALOR_INITIALS}
+                  </i>
                 )}
                 <span>
                   <strong>{item.title}</strong>
                   <p>{item.body}</p>
-                  <small>{relativeTime(item.createdAt)} AGO</small>
+                  <small>
+                    {item.actorName ?? VALOR_NAME}
+                    {" // "}
+                    {relativeTime(item.createdAt)} AGO
+                  </small>
                 </span>
               </Link>
             ))}

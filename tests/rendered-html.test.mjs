@@ -99,7 +99,7 @@ test("requires a verified contact email and delivers legacy account reminders", 
   assert.match(authConfig, /disableImplicitSignUp: true/);
   assert.match(authScreen, /requestSignUp: mode === "register"/);
   assert.match(conversations, /EMAIL_REQUIRED_CONVERSATION_ID/);
-  assert.match(direct, /Black Vector Command/);
+  assert.match(direct, /VALOR_NAME/);
   assert.match(migration, /uidx_community_notification_system_notice/);
   assert.match(migration, /Contact email required/);
   assert.match(migration, /LIKE '%\.invalid'/);
@@ -635,12 +635,16 @@ test("ships authenticated social connections, direct comms, and clan operations"
 });
 
 test("ships durable replies, member mentions, and an account notification inbox", async () => {
-  const [schema, chatRoom, chatRoute, notifications, notificationUi, consoleUi, migration] =
+  const [schema, chatRoom, chatRoute, forumRoute, notifications, notificationUi, consoleUi, reminder, conversations, direct, valor, migration] =
     await Promise.all([
       readFile(new URL("db/schema.ts", root), "utf8"),
       readFile(new URL("worker/chat-room.ts", root), "utf8"),
       readFile(
         new URL("app/api/community/chat/[channel]/route.ts", root),
+        "utf8",
+      ),
+      readFile(
+        new URL("app/api/community/forum/[threadId]/route.ts", root),
         "utf8",
       ),
       readFile(
@@ -652,6 +656,10 @@ test("ships durable replies, member mentions, and an account notification inbox"
         "utf8",
       ),
       readFile(new URL("app/community/community-console.tsx", root), "utf8"),
+      readFile(new URL("lib/display-name-reminders.ts", root), "utf8"),
+      readFile(new URL("app/api/community/conversations/route.ts", root), "utf8"),
+      readFile(new URL("app/api/community/dm/[conversationId]/route.ts", root), "utf8"),
+      readFile(new URL("lib/valor.ts", root), "utf8"),
       readFile(
         new URL("drizzle/0005_jazzy_mikhail_rasputin.sql", root),
         "utf8",
@@ -665,12 +673,26 @@ test("ships durable replies, member mentions, and an account notification inbox"
   assert.match(notifications, /read-all/);
   assert.match(notificationUi, /10_000/);
   assert.match(notificationUi, /MARK ALL READ/);
+  assert.match(notificationUi, /if \(!open\) void markAllRead\(\)/);
   assert.match(consoleUi, /REPLYING TO/);
   assert.match(consoleUi, /replyToId/);
   assert.match(consoleUi, /mentionSuggestions/);
   assert.match(consoleUi, /mentionUserIds/);
   assert.match(chatRoute, /type: "mention"/);
   assert.match(chatRoute, /mentioned you in/);
+  assert.match(forumRoute, /mentionUserIds/);
+  assert.match(forumRoute, /You were mentioned:/);
+  assert.match(consoleUi, /forumMentionSuggestions/);
+  assert.match(consoleUi, /LATEST ACTIVITY/);
+  assert.match(consoleUi, /MOST ACTIVE/);
+  assert.match(consoleUi, /UNANSWERED/);
+  assert.match(consoleUi, /COPY LINK/);
+  assert.match(consoleUi, /searchParams\.set\("thread"/);
+  assert.match(reminder, /WHERE NOT EXISTS/);
+  assert.match(reminder, /display=required/);
+  assert.match(valor, /V\.A\.L\.O\.R\./);
+  assert.match(conversations, /VALOR_NAME/);
+  assert.match(direct, /VALOR_SYSTEM_ID/);
   assert.match(migration, /CREATE TABLE `community_notification`/);
 });
 
