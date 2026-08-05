@@ -35,12 +35,6 @@ const developmentPriorities = [
 
 const supportTierPrices = [30, 50, 75, 100, 150, 200] as const;
 
-const launchChecks = [
-  "Finalize the reward package for all six support tiers",
-  "Publish fulfillment, eligibility, and refund terms",
-  "Complete secure checkout testing before accepting funds",
-] as const;
-
 export default function SupportPage() {
   return (
     <main className="support-shell" id="top">
@@ -157,21 +151,6 @@ export default function SupportPage() {
             </article>
           ))}
         </div>
-      </section>
-
-      <section className="support-readiness" aria-labelledby="support-readiness-title">
-        <div>
-          <p className="eyebrow">BEFORE CHECKOUT OPENS</p>
-          <h2 id="support-readiness-title">BUILT TO EARN YOUR CONFIDENCE.</h2>
-        </div>
-        <ol>
-          {launchChecks.map((check, index) => (
-            <li key={check}>
-              <span>0{index + 1}</span>
-              <p>{check}</p>
-            </li>
-          ))}
-        </ol>
       </section>
 
       <section className="support-disclosure" aria-labelledby="support-disclosure-title">
