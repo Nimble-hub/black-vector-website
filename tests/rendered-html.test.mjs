@@ -254,12 +254,13 @@ test("keeps private game builds offline until a verified release is published", 
 });
 
 test("puts access near the top and provides a dedicated build terminal", async () => {
-  const [home, accessSection, downloadPage, downloadCard, supportPage] = await Promise.all([
+  const [home, accessSection, downloadPage, downloadCard, supportPage, legalPage] = await Promise.all([
     readFile(new URL("app/page.tsx", root), "utf8"),
     readFile(new URL("app/access-section.tsx", root), "utf8"),
     readFile(new URL("app/download/page.tsx", root), "utf8"),
     readFile(new URL("app/download-access-card.tsx", root), "utf8"),
     readFile(new URL("app/support/page.tsx", root), "utf8"),
+    readFile(new URL("app/legal/page.tsx", root), "utf8"),
   ]);
 
   assert.ok(home.indexOf("<AccessSection") < home.indexOf("game-overview"));
@@ -269,17 +270,27 @@ test("puts access near the top and provides a dedicated build terminal", async (
   assert.match(accessSection, /\$\{basePath\}\/support/);
   assert.match(accessSection, /className="access-card access-card-link"/);
   assert.match(accessSection, /OPEN DOWNLOAD TERMINAL/);
-  assert.match(downloadPage, /BLACK VECTOR BUILD TERMINAL/);
+  assert.match(downloadPage, /BLACK VECTOR PLAYTEST BUILDS/);
+  assert.match(downloadPage, /aria-current="page"/);
   assert.match(downloadPage, /variant="terminal"/);
   assert.match(downloadCard, /DOWNLOAD BLACK VECTOR/);
   assert.match(downloadCard, /api\/downloads\/current/);
   assert.match(downloadCard, /href=\{`\$\{basePath\}\/download`\}/);
   assert.match(downloadCard, /OPEN DOWNLOAD PAGE/);
-  assert.match(supportPage, /SUPPORT PROGRAM \/\/ NOT YET OPEN/);
   assert.match(supportPage, /Support is not yet open/i);
   assert.match(supportPage, /not be charitable or\s+tax-deductible/i);
   assert.match(supportPage, /future Black Vector game copy/i);
+  assert.match(supportPage, /SIX WAYS TO BACK DEVELOPMENT/);
+  assert.match(supportPage, /\[30, 50, 75, 100, 150, 200\]/);
+  assert.match(supportPage, /REWARDS \/\/ TBD/);
+  assert.match(supportPage, /SUPPORT OPENS LATER/);
+  assert.match(supportPage, /Prices, tier structure, and rewards are subject to change/i);
   assert.doesNotMatch(supportPage, /api\/support\/checkout/);
+  assert.match(legalPage, /Preliminary tiers and rewards/i);
+  assert.match(legalPage, /not a binding\s+offer/i);
+  assert.match(legalPage, /not be charitable contributions or\s+tax-deductible gifts/i);
+  assert.match(legalPage, /ownership, equity, profit sharing/i);
+  assert.match(legalPage, /parent or legal guardian/i);
 });
 
 test("keeps Stripe support checkout fail-closed and separate from game access", async () => {

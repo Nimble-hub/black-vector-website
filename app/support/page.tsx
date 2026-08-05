@@ -11,29 +11,31 @@ export const metadata: Metadata = {
     "Preview the upcoming Black Vector development-support program and follow its progress before contributions open.",
 };
 
-const programPrinciples = [
+const developmentPriorities = [
   {
     index: "01",
-    title: "Transparent tiers",
-    copy: "Every contribution level will publish its price, included rewards, and delivery expectations before support opens.",
-    note: "PRICING IN REVIEW",
+    title: "Fleet-command systems",
+    copy: "Expand the combat sandbox, strategic economy, fleet behaviors, and the scale of battles players can command.",
+    note: "CORE GAMEPLAY",
   },
   {
     index: "02",
-    title: "Defined rewards",
-    copy: "Supporter recognition and digital rewards are under review. Final benefits will be specific to each published tier.",
-    note: "REWARDS IN REVIEW",
+    title: "World and presentation",
+    copy: "Advance ship art, sound, cinematic presentation, interface quality, and the larger Black Vector universe.",
+    note: "ART // AUDIO // CINEMATICS",
   },
   {
     index: "03",
-    title: "Future game access",
-    copy: "Selected tiers may include a future copy of Black Vector only where that benefit is explicitly stated in the final offer.",
-    note: "TERMS NOT YET PUBLISHED",
+    title: "Playtest infrastructure",
+    copy: "Support reliable build delivery, community tools, testing operations, and faster iteration from player feedback.",
+    note: "BUILDS // COMMUNITY",
   },
 ] as const;
 
+const supportTierPrices = [30, 50, 75, 100, 150, 200] as const;
+
 const launchChecks = [
-  "Finalize contribution amounts and supporter rewards",
+  "Finalize the reward package for all six support tiers",
   "Publish fulfillment, eligibility, and refund terms",
   "Complete secure checkout testing before accepting funds",
 ] as const;
@@ -53,6 +55,7 @@ export default function SupportPage() {
         <nav aria-label="Support page navigation">
           <Link href={`${BASE_PATH}/`}>HOME</Link>
           <Link href={`${BASE_PATH}/playtest`}>PLAYTEST</Link>
+          <Link href={`${BASE_PATH}/support`} aria-current="page">SUPPORT</Link>
           <Link href={`${BASE_PATH}/download`}>DOWNLOAD</Link>
           <Link href={`${BASE_PATH}/community`}>COMMUNITY</Link>
           <Link href={`${BASE_PATH}/account`}>ACCOUNT</Link>
@@ -69,16 +72,16 @@ export default function SupportPage() {
             through clearly defined contribution tiers and rewards.
           </p>
           <div className="support-hero-actions">
-            <span className="primary-action support-disabled-action" aria-disabled="true">
-              SUPPORT PROGRAM // NOT YET OPEN
-            </span>
-            <Link className="secondary-action" href={`${BASE_PATH}/playtest`}>
+            <Link className="primary-action" href={`${BASE_PATH}/playtest`}>
               JOIN THE PLAYTEST <span aria-hidden="true">&rarr;</span>
             </Link>
+            <span className="support-program-state" role="status">
+              <i aria-hidden="true" /> SUPPORT OPENS LATER
+            </span>
           </div>
           <p className="support-availability">
-            Support is not yet open. Pricing, rewards, and launch timing will be
-            published here when finalized.
+            Support is not yet open. Six tiers from $30 to $200 are planned.
+            Rewards and launch timing will be published here when finalized.
           </p>
         </div>
 
@@ -89,20 +92,20 @@ export default function SupportPage() {
           </div>
           <dl>
             <div>
-              <dt>PROJECT PHASE</dt>
-              <dd>PROTOTYPE</dd>
+              <dt>SUPPORT RANGE</dt>
+              <dd>$30 &mdash; $200</dd>
             </div>
             <div>
-              <dt>CONTRIBUTIONS</dt>
-              <dd>NOT ACCEPTED</dd>
+              <dt>PLANNED TIERS</dt>
+              <dd>6 LEVELS</dd>
             </div>
             <div>
-              <dt>SUPPORT TIERS</dt>
-              <dd>IN REVIEW</dd>
+              <dt>REWARDS</dt>
+              <dd>TO BE ANNOUNCED</dd>
             </div>
             <div>
-              <dt>RETAIL SALES</dt>
-              <dd>HIDDEN UNTIL LATER DEVELOPMENT</dd>
+              <dt>PAYMENTS</dt>
+              <dd>DISABLED</dd>
             </div>
           </dl>
         </aside>
@@ -111,24 +114,57 @@ export default function SupportPage() {
       <section className="support-tiers" aria-labelledby="support-tiers-title">
         <div className="support-section-heading">
           <div>
-            <p className="eyebrow">PROGRAM PREVIEW // NO PRICES SET</p>
-            <h2 id="support-tiers-title">A SUPPORT PROGRAM BUILT ON CLARITY.</h2>
+            <p className="eyebrow">SUPPORT LEVELS // COMING SOON</p>
+            <h2 id="support-tiers-title">SIX WAYS TO BACK DEVELOPMENT.</h2>
           </div>
           <p>
-            Final contribution tiers are still in development. These principles
-            will guide every published offer.
+            Every tier will receive a defined reward package before support
+            opens. Prices are planned; rewards remain under review.
           </p>
         </div>
-        <div className="support-tier-grid">
-          {programPrinciples.map((tier) => (
-            <article key={tier.index}>
-              <div className="support-tier-meta">
-                <span>{tier.index}</span>
-                <small>{tier.note}</small>
+        <div className="support-price-grid">
+          {supportTierPrices.map((price, index) => (
+            <article key={price}>
+              <div className="support-price-meta">
+                <span>TIER {String(index + 1).padStart(2, "0")}</span>
+                <small>COMING SOON</small>
               </div>
-              <h3>{tier.title}</h3>
-              <p>{tier.copy}</p>
-              <strong>DETAILS PENDING</strong>
+              <h3><sup>$</sup>{price}</h3>
+              <p>Supporter rewards are being developed for this contribution level.</p>
+              <strong>REWARDS // TBD</strong>
+            </article>
+          ))}
+        </div>
+        <div className="support-tier-disclaimer" role="note">
+          <strong>PRELIMINARY PROGRAM NOTICE</strong>
+          <p>
+            Planned prices, tier structure, and rewards are subject to change
+            and will be finalized when support opens. Final reward descriptions,
+            eligibility, estimated fulfillment timing, taxes, and refund terms
+            will be shown before any payment is accepted. Displayed tiers do not
+            create a reservation, purchase, or entitlement.
+          </p>
+          <Link href={`${BASE_PATH}/legal#support-program`}>
+            REVIEW SUPPORTER NOTICE <span aria-hidden="true">&rarr;</span>
+          </Link>
+        </div>
+
+        <div className="support-priority-intro">
+          <p className="eyebrow">WHAT SUPPORT ADVANCES</p>
+          <p>
+            Contributions will be directed toward the game, presentation, and
+            services that move Black Vector from prototype to playtest-ready.
+          </p>
+        </div>
+        <div className="support-priority-grid">
+          {developmentPriorities.map((priority) => (
+            <article key={priority.index}>
+              <div className="support-tier-meta">
+                <span>{priority.index}</span>
+                <small>{priority.note}</small>
+              </div>
+              <h3>{priority.title}</h3>
+              <p>{priority.copy}</p>
             </article>
           ))}
         </div>
@@ -137,7 +173,7 @@ export default function SupportPage() {
       <section className="support-readiness" aria-labelledby="support-readiness-title">
         <div>
           <p className="eyebrow">BEFORE CHECKOUT OPENS</p>
-          <h2 id="support-readiness-title">CLEAR TERMS. SECURE PAYMENT. NO SURPRISES.</h2>
+          <h2 id="support-readiness-title">BUILT TO EARN YOUR CONFIDENCE.</h2>
         </div>
         <ol>
           {launchChecks.map((check, index) => (
@@ -152,12 +188,12 @@ export default function SupportPage() {
       <section className="support-disclosure" aria-labelledby="support-disclosure-title">
         <div>
           <p className="eyebrow">SUPPORTER NOTICE</p>
-          <h2 id="support-disclosure-title">DEVELOPMENT SUPPORT, NOT A RETAIL SALE.</h2>
+          <h2 id="support-disclosure-title">SUPPORT WITH CLEAR EXPECTATIONS.</h2>
         </div>
         <div className="support-disclosure-copy">
           <p>
             The future program will offer voluntary paid support tiers from a
-            for-profit game studio. Contributions will not be charitable or
+            for-profit game studio. Support payments will not be charitable or
             tax-deductible, and they will not provide ownership, equity,
             investment rights, or benefits beyond those expressly listed for
             the selected tier.
@@ -168,6 +204,9 @@ export default function SupportPage() {
             will remain separate and will appear later, when the project reaches
             an appropriate alpha or beta stage.
           </p>
+          <Link className="support-legal-link" href={`${BASE_PATH}/legal#support-program`}>
+            READ THE FULL SUPPORTER NOTICE <span aria-hidden="true">&rarr;</span>
+          </Link>
         </div>
       </section>
 
@@ -175,9 +214,12 @@ export default function SupportPage() {
         <p>
           Want to follow the discussion while the program is prepared?
         </p>
-        <a href={DISCORD_INVITE_URL} target="_blank" rel="noreferrer">
-          JOIN THE NIMBLE GAME STUDIOS DISCORD <span aria-hidden="true">&nearr;</span>
-        </a>
+        <div>
+          <Link href={`${BASE_PATH}/legal`}>TERMS &amp; LEGAL</Link>
+          <a href={DISCORD_INVITE_URL} target="_blank" rel="noreferrer">
+            JOIN THE NGS DISCORD <span aria-hidden="true">&nearr;</span>
+          </a>
+        </div>
       </footer>
     </main>
   );

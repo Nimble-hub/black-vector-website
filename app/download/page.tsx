@@ -41,6 +41,7 @@ export default function DownloadPage() {
           <Link href={`${BASE_PATH}/`}>HOME</Link>
           <Link href={`${BASE_PATH}/playtest`}>JOIN PLAYTEST</Link>
           <Link href={`${BASE_PATH}/support`}>SUPPORT</Link>
+          <Link href={`${BASE_PATH}/download`} aria-current="page">DOWNLOAD</Link>
           <Link href={`${BASE_PATH}/account`}>ACCOUNT</Link>
           <Link href={`${BASE_PATH}/community`}>COMMUNITY</Link>
         </nav>
@@ -48,8 +49,8 @@ export default function DownloadPage() {
 
       <section className="download-page-hero" aria-labelledby="download-page-title">
         <div className="download-page-copy">
-          <p className="eyebrow">SECURE DISTRIBUTION // PRIVATE PLAYTEST</p>
-          <h1 id="download-page-title">BLACK VECTOR BUILD TERMINAL.</h1>
+          <p className="eyebrow">PRIVATE PLAYTEST // WINDOWS</p>
+          <h1 id="download-page-title">BLACK VECTOR PLAYTEST BUILDS.</h1>
           <p>
             Approved playtesters can download current Black Vector builds here.
             Sign in with a verified account to view release availability and
@@ -76,8 +77,14 @@ export default function DownloadPage() {
 
       <section className="download-clearance" aria-labelledby="clearance-title">
         <div className="download-clearance-heading">
-          <p className="eyebrow">ACCESS SEQUENCE</p>
-          <h2 id="clearance-title">FROM REGISTRATION TO DEPLOYMENT.</h2>
+          <div>
+            <p className="eyebrow">ACCESS SEQUENCE</p>
+            <h2 id="clearance-title">GET READY FOR DEPLOYMENT.</h2>
+          </div>
+          <p>
+            One verified account carries your application, access status, and
+            available Black Vector releases.
+          </p>
         </div>
         <div className="download-clearance-grid">
           {clearanceSteps.map((step) => (
@@ -93,6 +100,14 @@ export default function DownloadPage() {
           private playtest release.
         </p>
       </section>
+
+      <footer className="download-footer">
+        <p>&copy; 2026 Nimble Game Studios. All rights reserved.</p>
+        <div>
+          <Link href={`${BASE_PATH}/support`}>SUPPORT DEVELOPMENT</Link>
+          <Link href={`${BASE_PATH}/legal`}>TERMS &amp; LEGAL</Link>
+        </div>
+      </footer>
     </main>
   );
 }

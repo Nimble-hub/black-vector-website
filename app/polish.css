@@ -1828,3 +1828,514 @@ h1 span {
     padding-left: 20px;
   }
 }
+
+/* Standalone-page UX refinements: clearer current location, tighter reading
+   rhythm, and mobile layouts that never depend on horizontal clipping. */
+.support-header nav a[aria-current="page"],
+.download-header nav a[aria-current="page"] {
+  color: var(--ivory);
+}
+
+.support-header nav a[aria-current="page"]::after,
+.download-header nav a[aria-current="page"]::after {
+  display: block;
+  width: 100%;
+  height: 1px;
+  margin-top: 8px;
+  background: var(--cyan);
+  content: "";
+}
+
+.support-hero {
+  min-height: min(690px, 76svh);
+  padding-block: clamp(68px, 7vw, 108px);
+}
+
+.support-hero-actions {
+  align-items: stretch;
+}
+
+.support-program-state {
+  display: inline-flex;
+  min-width: 220px;
+  min-height: 52px;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding: 0 20px;
+  border: 1px solid rgba(230, 164, 75, 0.25);
+  color: rgba(230, 164, 75, 0.74);
+  font: 700 8px/1 Consolas, "Cascadia Mono", monospace;
+  letter-spacing: 0.12em;
+}
+
+.support-program-state i {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--amber);
+  box-shadow: 0 0 12px rgba(230, 164, 75, 0.5);
+}
+
+.support-tiers,
+.support-readiness,
+.support-disclosure {
+  padding-block: clamp(68px, 7vw, 100px);
+}
+
+.support-section-heading {
+  margin-bottom: 44px;
+}
+
+.support-tier-grid article {
+  min-height: 330px;
+}
+
+.support-tier-grid h3 {
+  margin-top: 62px;
+}
+
+.support-disclosure {
+  padding-bottom: clamp(78px, 8vw, 112px);
+}
+
+.support-footer > div,
+.download-footer > div {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 18px 30px;
+}
+
+.support-footer > div a,
+.download-footer a {
+  color: var(--cyan);
+  font: 700 8px/1 Consolas, "Cascadia Mono", monospace;
+  letter-spacing: 0.12em;
+  text-decoration: none;
+}
+
+.support-footer > div a:hover,
+.support-footer > div a:focus-visible,
+.download-footer a:hover,
+.download-footer a:focus-visible {
+  color: var(--ivory);
+}
+
+.download-page-hero {
+  min-height: min(690px, 76svh);
+  padding-block: clamp(68px, 7vw, 108px);
+}
+
+.download-page-copy,
+.download-page-copy h1,
+.download-clearance-heading > div,
+.download-clearance-heading > p,
+.support-hero-copy,
+.support-section-heading > *,
+.support-disclosure > *,
+.support-readiness > * {
+  min-width: 0;
+}
+
+.download-clearance {
+  padding-top: clamp(68px, 7vw, 96px);
+}
+
+.download-clearance-heading {
+  align-items: end;
+  margin-bottom: 42px;
+}
+
+.download-clearance-heading .eyebrow {
+  margin-bottom: 18px;
+}
+
+.download-clearance-heading > p {
+  max-width: 470px;
+  margin: 0;
+  color: rgba(205, 211, 209, 0.62);
+  font-size: 14px;
+  line-height: 1.68;
+}
+
+.download-footer {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 30px;
+  width: min(100%, 1320px);
+  margin: clamp(72px, 8vw, 110px) auto 0;
+  padding-top: 30px;
+  border-top: 1px solid rgba(145, 195, 201, 0.14);
+}
+
+.download-footer p {
+  margin: 0;
+  color: rgba(205, 211, 209, 0.4);
+  font: 7px/1.6 Consolas, "Cascadia Mono", monospace;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+@media (max-width: 700px) {
+  .support-header nav,
+  .download-header nav {
+    width: 100%;
+    max-width: 100%;
+  }
+
+  .support-header nav a,
+  .download-header nav a {
+    flex: 0 0 auto;
+  }
+
+  .support-hero {
+    gap: 36px;
+    padding-block: 56px 64px;
+  }
+
+  .support-hero-copy h1,
+  .download-page-copy h1 {
+    max-width: 100%;
+    overflow-wrap: break-word;
+  }
+
+  .support-hero-actions > * {
+    min-height: 52px;
+  }
+
+  .support-program-state {
+    width: 100%;
+    min-width: 0;
+  }
+
+  .support-status dl > div {
+    grid-template-columns: minmax(0, 0.8fr) minmax(0, 1.2fr);
+    gap: 12px;
+    padding-block: 17px;
+  }
+
+  .support-status dt,
+  .support-status dd {
+    overflow-wrap: anywhere;
+  }
+
+  .support-tiers,
+  .support-readiness,
+  .support-disclosure {
+    padding-block: 62px;
+  }
+
+  .support-section-heading {
+    gap: 24px;
+    margin-bottom: 34px;
+  }
+
+  .support-tier-grid article {
+    min-height: 238px;
+  }
+
+  .support-tier-grid h3 {
+    margin-top: 42px;
+  }
+
+  .support-readiness {
+    gap: 34px;
+  }
+
+  .support-disclosure {
+    gap: 32px;
+  }
+
+  .support-disclosure-copy,
+  .support-disclosure-copy p {
+    max-width: 100%;
+    overflow-wrap: anywhere;
+  }
+
+  .support-footer,
+  .download-footer {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .download-page-hero {
+    padding-block: 56px 66px;
+  }
+
+  .download-page-copy h1 {
+    font-size: clamp(44px, 13vw, 58px);
+    line-height: 0.89;
+  }
+
+  .download-clearance {
+    padding-top: 62px;
+  }
+
+  .download-clearance-heading {
+    gap: 22px;
+    margin-bottom: 34px;
+  }
+
+  .download-terminal-card h3 {
+    font-size: 34px;
+  }
+}
+
+.support-price-grid,
+.support-priority-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  border-top: 1px solid rgba(145, 195, 201, 0.17);
+  border-left: 1px solid rgba(145, 195, 201, 0.17);
+}
+
+.support-price-grid article,
+.support-priority-grid article {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  padding: 28px 30px;
+  border-right: 1px solid rgba(145, 195, 201, 0.17);
+  border-bottom: 1px solid rgba(145, 195, 201, 0.17);
+  background: linear-gradient(
+    145deg,
+    rgba(8, 20, 27, 0.88),
+    rgba(2, 8, 12, 0.72)
+  );
+}
+
+.support-price-grid article {
+  min-height: 260px;
+}
+
+.support-price-meta,
+.support-tier-meta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  color: var(--cyan);
+  font: 700 8px/1 Consolas, "Cascadia Mono", monospace;
+  letter-spacing: 0.12em;
+}
+
+.support-price-meta small,
+.support-tier-meta small {
+  color: rgba(205, 211, 209, 0.4);
+  font: inherit;
+  font-size: 7px;
+  text-align: right;
+}
+
+.support-price-grid h3 {
+  margin: 46px 0 14px;
+  font-size: clamp(48px, 4.8vw, 72px);
+  line-height: 0.9;
+}
+
+.support-price-grid h3 sup {
+  margin-right: 5px;
+  color: var(--cyan);
+  font: 700 14px/1 Consolas, "Cascadia Mono", monospace;
+  vertical-align: top;
+}
+
+.support-price-grid p,
+.support-priority-grid p {
+  margin: 0;
+  color: rgba(205, 211, 209, 0.62);
+  font-size: 13px;
+  line-height: 1.62;
+}
+
+.support-price-grid article > strong {
+  margin-top: auto;
+  padding-top: 22px;
+  color: rgba(230, 164, 75, 0.68);
+  font: 700 8px/1 Consolas, "Cascadia Mono", monospace;
+  letter-spacing: 0.12em;
+}
+
+.support-priority-intro {
+  display: grid;
+  grid-template-columns: minmax(0, 0.8fr) minmax(320px, 0.55fr);
+  align-items: end;
+  gap: clamp(40px, 8vw, 120px);
+  margin: clamp(66px, 7vw, 96px) 0 36px;
+}
+
+.support-priority-intro > p:last-child {
+  margin: 0;
+  color: rgba(205, 211, 209, 0.6);
+  font-size: 14px;
+  line-height: 1.68;
+}
+
+.support-priority-grid article {
+  min-height: 250px;
+}
+
+.support-priority-grid h3 {
+  margin: 54px 0 14px;
+  font-size: clamp(23px, 2.1vw, 31px);
+  text-transform: uppercase;
+}
+
+@media (max-width: 980px) {
+  .support-price-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .support-priority-intro {
+    grid-template-columns: 1fr;
+    gap: 18px;
+  }
+
+  .support-priority-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 700px) {
+  .support-price-grid article {
+    min-height: 218px;
+    padding: 22px 18px;
+  }
+
+  .support-price-meta {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 7px;
+  }
+
+  .support-price-meta small {
+    text-align: left;
+  }
+
+  .support-price-grid h3 {
+    margin-top: 34px;
+    font-size: 46px;
+  }
+
+  .support-price-grid p {
+    font-size: 12px;
+  }
+
+  .support-price-grid article > strong {
+    font-size: 7px;
+  }
+
+  .support-priority-intro {
+    margin-top: 58px;
+  }
+
+  .support-priority-grid article {
+    min-height: 220px;
+    padding: 24px 22px;
+  }
+
+  .support-priority-grid h3 {
+    margin-top: 40px;
+  }
+}
+
+.support-tier-disclaimer {
+  display: grid;
+  grid-template-columns: minmax(180px, 0.35fr) minmax(0, 1fr) auto;
+  align-items: start;
+  gap: 24px 34px;
+  margin-top: 18px;
+  padding: 22px 24px;
+  border: 1px solid rgba(230, 164, 75, 0.22);
+  border-left: 2px solid rgba(230, 164, 75, 0.7);
+  background: rgba(230, 164, 75, 0.035);
+}
+
+.support-tier-disclaimer strong {
+  color: var(--amber);
+  font: 700 8px/1.55 Consolas, "Cascadia Mono", monospace;
+  letter-spacing: 0.12em;
+}
+
+.support-tier-disclaimer p {
+  margin: 0;
+  color: rgba(220, 220, 214, 0.72);
+  font-size: 12px;
+  line-height: 1.65;
+}
+
+.support-tier-disclaimer a,
+.support-legal-link {
+  color: var(--cyan);
+  font: 700 8px/1.55 Consolas, "Cascadia Mono", monospace;
+  letter-spacing: 0.11em;
+  text-decoration: none;
+}
+
+.support-tier-disclaimer a {
+  white-space: nowrap;
+}
+
+.support-tier-disclaimer a:hover,
+.support-tier-disclaimer a:focus-visible,
+.support-legal-link:hover,
+.support-legal-link:focus-visible {
+  color: var(--ivory);
+}
+
+.support-legal-link {
+  display: inline-flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 22px;
+  margin-top: 8px;
+  padding: 14px 0;
+  border-bottom: 1px solid rgba(88, 213, 220, 0.38);
+}
+
+.legal-header nav a[aria-current="page"] {
+  color: var(--ivory);
+}
+
+.legal-support-notice {
+  margin: 48px -28px 0;
+  padding: 38px 28px 22px;
+  border-top: 1px solid rgba(230, 164, 75, 0.28);
+  border-bottom: 1px solid rgba(230, 164, 75, 0.18);
+  background: linear-gradient(120deg, rgba(230, 164, 75, 0.045), transparent 72%);
+  scroll-margin-top: 32px;
+}
+
+.legal-support-notice > .eyebrow {
+  color: var(--amber);
+}
+
+.legal-support-notice h2:first-of-type {
+  margin-top: 20px;
+}
+
+@media (max-width: 900px) {
+  .support-tier-disclaimer {
+    grid-template-columns: 1fr;
+  }
+
+  .support-tier-disclaimer a {
+    white-space: normal;
+  }
+}
+
+@media (max-width: 700px) {
+  .support-tier-disclaimer {
+    gap: 14px;
+    padding: 20px 18px;
+  }
+
+  .legal-support-notice {
+    margin-inline: -12px;
+    padding-inline: 12px;
+  }
+}
