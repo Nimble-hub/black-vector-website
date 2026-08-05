@@ -6,6 +6,8 @@ export const metadata: Metadata = {
   description: "Ownership, trademark, and copyright notices for Black Vector.",
 };
 
+export const dynamic = "force-dynamic";
+
 export default function LegalPage() {
   return (
     <main className="legal-shell">
