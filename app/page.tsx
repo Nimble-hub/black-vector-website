@@ -151,12 +151,21 @@ export default function Home() {
             human space in real-time battles where every front can become a war.
           </p>
           <div className="hero-actions">
-            <a className="primary-action" href="#game">
-              EXPLORE THE GAME <span aria-hidden="true">&#8600;</span>
-            </a>
-            <a className="secondary-action" href={`${BASE_PATH}/playtest`}>
-              JOIN THE PLAYTEST <span aria-hidden="true">&#8594;</span>
-            </a>
+            <div className="hero-action-row">
+              <a className="primary-action" href="#game">
+                EXPLORE THE GAME <span aria-hidden="true">&#8600;</span>
+              </a>
+              <a className="secondary-action" href={`${BASE_PATH}/playtest`}>
+                JOIN THE PLAYTEST <span aria-hidden="true">&#8594;</span>
+              </a>
+              <button
+                className="text-action replay-action"
+                type="button"
+                data-replay-jump
+              >
+                REPLAY JUMP
+              </button>
+            </div>
             <a
               className="discord-action"
               href={DISCORD_INVITE_URL}
@@ -164,23 +173,27 @@ export default function Home() {
               rel="noreferrer"
               aria-label="Join the Nimble Games Studio Discord community (opens in a new tab)"
             >
-              <span className="discord-action-mark" aria-hidden="true">
-                <i />
-                <i />
+              <span className="discord-action-brand" aria-hidden="true">
+                <Image
+                  className="discord-action-logo"
+                  src={`${BASE_PATH}/brand/ngs-logo-fullcolor.png`}
+                  alt=""
+                  width={1717}
+                  height={916}
+                  sizes="(max-width: 700px) 140px, 180px"
+                  unoptimized
+                />
               </span>
               <span className="discord-action-copy">
-                <small>NGS COMMUNITY // LIVE</small>
-                <strong>JOIN DISCORD</strong>
+                <small>OFFICIAL NGS COMMUNITY // LIVE</small>
+                <strong>JOIN THE DISCORD</strong>
+                <em>MEET THE CREW · FOLLOW DEVELOPMENT · FIND PLAYTESTERS</em>
               </span>
-              <b aria-hidden="true">&#8599;</b>
+              <span className="discord-action-enter" aria-hidden="true">
+                <b>ENTER</b>
+                <i>&#8599;</i>
+              </span>
             </a>
-            <button
-              className="text-action replay-action"
-              type="button"
-              data-replay-jump
-            >
-              REPLAY JUMP
-            </button>
           </div>
           <div className="hero-facts" aria-label="Black Vector game features">
             <span>SYSTEM-SCALE SKIRMISHES</span>
