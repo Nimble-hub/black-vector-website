@@ -11,7 +11,7 @@ test("procedural stormworld has bounded global weather, open eyes, and determini
     import assert from 'node:assert/strict';
     import * as THREE from 'three';
     import { createStormworld, sampleStormWeather } from './app/scene/stormworld.ts';
-    let clear = 0, dense = 0;
+    let clear = 0, dense = 0, saturated = 0, intermediate = 0;
     for (let i = 0; i < 2000; i++) {
       const y = 1 - 2 * (i + 0.5) / 2000, a = i * 2.39996322973, r = Math.sqrt(1-y*y);
       const p = [Math.cos(a)*r,y,Math.sin(a)*r];
@@ -20,8 +20,11 @@ test("procedural stormworld has bounded global weather, open eyes, and determini
       assert.deepEqual(values, sampleStormWeather(...p));
       clear += values[0] < 0.15 ? 1 : 0;
       dense += values[0] > 0.6 ? 1 : 0;
+      saturated += values[0] > 0.98 ? 1 : 0;
+      intermediate += values[0] > 0.2 && values[0] < 0.7 ? 1 : 0;
     }
     assert.ok(clear > 200 && dense > 200, 'Keep ocean openings and substantial storm coverage');
+    assert.ok(saturated < 40 && intermediate > 900, 'Avoid solid white cloud slabs; retain a broad density range');
     for (const [lon,lat] of [[1.94,.35],[1.08,-.43]]) {
       const eye=sampleStormWeather(Math.cos(lat)*Math.cos(lon),Math.sin(lat),Math.cos(lat)*Math.sin(lon));
       assert.ok(eye[0]<.05, 'The hurricane eye must remain open');

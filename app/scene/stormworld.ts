@@ -50,9 +50,9 @@ export function sampleStormWeather(x: number, y: number, z: number) {
   const broad = noise(x * 3.1 + 12, y * 3.1 + 7, z * 3.1 + 19);
   const medium = noise(x * 12 + 28, y * 12 + 3, z * 12 + 11);
   const fine = noise(x * 38 + 5, y * 38 + 18, z * 38 + 9);
-  const front = Math.sin(y * 15 + broad * 6 + x * 2.5 - z * 1.4);
-  const belt = smooth(0.08, 0.83, front * 0.26 + broad * 0.7 + medium * 0.22);
-  let coverage = clamp((belt - 0.26) * 1.45);
+  // Fractured synoptic fronts, not latitude-wide opaque white ribbons.
+  const front = 1 - smooth(0.025, 0.2, Math.abs(broad - 0.51));
+  let coverage = clamp((broad * 0.44 + medium * 0.34 + fine * 0.22 - 0.28) * 1.55 + front * 0.16);
   let tower = coverage * 0.42;
   let activity = 0;
   for (const s of systems) {
@@ -65,16 +65,17 @@ export function sampleStormWeather(x: number, y: number, z: number) {
     const flowX = Math.cos(winding) * r, flowY = Math.sin(winding) * r;
     const filaments = noise(flowX * 19 + s.phase * 7, flowY * 19 + 13, s.phase * 11);
     const convection = noise(flowX * 51 + 9, flowY * 51 + s.phase, s.phase * 17);
-    const spiral = angle * 2 * s.spin + r * 13 - s.phase + (medium - 0.5) * 3.2;
-    const armShape = Math.sin(spiral) * 0.7 + (filaments - 0.5) * 0.9 + Math.sin(spiral * 2.6 + s.phase) * 0.12;
-    const arms = smooth(-0.55, 0.7, armShape) * (1 - smooth(0.52, 1.5, r));
-    const eyewall = Math.exp(-Math.pow((r - 0.145) / 0.085, 2));
-    const eye = smooth(0.055, 0.125, r);
-    const shield = (1 - smooth(0.18, 0.92, r)) * 0.55;
-    const storm = clamp((shield + arms * 0.65 + eyewall * 0.64 + (convection - 0.5) * 0.19 + (fine - 0.5) * 0.09) * eye);
+    const spiral = angle * 3 * s.spin + r * 22 - s.phase + (medium - 0.5) * 3.2;
+    const armShape = Math.sin(spiral) * 0.62 + (filaments - 0.5) * 1.1 + Math.sin(spiral * 2.6 + s.phase) * 0.12;
+    const arms = smooth(-0.2, 0.7, armShape) * (1 - smooth(0.52, 1.5, r));
+    const eyeRadius = r * (1 + Math.sin(angle * 3 + s.phase) * 0.07 + Math.sin(angle * 5) * 0.04);
+    const eyewall = Math.exp(-Math.pow((eyeRadius - 0.1) / 0.05, 2));
+    const eye = smooth(0.015, 0.07, eyeRadius);
+    const shield = (1 - smooth(0.12, 0.95, r)) * 0.16;
+    const storm = clamp((shield + arms * 0.68 + eyewall * 0.66 + (convection - 0.5) * 0.19 + (fine - 0.5) * 0.09) * eye);
     const influence = 1 - smooth(0.7, 1.5, r);
     coverage = coverage * (1 - influence) + Math.max(coverage * 0.42, storm) * influence;
-    // Punch a real, clean eye through the whole vertical column.
+    // The small eye feathers into an irregular eyewall, not a circular cutout.
     coverage *= 1 - (1 - eye) * influence;
     tower = Math.max(tower, (eyewall * 0.8 + storm * 0.5) * eye);
     activity = Math.max(activity, eyewall * eye + arms * 0.3);
@@ -165,8 +166,8 @@ export const stormworldFragmentShader = `
   uniform float uOpacity;
   varying vec3 vPlanetPosition;
   const float PI = 3.14159265359;
-  const float CLOUD_BASE = 1.0018;
-  const float CLOUD_TOP = 1.014;
+  const float CLOUD_BASE = 1.0009;
+  const float CLOUD_TOP = 1.007;
   const float AIR_TOP = 1.035;
 
   vec2 sphereInterval(vec3 origin, vec3 ray, float radius) {
@@ -189,25 +190,27 @@ export const stormworldFragmentShader = `
     float height = (length(p) - CLOUD_BASE) / (CLOUD_TOP - CLOUD_BASE);
     if (height <= 0.0 || height >= 1.0 || weather.r < 0.025) return 0.0;
     vec3 drift = vec3(uTime * 0.00013, 0.0, -uTime * 0.00009);
-    vec3 shape = texture(uVolume, p * 15.0 + drift).rgb;
-    vec3 detail = texture(uVolume, p * 47.0 - drift * 0.4).rgb;
-    float billow = mix(shape.r, shape.g, 0.64);
-    float erosion = mix(detail.g, detail.b, 0.45);
-    float ceiling = 0.28 + weather.g * 0.58 + shape.g * 0.21;
-    float profile = smoothstep(0.0, 0.09, height) * (1.0 - smoothstep(ceiling * 0.65, ceiling, height));
-    float body = weather.r - (1.0 - billow) * 0.43 - erosion * mix(0.06, 0.15, height);
-    return smoothstep(0.01, 0.25, body) * profile;
+    vec3 shape = texture(uVolume, p * 42.0 + drift).rgb;
+    vec3 detail = texture(uVolume, p * 83.0 - drift * 0.4).rgb;
+    float billow = mix(shape.r, shape.g, 0.15);
+    float erosion = detail.b;
+    float ceiling = 0.2 + weather.g * 0.58 + shape.r * 0.1;
+    float profile = smoothstep(0.0, 0.08, height) * (1.0 - smoothstep(ceiling * 0.55, ceiling, height));
+    float body = weather.r - 0.075 - (1.0 - billow) * 0.2 - erosion * mix(0.03, 0.1, height);
+    // Preserve gradual optical density: the old narrow remap saturated whole
+    // storm systems into a uniform opaque slab and exposed every cellular bead.
+    return smoothstep(0.0, 0.72, body) * profile;
   }
 
   float densityAt(vec3 p) { return cloudDensity(p, weatherAt(p)); }
 
   float cloudSunlight(vec3 p, vec3 sun) {
-    float opticalDepth = densityAt(p + sun * 0.0017) * 0.55;
+    float opticalDepth = densityAt(p + sun * 0.00085) * 0.55;
     #if SHADOW_STEPS > 1
-      opticalDepth += densityAt(p + sun * 0.005) * 0.3;
+      opticalDepth += densityAt(p + sun * 0.0025) * 0.3;
     #endif
     #if SHADOW_STEPS > 2
-      opticalDepth += densityAt(p + sun * 0.011) * 0.15;
+      opticalDepth += densityAt(p + sun * 0.0055) * 0.15;
     #endif
     opticalDepth *= 5.6;
     // Direct transmission plus a restrained multiple-scattering approximation.
@@ -233,7 +236,7 @@ export const stormworldFragmentShader = `
     vec3 water = mix(vec3(0.002, 0.009, 0.024), vec3(0.007, 0.04, 0.068), currents);
     float shadow = 1.0;
     if (nl > 0.0) {
-      float travel = (CLOUD_BASE + 0.004 - 1.0) / max(nl, 0.18);
+      float travel = (CLOUD_BASE + 0.002 - 1.0) / max(nl, 0.18);
       shadow = exp(-densityAt(p + sun * travel) * 2.4);
     }
     return water * (0.025 + nl * 1.6 * shadow) + vec3(1.7, 1.55, 1.32) * min(glint, 3.0) * nl * shadow;
@@ -286,9 +289,9 @@ export const stormworldFragmentShader = `
           float irradiance = sqrt(max(sunHeight, 0.0));
           float powder = mix(0.72, 1.0, 1.0 - exp(-density * 3.0));
           vec3 ambient = mix(vec3(0.023, 0.037, 0.058), vec3(0.13, 0.19, 0.28), height) * daylight + vec3(0.0006, 0.0013, 0.003);
-          vec3 source = ambient + vec3(2.15, 2.02, 1.82) * sunlight * phase * powder * (0.32 + irradiance * 0.68);
+          vec3 source = ambient + vec3(1.7, 1.62, 1.48) * sunlight * phase * powder * (0.32 + irradiance * 0.68);
           source += vec3(1.15, 1.38, 1.8) * sheetLightning(p, weather) * (1.0 - daylight * 0.75) * 7.0;
-          float absorption = 1.0 - exp(-density * stride * 300.0);
+          float absorption = 1.0 - exp(-density * stride * mix(360.0, 650.0, weather.g));
           float contribution = transmission * absorption;
           cloudDistance += (start + (float(i) + jitter) * stride) * contribution;
           scattering += source * transmission * absorption;
