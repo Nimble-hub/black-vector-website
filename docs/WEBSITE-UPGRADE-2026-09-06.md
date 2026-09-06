@@ -32,6 +32,15 @@ Preserve the hyperspace animation, artwork, audio mix, private builds and disabl
 - Local packaged Worker: public page HTTP responses, account sign-in redirect, unauthenticated member API rejection, download status and privacy/security headers checked.
 - No real accounts were created, no verification emails sent, and no payment attempted. Authenticated browser journeys, actual mobile layout and assistive-technology checks remain manual follow-up; this pass does not claim those were exercised.
 
+## Live deployment
+
+- Application commit: `ea835d4`; Cloudflare version: `ac7a189e-7bc1-425b-a3c5-56c27a31f848`.
+- Verified live: HTTP and www redirect to canonical HTTPS (308), public pages return 200, account redirects to sign-in (307), private member/friend/conversation APIs deny anonymous access (401), staff API denies it (403).
+- Same-origin public chat WebSocket handshake returns 101; foreign-origin handshake returns 403. An oversized request to a nonexistent diagnostic API path returns 413 before routing.
+- The old workers.dev address returns 404. GitHub Pages redirect deployment succeeded.
+- GitHub's clean Linux CI run also passed build, 28 tests, TypeScript and the production dependency audit: https://github.com/Nimble-hub/black-vector-website/actions/runs/34023309474
+- Sampled credential-pattern scan found no matches in the checked source paths or 24 built client files. This is not an exhaustive secret scan or penetration test.
+
 ## Local packaged preview
 
 After `npm run build`, use `npx wrangler dev --port 8787 --local-upstream localhost --host localhost`. The upstream override prevents production-host HTTPS canonicalization from looping through Wrangler's local Location rewrite.
