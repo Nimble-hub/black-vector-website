@@ -9,7 +9,7 @@
     "dev": "vinext dev",
     "build": "vinext build",
     "start": "vinext start",
-    "test": "npm run build && node --test tests/rendered-html.test.mjs",
+    "test": "npm run build && node --test tests/*.test.mjs",
     "lint": "eslint . --ignore-pattern dist --ignore-pattern .next",
     "db:generate": "drizzle-kit generate",
     "db:migrate:local": "wrangler d1 migrations apply black-vector-production --local",
@@ -29,7 +29,7 @@
     "zod": "^4.4.3"
   },
   "devDependencies": {
-    "@cloudflare/vite-plugin": "1.50.0",
+    "@cloudflare/vite-plugin": "1.54.4",
     "@tailwindcss/postcss": "4.2.1",
     "@types/node": "22.19.19",
     "@types/react": "19.2.14",
@@ -45,9 +45,12 @@
     "typescript": "5.9.3",
     "vinext": "0.0.50",
     "vite": "8.2.0",
-    "wrangler": "4.118.0"
+    "wrangler": "4.129.0"
   },
   "overrides": {
+    "@esbuild-kit/core-utils": {
+      "esbuild": "0.25.12"
+    },
     "postcss": "8.5.25",
     "sharp": "0.35.3"
   },

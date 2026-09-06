@@ -1,0 +1,130 @@
+/* Shared interface layer. The cinematic canvas and its timing stay independent. */
+:root {
+  --ui-text: #d9e2e3;
+  --ui-muted: #9baeb3;
+  --ui-line: rgba(154, 202, 211, .24);
+  --ui-surface: #071116;
+}
+
+::selection { background: #77dce2; color: #031014; }
+:where(a, button, input, textarea, select, summary):focus-visible {
+  outline: 2px solid #8dedf0;
+  outline-offset: 4px;
+}
+:where(button, input, select, textarea) { accent-color: #77dce2; }
+:where(button, a) { -webkit-tap-highlight-color: rgba(119, 220, 226, .2); }
+:where(button):disabled { cursor: not-allowed; }
+#playtest-profile, #main-content, #account-content { scroll-margin-top: 110px; }
+
+.standalone-header { background: rgba(3, 10, 14, .97); backdrop-filter: none; gap: 24px; }
+.standalone-header .standalone-nav { gap: clamp(16px, 1.8vw, 30px); }
+.standalone-header .standalone-nav :is(a, span),
+.site-header .site-nav a {
+  min-height: 44px;
+  color: #a9bcc1;
+  font-size: 11px;
+  letter-spacing: .1em;
+}
+.standalone-header .standalone-nav [aria-current="page"],
+.site-header .site-nav [aria-current="location"] { color: #8dedf0; }
+.standalone-nav [aria-current="page"]::after { height: 2px; }
+.standalone-menu-toggle { display: none; }
+.standalone-actions { flex: 0 0 auto; }
+.account-header.standalone-header, .community-header.standalone-header { width: calc(100% - 48px); max-width: 1680px; }
+.site-header .menu-toggle { min-height: 44px; }
+
+/* A readable editorial scale below the hero, with restrained instrument labels. */
+.access-heading p, .section-heading > p:last-child,
+.pillar p, .access-card p, .download-page-copy > p:last-of-type,
+.support-intro, .support-disclosure p, .download-clearance-grid p {
+  color: #aebfc4;
+  font-size: clamp(15px, 1.1vw, 17px);
+  line-height: 1.75;
+  text-wrap: pretty;
+}
+.access-card {
+  border-color: var(--ui-line);
+  box-shadow: none;
+  background: rgba(5, 16, 22, .94);
+  transition: border-color 180ms ease, background-color 180ms ease, transform 180ms ease;
+}
+.access-card:hover { background: #0b1c24; border-color: #75cbd4; }
+.access-card h3 { font-size: clamp(24px, 2.15vw, 34px); line-height: 1.12; letter-spacing: -.025em; text-wrap: balance; }
+.access-card-top small, .access-action, .access-note,
+.download-terminal-frame, .support-tier-meta, .support-tier-meta small,
+.site-footer a, .account-policy-footer a {
+  font-size: 11px;
+  line-height: 1.5;
+}
+.access-card-top small { color: var(--ui-muted); }
+.access-action { min-height: 44px; display: flex; align-items: center; }
+.access-card-link .access-action > span { transition: transform 180ms ease; }
+.access-card-link:hover .access-action > span { transform: translateX(5px); }
+.download-terminal-card { border-color: rgba(119, 220, 226, .35); }
+.download-node-card[data-download-state="error"] .download-node-state { color: #f1bd77; }
+.download-node-card[data-download-state="error"] .download-node-state i { background: #f1bd77; }
+.download-retry { width: 100%; background: transparent; border: 0; border-bottom: 1px solid var(--ui-line); color: var(--cyan); text-align: left; justify-content: space-between; cursor: pointer; }
+.support-tier-grid article { border-color: var(--ui-line); box-shadow: none; }
+.support-tier-grid article > strong { font-variant-numeric: tabular-nums; letter-spacing: -.055em; }
+.support-tier-grid article p { color: var(--ui-muted); line-height: 1.65; }
+
+/* Account controls prioritize clarity over decorative terminology. */
+.auth-form label > span:first-child, .settings-form label > span:first-child { font-size: 11px; color: #b9cdd2; letter-spacing: .1em; }
+.auth-form input, .settings-form input:not([type="checkbox"]), .settings-form select {
+  min-height: 52px; font-size: 16px; border-color: var(--ui-line); border-radius: 2px;
+}
+.auth-form input:focus, .settings-form input:focus, .settings-form select:focus {
+  border-color: #8dedf0; box-shadow: 0 0 0 3px rgba(119, 220, 226, .1);
+}
+.auth-panel-heading > p:last-child, .account-view-heading > p:last-child { font-size: 16px; color: var(--ui-muted); line-height: 1.7; }
+.auth-form .password-input, .settings-form .password-input {
+  position: relative; display: block; width: 100%; margin: 0;
+}
+.password-input input { width: 100%; padding-right: 76px !important; }
+.auth-form .password-visibility, .settings-form .password-visibility {
+  position: absolute; inset: 4px 4px 4px auto; width: 62px; min-height: 44px;
+  padding: 0; margin: 0; border: 0; background: transparent;
+  color: #a9e4e8; font: 700 10px/1 Consolas, monospace; letter-spacing: .08em;
+  clip-path: none; cursor: pointer;
+}
+.password-visibility:hover { background: rgba(119, 220, 226, .08); }
+.password-hint { margin: 0; font-size: 13px; line-height: 1.6; color: var(--ui-muted); }
+.chat-new-messages { display: flex; justify-content: center; align-items: center; gap: 12px; min-height: 42px; border: 0; border-top: 1px solid #426e76; background: #10313b; color: #b8f4f5; font: 700 11px/1.5 Consolas, monospace; cursor: pointer; }
+.chat-new-messages > span:last-child { color: #d9e2e3; font: 13px/1.5 Arial, sans-serif; }
+
+@media (min-width: 1121px) and (max-width: 1600px) {
+  .site-header .signal-state { display: none; }
+  .site-header .site-nav { gap: 18px; }
+}
+@media (max-width: 900px) {
+  .standalone-header,
+  .download-header.standalone-header,
+  .support-header.standalone-header,
+  .legal-header.standalone-header {
+    display: flex; flex-direction: row; flex-wrap: wrap; align-items: center;
+    min-height: 70px; gap: 0 12px; padding: 10px 0;
+  }
+  .standalone-menu-toggle {
+    display: inline-flex; align-items: center; justify-content: center; gap: 12px;
+    min-height: 44px; padding: 0 14px; border: 1px solid var(--ui-line);
+    background: #0a191f; color: #c2eef0; font: 700 11px/1 Consolas, monospace;
+    margin-left: auto; cursor: pointer;
+  }
+  .standalone-actions { order: 2; margin-left: auto; }
+  .standalone-menu-toggle { order: 3; margin-left: 0; }
+  .standalone-header .standalone-nav { order: 4; }
+  .standalone-header .standalone-nav { display: none; }
+  .standalone-header .standalone-nav.is-open {
+    display: grid; grid-template-columns: repeat(2, minmax(0, 1fr));
+    width: 100%; gap: 4px 16px; overflow: visible; padding: 16px 0 6px;
+  }
+  .standalone-header .standalone-nav :is(a, span) {
+    min-height: 48px; padding: 0 12px; border: 1px solid var(--ui-line); font-size: 12px;
+  }
+  .standalone-nav [aria-current="page"] { background: #102b34; }
+  .standalone-nav :is(a, span)::after { display: none; }
+  .access-card-top { gap: 12px; flex-wrap: wrap; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .access-card, .access-card-link .access-action > span { transition: none; transform: none; }
+}

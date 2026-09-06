@@ -12,7 +12,8 @@ export default function ForgotPasswordPage() {
     event.preventDefault();
     setBusy(true);
     setMessage("");
-    const email = String(new FormData(event.currentTarget).get("email") || "");
+    const formElement = event.currentTarget;
+    const email = String(new FormData(formElement).get("email") || "");
     try {
       const result = await authClient.requestPasswordReset({
         email,
@@ -20,7 +21,7 @@ export default function ForgotPasswordPage() {
       });
       if (result.error) throw new Error(result.error.message);
       setMessage("If that address has an account, reset instructions are in transit.");
-      event.currentTarget.reset();
+      formElement.reset();
     } catch {
       setMessage("The recovery channel is temporarily unavailable. Try again shortly.");
     } finally {
@@ -33,7 +34,7 @@ export default function ForgotPasswordPage() {
       <Link className="auth-wordmark" href="/"><span>BV</span> BLACK VECTOR<sup className="trademark-symbol">™</sup></Link>
       <section className="auth-panel compact-auth-panel">
         <p className="eyebrow">RECOVERY CHANNEL // ENCRYPTED</p>
-        <h1>RESET ACCESS KEY.</h1>
+        <h1>RESET PASSWORD.</h1>
         <p>Enter the verified email attached to your profile.</p>
         <form className="auth-form" onSubmit={submit}>
           <label><span>EMAIL ADDRESS</span><input name="email" type="email" autoComplete="email" required /></label>

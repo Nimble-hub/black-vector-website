@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 
 type DownloadState =
   | "checking"
+  | "error"
   | "offline"
   | "auth_required"
   | "email_verification_required"
@@ -23,6 +24,11 @@ const STATE_COPY: Record<
   DownloadState,
   { status: string; label: string; detail: string; href?: string }
 > = {
+  error: {
+    status: "CONNECTION INTERRUPTED",
+    label: "TRY AGAIN",
+    detail: "We couldn't check your download access. Check your connection and try again.",
+  },
   checking: {
     status: "CHECKING STATUS",
     label: "CHECKING BUILD AVAILABILITY",
@@ -49,7 +55,7 @@ const STATE_COPY: Record<
     status: "CLEARANCE REQUIRED",
     label: "REQUEST PLAYTEST ACCESS",
     detail: "Apply for playtest access to become eligible for private builds.",
-    href: "/account?tab=playtest",
+    href: "/account?tab=profile#playtest-profile",
   },
   ready: {
     status: "RELEASE AVAILABLE",
@@ -73,9 +79,12 @@ export function DownloadAccessCard({
   variant?: "card" | "terminal";
 }) {
   const [download, setDownload] = useState<DownloadStatus>({ state: "checking" });
+  const [attempt, setAttempt] = useState(0);
 
   useEffect(() => {
     const controller = new AbortController();
+    let active = true;
+    const timeout = window.setTimeout(() => controller.abort(), 12000);
     fetch(`${basePath}/api/downloads/status`, {
       credentials: "same-origin",
       cache: "no-store",
@@ -83,21 +92,20 @@ export function DownloadAccessCard({
     })
       .then(async (response) => {
         if (!response.ok) throw new Error("Build status unavailable");
-        return (await response.json()) as DownloadStatus;
+        const data = (await response.json()) as DownloadStatus;
+        if (!Object.hasOwn(STATE_COPY, data.state) || data.state === "checking" || data.state === "error") throw new Error("Invalid build status");
+        return data;
       })
-      .then(setDownload)
-      .catch((error: unknown) => {
-        if (!(error instanceof DOMException && error.name === "AbortError")) {
-          setDownload({ state: "offline" });
-        }
-      });
-    return () => controller.abort();
-  }, [basePath]);
+      .then((data) => { if (active) setDownload(data); })
+      .catch(() => { if (active) setDownload({ state: "error" }); })
+      .finally(() => window.clearTimeout(timeout));
+    return () => { active = false; window.clearTimeout(timeout); controller.abort(); };
+  }, [basePath, attempt]);
 
   const copy = STATE_COPY[download.state] ?? STATE_COPY.offline;
   const href =
     download.state === "ready"
-      ? `${basePath}${download.downloadUrl ?? "/api/downloads/current"}`
+      ? `${basePath}/api/downloads/current`
       : copy.href
         ? `${basePath}${copy.href}`
         : null;
@@ -135,6 +143,7 @@ export function DownloadAccessCard({
       data-download-state={download.state}
       id="download"
       aria-live="polite"
+      aria-busy={download.state === "checking"}
     >
       <div className="access-card-top">
         <span>BUILD CHANNEL // WINDOWS</span>
@@ -152,7 +161,11 @@ export function DownloadAccessCard({
           {download.filename ? ` // ${download.filename}` : ""}
         </p>
       ) : null}
-      {href ? (
+      {download.state === "error" ? (
+        <button type="button" className="access-action download-retry" onClick={() => { setDownload({ state: "checking" }); setAttempt((value) => value + 1); }}>
+          TRY AGAIN <span aria-hidden="true">↻</span>
+        </button>
+      ) : href ? (
         <a
           className="access-action"
           href={href}

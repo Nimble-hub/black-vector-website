@@ -1,21 +1,24 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 const sectionLinks = [
-  { id: "access", label: "ACCESS" },
   { id: "game", label: "GAME" },
-  { id: "universe", label: "UNIVERSE" },
-  { id: "development", label: "DEVELOPMENT" },
+  { id: "access", label: "PLAYTEST" },
 ] as const;
 
 export function SiteHeader({ basePath = "" }: { basePath?: string }) {
   const [menuOpen, setMenuOpen] = useState(false);
+  const headerRef = useRef<HTMLElement>(null);
+  const menuRef = useRef<HTMLButtonElement>(null);
   const [activeSection, setActiveSection] = useState<string>("");
 
   useEffect(() => {
     const closeOnEscape = (event: KeyboardEvent) => {
-      if (event.key === "Escape") setMenuOpen(false);
+      if (event.key === "Escape") {
+        setMenuOpen(false);
+        if (headerRef.current?.contains(document.activeElement)) menuRef.current?.focus();
+      }
     };
     const closeOnDesktop = () => {
       if (window.innerWidth > 1120) setMenuOpen(false);
@@ -27,6 +30,15 @@ export function SiteHeader({ basePath = "" }: { basePath?: string }) {
       window.removeEventListener("resize", closeOnDesktop);
     };
   }, []);
+
+  useEffect(() => {
+    if (!menuOpen) return;
+    const closeOutside = (event: PointerEvent) => {
+      if (!headerRef.current?.contains(event.target as Node)) setMenuOpen(false);
+    };
+    document.addEventListener("pointerdown", closeOutside);
+    return () => document.removeEventListener("pointerdown", closeOutside);
+  }, [menuOpen]);
 
   useEffect(() => {
     const sections = sectionLinks
@@ -59,7 +71,7 @@ export function SiteHeader({ basePath = "" }: { basePath?: string }) {
       <a className="skip-link" href="#access">
         SKIP TO ACCESS OPTIONS
       </a>
-      <header className="site-header">
+      <header ref={headerRef} className="site-header">
         <a
           className="wordmark"
           href="#top"
@@ -105,6 +117,7 @@ export function SiteHeader({ basePath = "" }: { basePath?: string }) {
 
         <div className="header-status">
           <button
+            ref={menuRef}
             className="menu-toggle"
             type="button"
             aria-controls="primary-navigation"

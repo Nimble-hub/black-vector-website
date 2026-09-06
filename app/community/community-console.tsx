@@ -24,6 +24,7 @@ import controls from "./community-controls.module.css";
 import { CommunityMembersPanel } from "./community-members-panel";
 import { ClanConsole } from "./clan-console";
 import { submitChatOnEnter } from "@/lib/chat-input";
+import { StandaloneHeader } from "../standalone-header";
 import { CommunityNotifications } from "./community-notifications";
 
 interface CurrentUser {
@@ -185,6 +186,13 @@ export function CommunityConsole({
   const [presenceStatus, setPresenceStatus] =
     useState<PresenceStatus>("online");
   const feedRef = useRef<HTMLDivElement>(null);
+  const followFeed = useRef(true);
+  const lastMessageId = useRef<string | undefined>(undefined);
+  const openedMessage = useRef("");
+  const sendingRef = useRef(false);
+  const [sending, setSending] = useState(false);
+  const [hasNewMessages, setHasNewMessages] = useState(false);
+  const threadLoadSequence = useRef(0);
   const isModerator =
     currentUser?.role === "moderator" || currentUser?.role === "admin";
 
@@ -431,33 +439,54 @@ export function CommunityConsole({
   }, [channel]);
 
   useEffect(() => {
+    followFeed.current = true;
+    lastMessageId.current = undefined;
+    openedMessage.current = "";
+  }, [channel]);
+
+  useEffect(() => {
     const target = window.location.hash
       ? document.getElementById(window.location.hash.slice(1))
       : null;
-    if (target) target.scrollIntoView({ behavior: "smooth", block: "center" });
-    else feedRef.current?.scrollTo({
-      top: feedRef.current.scrollHeight,
-      behavior: "smooth",
-    });
-  }, [messages]);
+    if (target && openedMessage.current !== target.id) {
+      target.scrollIntoView({ behavior: "auto", block: "center" });
+      openedMessage.current = target.id;
+      followFeed.current = false;
+    } else if (followFeed.current) {
+      feedRef.current?.scrollTo({ top: feedRef.current.scrollHeight, behavior: "auto" });
+      setHasNewMessages(false);
+    } else if (lastMessageId.current && lastMessageId.current !== messages.at(-1)?.id) {
+      setHasNewMessages(true);
+    }
+    lastMessageId.current = messages.at(-1)?.id;
+  }, [messages, mode]);
 
   const loadThreads = useCallback(async () => {
+    try {
     const response = await fetch(`/api/community/forum?category=${category}`, {
       cache: "no-store",
     });
+    if (!response.ok) throw new Error("Forum unavailable");
     const data = (await response.json()) as { threads?: ForumThread[] };
     setThreads(data.threads ?? []);
+    } catch {
+      setNotice("Couldn't refresh the forum. Your current view has been kept. Please try again.");
+    }
   }, [category]);
 
   const loadThread = useCallback(async (threadId: string) => {
+    const sequence = ++threadLoadSequence.current;
+    try {
     const response = await fetch(`/api/community/forum/${threadId}`, {
       cache: "no-store",
+      signal: AbortSignal.timeout(15000),
     });
     const data = (await response.json()) as {
       thread?: ForumThread;
       replies?: ForumReply[];
       error?: string;
     };
+    if (sequence !== threadLoadSequence.current) return;
     if (!response.ok || !data.thread) {
       setNotice(data.error ?? "Thread could not be loaded.");
       return;
@@ -465,12 +494,17 @@ export function CommunityConsole({
     setCategory(data.thread.category);
     setSelectedThread(data.thread);
     setReplies(data.replies ?? []);
+    } catch {
+      if (sequence === threadLoadSequence.current) setNotice("Couldn't load this discussion. Please try opening it again.");
+    }
   }, []);
 
   const openForumThread = useCallback(
     (threadId: string, updateAddress = true) => {
       setMode("forum");
       setSelectedId(threadId);
+      setSelectedThread(null);
+      setReplies([]);
       void loadThread(threadId);
       if (updateAddress) {
         const url = new URL(window.location.href);
@@ -482,6 +516,7 @@ export function CommunityConsole({
   );
 
   const closeForumThread = useCallback(() => {
+    threadLoadSequence.current += 1;
     setSelectedId(null);
     setSelectedThread(null);
     setReplies([]);
@@ -631,11 +666,15 @@ export function CommunityConsole({
 
   async function transmit(event?: FormEvent) {
     event?.preventDefault();
-    if (!chatText.trim() || !currentUser) return;
+    if (!chatText.trim() || !currentUser || sendingRef.current) return;
     const content = chatText.trim();
-    setChatText("");
+    setNotice("");
+    sendingRef.current = true;
+    setSending(true);
+    try {
     const response = await fetch(`/api/community/chat/${channel}`, {
       method: "POST",
+      signal: AbortSignal.timeout(15000),
       headers: { "content-type": "application/json" },
       body: JSON.stringify({
         content,
@@ -649,9 +688,10 @@ export function CommunityConsole({
     };
     if (!response.ok) {
       setNotice(data.error ?? "Transmission failed.");
-      setChatText(content);
       return;
     }
+    setChatText("");
+    followFeed.current = true;
     setMentionUserIds([]);
     if (data.message) {
       setReplyingTo(null);
@@ -661,6 +701,12 @@ export function CommunityConsole({
           data.message!,
         ].slice(-100),
       );
+    }
+    } catch {
+      setNotice("Message wasn't confirmed. Your draft is still here. Check the channel before trying again.");
+    } finally {
+      sendingRef.current = false;
+      setSending(false);
     }
   }
 
@@ -919,26 +965,7 @@ export function CommunityConsole({
 
   return (
     <div className={styles.shell}>
-      <a className="skip-link" href="#community-console">SKIP TO COMMUNITY</a>
-      <header className={styles.header}>
-        <Link className={styles.wordmark} href="/">
-          <span>BV</span>
-          <strong>
-            BLACK VECTOR<sup className="trademark-symbol">™</sup>
-          </strong>
-        </Link>
-        <div className={styles.title}>
-          <small>PUBLIC NETWORK // COMMUNITY NODE</small>
-          <b>THE UPLINK</b>
-        </div>
-        <nav aria-label="Community navigation">
-          <CommunityNotifications enabled={Boolean(currentUser)} />
-          <Link href="/">HOME</Link>
-          <Link href="/download">DOWNLOAD</Link>
-          <Link href="/playtest">PLAYTEST</Link>
-          <Link href="/account">ACCOUNT</Link>
-        </nav>
-      </header>
+      <StandaloneHeader current="community" variant="community" skipTarget="community-console" skipLabel="SKIP TO COMMUNITY" actions={<CommunityNotifications enabled={Boolean(currentUser)} />} />
 
       {currentUser && !currentUser.displayNameSet && (
         <section className={styles.displayNamePrompt} role="alert">
@@ -1035,6 +1062,7 @@ export function CommunityConsole({
                 <button
                   key={item.id}
                   className={channel === item.id ? styles.active : ""}
+                  disabled={sending}
                   onClick={() => setChannel(item.id)}
                 >
                   <span>#</span>
@@ -1055,7 +1083,12 @@ export function CommunityConsole({
                   {connection.toUpperCase()}
                 </span>
               </header>
-              <div className={styles.feed} ref={feedRef} aria-live="polite">
+              <div className={styles.feed} ref={feedRef} role="log" aria-label={`${activeChannel.label} messages`} aria-live="polite" aria-relevant="additions text" onScroll={() => {
+                const feed = feedRef.current;
+                if (!feed) return;
+                followFeed.current = feed.scrollHeight - feed.scrollTop - feed.clientHeight < 80;
+                if (followFeed.current) setHasNewMessages(false);
+              }}>
                 {!messages.length && (
                   <div className={styles.empty}>
                     <span>NO SIGNAL HISTORY</span>
@@ -1168,6 +1201,13 @@ export function CommunityConsole({
                   );
                 })}
               </div>
+              {hasNewMessages && (
+                <button type="button" className="chat-new-messages" onClick={() => {
+                  followFeed.current = true;
+                  setHasNewMessages(false);
+                  feedRef.current?.scrollTo({ top: feedRef.current.scrollHeight, behavior: "auto" });
+                }}>NEW MESSAGES <span aria-hidden="true">↓</span> <span>Jump to latest</span></button>
+              )}
               {currentUser ? (
                 <form className={styles.composer} onSubmit={transmit}>
                   {replyingTo && (
@@ -1181,6 +1221,8 @@ export function CommunityConsole({
                     </div>
                   )}
                   <textarea
+                    aria-label={`Message ${activeChannel.label}`}
+                    disabled={sending}
                     value={chatText}
                     onChange={(event) => {
                       const value = event.target.value;
@@ -1212,8 +1254,8 @@ export function CommunityConsole({
                     </div>
                   )}
                   <span>{chatText.length}/500</span>
-                  <button>
-                    TRANSMIT <i>↗</i>
+                  <button disabled={sending || !chatText.trim()}>
+                    {sending ? "SENDING…" : "TRANSMIT"} <i>↗</i>
                   </button>
                 </form>
               ) : (

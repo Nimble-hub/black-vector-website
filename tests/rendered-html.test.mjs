@@ -356,7 +356,7 @@ test("provides consistent route navigation, recovery paths, and bookmarkable acc
   assert.match(settings, /ArrowLeft/);
   assert.match(settings, /role="tabpanel"/);
   assert.match(community, /SKIP TO COMMUNITY/);
-  assert.match(community, /DOWNLOAD/);
+  assert.match(community, /<StandaloneHeader current="community"/);
 });
 
 test("keeps Stripe support checkout fail-closed and separate from game access", async () => {

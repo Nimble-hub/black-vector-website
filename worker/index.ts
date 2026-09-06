@@ -1,5 +1,6 @@
 /** Cloudflare Worker entry point for the vinext-starter template. */
 import handler from "vinext/server/app-router-entry";
+import { allowedSocketOrigin, canonicalRedirect, limitApiBody, secureResponse } from "./security";
 export { ChatRoom } from "./chat-room";
 
 // Wrangler generates every application binding in `Env`. vinext's static
@@ -20,13 +21,9 @@ const worker = {
   async fetch(request: Request, env: WorkerEnv, ctx: ExecutionContext): Promise<Response> {
     const url = new URL(request.url);
 
-    if (url.hostname === "www.blackvector.win") {
-      url.hostname = "blackvector.win";
-      return Response.redirect(url.toString(), 308);
-    }
-
     const chatSocket = url.pathname.match(/^\/api\/community\/chat\/([a-z-]+)\/socket$/);
     if (chatSocket && request.headers.get("Upgrade")?.toLowerCase() === "websocket") {
+      if (!allowedSocketOrigin(request)) return new Response("Origin not allowed", { status: 403 });
       const channel = chatSocket[1];
       if (!["general", "fleet-tactics", "lore", "playtest-ops"].includes(channel)) {
         return new Response("Unknown comms channel", { status: 404 });
@@ -89,4 +86,11 @@ const worker = {
   },
 } satisfies ExportedHandler<WorkerEnv>;
 
-export default worker;
+export default {
+  async fetch(request: Request, env: WorkerEnv, ctx: ExecutionContext) {
+    const redirect = canonicalRedirect(request);
+    if (redirect) return secureResponse(request, redirect);
+    const bounded = await limitApiBody(request);
+    return secureResponse(request, bounded instanceof Response ? bounded : await worker.fetch(bounded, env, ctx));
+  },
+} satisfies ExportedHandler<WorkerEnv>;

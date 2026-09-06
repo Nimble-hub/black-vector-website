@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import "./globals.css";
 import "./polish.css";
+import "./interface.css";
 
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? "https://blackvector.win";
 const SITE_ROOT = SITE_URL.endsWith("/") ? SITE_URL : `${SITE_URL}/`;

@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { PasswordInput } from "../password-input";
 import { FormEvent, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { authClient } from "@/lib/auth-client";
@@ -15,7 +16,8 @@ export default function ResetPasswordPage() {
 
   const submit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    const form = new FormData(event.currentTarget);
+    const formElement = event.currentTarget;
+    const form = new FormData(formElement);
     const password = String(form.get("password") || "");
     if (password !== String(form.get("confirmPassword") || "")) {
       setMessage("The access keys do not match.");
@@ -28,7 +30,7 @@ export default function ResetPasswordPage() {
       if (result.error) throw new Error(result.error.message || "Reset failed.");
       setComplete(true);
       setMessage("Access key updated. All previous sessions have been secured. You may now sign in.");
-      event.currentTarget.reset();
+      formElement.reset();
     } catch (error) {
       setMessage(error instanceof Error ? error.message : "This recovery link is invalid or has expired.");
     } finally {
@@ -41,7 +43,7 @@ export default function ResetPasswordPage() {
       <Link className="auth-wordmark" href="/"><span>BV</span> BLACK VECTOR<sup className="trademark-symbol">™</sup></Link>
       <section className="auth-panel compact-auth-panel">
         <p className="eyebrow">RECOVERY CHANNEL // TOKEN RECEIVED</p>
-        <h1>SET NEW ACCESS KEY.</h1>
+        <h1>SET NEW PASSWORD.</h1>
         {invalidToken ? (
           <>
             <p className="auth-message is-notice" role="alert">This recovery link is invalid or has expired. Request a new secure link.</p>
@@ -55,9 +57,10 @@ export default function ResetPasswordPage() {
         ) : (
           <>
             <form className="auth-form" onSubmit={submit}>
-              <label><span>NEW ACCESS KEY</span><input name="password" type="password" autoComplete="new-password" minLength={12} maxLength={128} required /></label>
-              <label><span>CONFIRM ACCESS KEY</span><input name="confirmPassword" type="password" autoComplete="new-password" minLength={12} maxLength={128} required /></label>
-              <button className="primary-action auth-submit" type="submit" disabled={busy}>{busy ? "UPDATING..." : "UPDATE ACCESS KEY"}</button>
+              <label><span>NEW PASSWORD</span><PasswordInput name="password" autoComplete="new-password" minLength={12} maxLength={128} required /></label>
+              <label><span>CONFIRM PASSWORD</span><PasswordInput name="confirmPassword" autoComplete="new-password" minLength={12} maxLength={128} required /></label>
+              <p className="password-hint">Use at least 12 characters. A unique passphrase works well.</p>
+              <button className="primary-action auth-submit" type="submit" disabled={busy}>{busy ? "UPDATING..." : "UPDATE PASSWORD"}</button>
             </form>
             {message && <p className="auth-message" role="status" aria-live="polite">{message}</p>}
             <div className="auth-switch"><Link href="/login">RETURN TO SIGN IN</Link></div>

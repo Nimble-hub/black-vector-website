@@ -1,4 +1,5 @@
 "use client";
+import { PasswordInput } from "../password-input";
 
 import { FormEvent, KeyboardEvent, useEffect, useMemo, useState } from "react";
 import Image from "next/image";
@@ -316,16 +317,22 @@ export function AccountSettings({
 
   const changePassword = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
+    const formElement = event.currentTarget;
     setBusy(true);
-    const form = new FormData(event.currentTarget);
+    const form = new FormData(formElement);
+    try {
     const result = await authClient.changePassword({
       currentPassword: String(form.get("currentPassword") || ""),
       newPassword: String(form.get("newPassword") || ""),
       revokeOtherSessions: true,
     });
     setStatus(result.error ? result.error.message || "Access key update failed." : "Access key updated. Other sessions were closed.");
-    if (!result.error) event.currentTarget.reset();
-    setBusy(false);
+    if (!result.error) formElement.reset();
+    } catch {
+      setStatus("Couldn't confirm the password update. Try signing in with your new password before retrying.");
+    } finally {
+      setBusy(false);
+    }
   };
 
   return (
@@ -429,7 +436,7 @@ export function AccountSettings({
                 <button type="submit" disabled={busy || !providers.manual}>VERIFY NEW EMAIL</button>
               </form>
             )}
-            <form className="settings-form" onSubmit={saveProfile}>
+            <form className="settings-form" id="playtest-profile" onSubmit={saveProfile}>
               <h2>PLAYTEST PROFILE</h2>
               <label><span>CALLSIGN</span><input name="callsign" defaultValue={initialProfile?.callsign || ""} maxLength={32} /></label>
               <div className="settings-row">
@@ -474,16 +481,16 @@ export function AccountSettings({
             {linked.has("credential") ? (
               <form className="settings-form" onSubmit={changePassword}>
                 <h2>CHANGE ACCESS KEY</h2>
-                <label><span>CURRENT ACCESS KEY</span><input name="currentPassword" type="password" autoComplete="current-password" required /></label>
-                <label><span>NEW ACCESS KEY</span><input name="newPassword" type="password" autoComplete="new-password" minLength={12} maxLength={128} required /></label>
+                <label><span>CURRENT PASSWORD</span><PasswordInput name="currentPassword" autoComplete="current-password" required /></label>
+                <label><span>NEW PASSWORD</span><PasswordInput name="newPassword" autoComplete="new-password" minLength={12} maxLength={128} required /></label>
                 <button type="submit" disabled={busy}>UPDATE &amp; CLOSE OTHER SESSIONS</button>
               </form>
             ) : (
               <form className="settings-form" onSubmit={addPassword}>
                 <h2>ADD MANUAL ACCESS KEY</h2>
                 <p>Create a password as an additional sign-in method for this verified profile.</p>
-                <label><span>NEW ACCESS KEY</span><input name="newPassword" type="password" autoComplete="new-password" minLength={12} maxLength={128} required /></label>
-                <label><span>CONFIRM ACCESS KEY</span><input name="confirmPassword" type="password" autoComplete="new-password" minLength={12} maxLength={128} required /></label>
+                <label><span>NEW PASSWORD</span><PasswordInput name="newPassword" autoComplete="new-password" minLength={12} maxLength={128} required /></label>
+                <label><span>CONFIRM PASSWORD</span><PasswordInput name="confirmPassword" autoComplete="new-password" minLength={12} maxLength={128} required /></label>
                 <button type="submit" disabled={busy || !providers.manual || !user.emailVerified || user.email.endsWith(".invalid")}>ACTIVATE MANUAL SIGN-IN</button>
               </form>
             )}

@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { StandaloneHeader } from "../standalone-header";
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { eq } from "drizzle-orm";
@@ -89,17 +90,7 @@ export default async function AccountPage({
 
   return (
     <main className="account-shell">
-      <a className="skip-link" href="#account-content">SKIP TO ACCOUNT SETTINGS</a>
-      <header className="account-header">
-        <Link className="auth-wordmark" href="/"><span>BV</span> BLACK VECTOR<sup className="trademark-symbol">™</sup></Link>
-        <nav className="account-global-nav" aria-label="Account navigation">
-          <Link href="/">HOME</Link>
-          <Link href="/download">DOWNLOAD</Link>
-          <Link href="/community">COMMUNITY</Link>
-          <span aria-current="page">ACCOUNT</span>
-        </nav>
-        <div className="account-user-state"><span>IDENTITY NODE // AUTHENTICATED</span><strong>{identity.name}</strong></div>
-      </header>
+      <StandaloneHeader current="account" variant="account" skipTarget="account-content" skipLabel="SKIP TO ACCOUNT SETTINGS" />
       <AccountSettings
         user={{
           id: session.user.id,

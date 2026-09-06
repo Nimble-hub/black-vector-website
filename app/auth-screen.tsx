@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { PasswordInput } from "./password-input";
 import { FormEvent, useEffect, useMemo, useState } from "react";
 import { authClient } from "@/lib/auth-client";
 import type { ProviderAvailability } from "@/lib/auth-environment";
@@ -196,7 +197,7 @@ export function AuthScreen({ mode, returnTo }: AuthScreenProps) {
           {mode === "register" && (
             <label>
               <span>DISPLAY NAME</span>
-              <input name="name" autoComplete="name" minLength={2} maxLength={48} required />
+              <input name="name" autoComplete="nickname" minLength={2} maxLength={48} required />
             </label>
           )}
           <label>
@@ -204,15 +205,16 @@ export function AuthScreen({ mode, returnTo }: AuthScreenProps) {
             <input name="email" type="email" autoComplete="email" required />
           </label>
           <label>
-            <span>ACCESS KEY</span>
-            <input name="password" type="password" autoComplete={mode === "register" ? "new-password" : "current-password"} minLength={12} maxLength={128} required />
+            <span>PASSWORD</span>
+            <PasswordInput name="password" autoComplete={mode === "register" ? "new-password" : "current-password"} minLength={12} maxLength={128} required />
           </label>
           {mode === "register" && (
             <label>
-              <span>CONFIRM ACCESS KEY</span>
-              <input name="confirmPassword" type="password" autoComplete="new-password" minLength={12} maxLength={128} required />
+              <span>CONFIRM PASSWORD</span>
+              <PasswordInput name="confirmPassword" autoComplete="new-password" minLength={12} maxLength={128} required />
             </label>
           )}
+          {mode === "register" && <p className="password-hint">Use at least 12 characters. A unique passphrase works well.</p>}
           <button className="primary-action auth-submit" type="submit" disabled={providerDisabled("manual")}>
             {busy === "manual" ? "TRANSMITTING..." : mode === "register" ? "CREATE ACCOUNT" : "SIGN IN"}
           </button>
@@ -226,7 +228,7 @@ export function AuthScreen({ mode, returnTo }: AuthScreenProps) {
         <div className="auth-switch">
           {mode === "login" ? (
             <>
-              <Link href="/forgot-password">RESET ACCESS KEY</Link>
+              <Link href="/forgot-password">FORGOT PASSWORD?</Link>
               <span>NO PROFILE?</span>
               <Link href={`/register?returnTo=${encodeURIComponent(callbackURL)}`}>CREATE ACCOUNT</Link>
             </>
