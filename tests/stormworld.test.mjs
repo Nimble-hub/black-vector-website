@@ -31,7 +31,16 @@ test("procedural stormworld has bounded global weather, open eyes, and determini
     assert.equal(world.material.defines.SHADOW_STEPS, 1);
     assert.equal(world.textures.length,2);
     assert.equal(world.textures[1].isData3DTexture,true);
+    assert.equal(world.textures[1].format,THREE.RGBAFormat);
     assert.equal(world.textures[1].wrapR,THREE.RepeatWrapping);
+    const volume=world.textures[1].image;
+    assert.equal(volume.data.length,volume.width**3*4);
+    let distinctCells=0;
+    for(let i=0;i<volume.data.length;i+=4) {
+      distinctCells += Math.abs(volume.data[i]-volume.data[i+1])>20?1:0;
+      assert.equal(volume.data[i+3],255);
+    }
+    assert.ok(distinctCells>volume.width**3*.1,'Cellular detail must not duplicate smooth base noise');
     assert.equal(world.textures[0].image.width,512);
     world.setOpacity(2);
     assert.equal(world.material.uniforms.uOpacity.value,1);
