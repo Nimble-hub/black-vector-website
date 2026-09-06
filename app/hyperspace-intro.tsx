@@ -1966,19 +1966,6 @@ function createDeepSpaceWorld(isMobile: boolean, balancedQuality: boolean, softw
     criticalAssetLoads.push(shipLoad);
   }
 
-  const ringGeometry = trackGeometry(new THREE.TorusGeometry(planetRadius * 1.13, 0.022, 4, 128));
-  const ringMaterial = trackMaterial(
-    new THREE.MeshBasicMaterial({
-      color: 0x44cad1,
-      blending: THREE.AdditiveBlending,
-      depthWrite: false,
-    }),
-  );
-  const orbitalRing = new THREE.Mesh(ringGeometry, ringMaterial);
-  orbitalRing.position.copy(planet.position);
-  orbitalRing.rotation.set(0, 0, 0.12);
-  group.add(orbitalRing);
-
   const hemisphere = new THREE.HemisphereLight(0x78b7cf, 0x010204, 0.48);
   const keyLight = new THREE.DirectionalLight(0xf4f8ff, 7.2);
   keyLight.position.set(-14, 18, 9);
@@ -1994,7 +1981,6 @@ function createDeepSpaceWorld(isMobile: boolean, balancedQuality: boolean, softw
     group.visible = eased > 0.001;
     for (const material of materials) material.opacity = eased;
     engineMaterial.opacity = eased * 0.92;
-    ringMaterial.opacity = eased * 0.46;
     starUniforms.uOpacity.value = eased * 0.94;
     veilUniforms.uOpacity.value = eased * 0.86;
     stormworld.setOpacity(eased);
@@ -2007,7 +1993,6 @@ function createDeepSpaceWorld(isMobile: boolean, balancedQuality: boolean, softw
     deepStars.rotation.z = Math.sin(elapsedSeconds * 0.004) * 0.003;
     stellarVeil.rotation.z = -0.035 + Math.sin(elapsedSeconds * 0.0025) * 0.004;
     stormworld.update(elapsedSeconds);
-    orbitalRing.rotation.z = 0.12 + elapsedSeconds * 0.018;
   };
 
   const cancelAssetLoad = () => {
@@ -2021,7 +2006,6 @@ function createDeepSpaceWorld(isMobile: boolean, balancedQuality: boolean, softw
     fleet,
     flagship,
     planet,
-    orbitalRing,
     rimLight,
     interfaceAnchor,
     geometries,

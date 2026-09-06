@@ -58,4 +58,12 @@ test("planet rebuild replaces the old textured shell stack and participates in c
   assert.match(source, /geometries\.push\(stormworld\.geometry\)/);
   assert.match(source, /materials\.push\(stormworld\.material\)/);
   assert.match(source, /stormworld\.setOpacity\(eased\)/);
+  assert.doesNotMatch(source, /orbitalRing|ringGeometry|ringMaterial/);
+});
+
+test("atmosphere fades with altitude and stops at opaque cloud coverage", async () => {
+  const source = await readFile(new URL("app/scene/stormworld.ts", root), "utf8");
+  assert.match(source, /airEnd = mix\(airEnd, clamp\(cloudDistance, airStart, airEnd\), cloudCoverage\)/);
+  assert.match(source, /airTransmission \*= 1\.0 - scattering/);
+  assert.match(source, /1\.0 - smoothstep\(0\.018, AIR_TOP - 1\.0, height\)/);
 });

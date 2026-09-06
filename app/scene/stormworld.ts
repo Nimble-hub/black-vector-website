@@ -215,6 +215,8 @@ export const stormworldFragmentShader = `
     vec3 groundPoint = uLocalCamera + ray * ground.x;
     vec3 result = hitsGround ? oceanRadiance(groundPoint, ray, sun) : vec3(0.0);
     float alpha = hitsGround ? 1.0 : 0.0;
+    float cloudCoverage = 0.0;
+    float cloudDistance = 0.0;
 
     vec2 clouds = sphereInterval(uLocalCamera, ray, CLOUD_TOP);
     vec2 base = sphereInterval(uLocalCamera, ray, CLOUD_BASE);
@@ -246,39 +248,48 @@ export const stormworldFragmentShader = `
           vec3 source = ambient + vec3(1.55, 1.47, 1.32) * sunlight * phase;
           source += vec3(1.15, 1.38, 1.8) * sheetLightning(p, weather) * (1.0 - daylight * 0.75) * 7.0;
           float absorption = 1.0 - exp(-density * stride * 300.0);
+          float contribution = transmission * absorption;
+          cloudDistance += (start + (float(i) + jitter) * stride) * contribution;
           scattering += source * transmission * absorption;
           transmission *= 1.0 - absorption;
           if (transmission < 0.015) break;
         }
       }
       result = scattering + result * transmission;
+      cloudCoverage = 1.0 - transmission;
+      cloudDistance /= max(cloudCoverage, 0.001);
       alpha = (1.0 - transmission) + alpha * transmission;
     }
 
-    // Integrate a thin spherical atmosphere, including the real horizon path.
+    // Haze ends at the visible cloud deck, not at the ocean hidden below it.
+    // This preserves bright crowns and puts aerial perspective into the gaps.
     vec2 air = sphereInterval(uLocalCamera, ray, AIR_TOP);
     float airEnd = hitsGround ? min(air.y, ground.x) : air.y;
     float airStart = max(air.x, 0.0);
+    if (cloudCoverage > 0.001) {
+      airEnd = mix(airEnd, clamp(cloudDistance, airStart, airEnd), cloudCoverage);
+    }
     if (airEnd > airStart) {
       float stride = (airEnd - airStart) / 6.0;
       vec3 airLight = vec3(0.0);
-      float airDepth = 0.0;
+      float airTransmission = 1.0;
       float rayleighPhase = 0.75 * (1.0 + pow(dot(ray, sun), 2.0));
       for (int i = 0; i < 6; i++) {
         vec3 p = uLocalCamera + ray * (airStart + (float(i) + 0.5) * stride);
         float height = max(length(p) - 1.0, 0.0);
-        float density = exp(-height / 0.0045);
+        float density = exp(-height / 0.0035)
+          * (1.0 - smoothstep(0.018, AIR_TOP - 1.0, height));
         vec2 planetShadow = sphereInterval(p, sun, 1.0);
         float day = planetShadow.x > 0.0 && planetShadow.y > planetShadow.x ? 0.0 : 1.0;
         float sunElevation = dot(normalize(p), sun);
-        vec3 tint = mix(vec3(0.48, 0.19, 0.08), vec3(0.11, 0.33, 0.86), smoothstep(-0.01, 0.22, sunElevation));
-        float depth = density * stride * 13.0;
-        airLight += tint * depth * day * rayleighPhase;
-        airDepth += depth;
+        vec3 tint = mix(vec3(0.38, 0.24, 0.16), vec3(0.24, 0.43, 0.66), smoothstep(-0.01, 0.22, sunElevation));
+        float depth = density * stride * 8.0;
+        float scattering = 1.0 - exp(-depth);
+        airLight += tint * scattering * airTransmission * day * rayleighPhase;
+        airTransmission *= 1.0 - scattering;
       }
-      float transmission = exp(-airDepth);
-      result = result * transmission + airLight;
-      alpha = 1.0 - (1.0 - alpha) * transmission;
+      result = result * airTransmission + airLight;
+      alpha = 1.0 - (1.0 - alpha) * airTransmission;
     }
     if (alpha < 0.001) discard;
     gl_FragColor = vec4(result / max(alpha, 0.001), alpha * uOpacity);
