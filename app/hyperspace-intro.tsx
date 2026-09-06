@@ -1180,10 +1180,10 @@ const stormCloudVertexShader = `
   uniform vec2 uDrift;
 
   varying vec2 vStormUv;
-  varying vec3 vViewNormal;
-  varying vec3 vViewDirection;
   varying vec3 vWorldPosition;
   varying vec3 vWorldNormal;
+  varying vec3 vWorldEast;
+  varying vec3 vWorldNorth;
 
   void main() {
     vStormUv = uv;
@@ -1207,10 +1207,11 @@ const stormCloudVertexShader = `
     ) * 0.015;
     vec3 displacedPosition = position + normal * cloudRelief * uRelief;
     vec4 viewPosition = modelViewMatrix * vec4(displacedPosition, 1.0);
-    vViewNormal = normalize(normalMatrix * normal);
-    vViewDirection = normalize(-viewPosition.xyz);
     vWorldPosition = (modelMatrix * vec4(displacedPosition, 1.0)).xyz;
     vWorldNormal = normalize(mat3(modelMatrix) * normal);
+    vec3 east = normalize(vec3(position.z + 0.00001, 0.0, -position.x));
+    vWorldEast = normalize(mat3(modelMatrix) * east);
+    vWorldNorth = normalize(mat3(modelMatrix) * cross(normal, east));
     gl_Position = projectionMatrix * viewPosition;
   }
 `;
@@ -1219,6 +1220,7 @@ const stormCloudFragmentShader = `
   precision highp float;
 
   uniform sampler2D uMap;
+  uniform sampler2D uHeightMap;
   uniform float uTime;
   uniform float uOpacity;
   uniform float uLayer;
@@ -1228,10 +1230,10 @@ const stormCloudFragmentShader = `
   uniform vec3 uSunDirection;
 
   varying vec2 vStormUv;
-  varying vec3 vViewNormal;
-  varying vec3 vViewDirection;
   varying vec3 vWorldPosition;
   varying vec3 vWorldNormal;
+  varying vec3 vWorldEast;
+  varying vec3 vWorldNorth;
 
   float hash21(vec2 value) {
     return fract(sin(dot(value, vec2(127.1, 311.7))) * 43758.5453123);
@@ -1242,29 +1244,16 @@ const stormCloudFragmentShader = `
     vec2 cell = floor(gridUv);
     vec2 local = fract(gridUv) - 0.5;
     float seed = hash21(cell);
-    float activeCell = step(0.965, seed);
-    pulse = pow(
-      max(0.0, sin(uTime * (0.82 + seed * 0.24) + seed * 61.0)),
-      96.0
-    ) * activeCell;
-
-    float mainPath = sin((local.y + seed) * 18.0 + seed * 8.0) * 0.09
-      + sin((local.y - seed) * 41.0) * 0.026;
-    float mainDistance = abs(local.x - mainPath);
-    float mainCore = 1.0 - smoothstep(0.008, 0.026, mainDistance);
-    float mainHalo = (1.0 - smoothstep(0.025, 0.09, mainDistance)) * 0.16;
-
-    float branchAnchor = mix(-0.2, 0.12, hash21(cell + vec2(4.3, 8.7)));
-    float branchDirection = mix(-0.72, 0.72, hash21(cell + vec2(9.1, 2.4)));
-    float branchDistance = abs(
-      local.x - mainPath - (local.y - branchAnchor) * branchDirection
-    );
-    float branchWindow = smoothstep(0.01, 0.08, local.y - branchAnchor)
-      * (1.0 - smoothstep(0.2, 0.4, local.y - branchAnchor));
-    float branchCore = (1.0 - smoothstep(0.008, 0.022, branchDistance))
-      * branchWindow * 0.62;
-    float envelope = smoothstep(0.5, 0.34, abs(local.y));
-    return max(mainCore, branchCore) * envelope + mainHalo * envelope;
+    float cycle = uTime / (8.0 + seed * 6.0) + seed * 31.0;
+    float eventSeed = hash21(cell + floor(cycle) * vec2(7.7, 3.1));
+    float phase = fract(cycle);
+    float firstStrike = exp(-pow((phase - 0.2) * 230.0, 2.0));
+    float afterStrike = exp(-pow((phase - 0.223) * 310.0, 2.0)) * 0.48;
+    pulse = (firstStrike + afterStrike) * step(0.965, eventSeed);
+    local -= (vec2(seed, hash21(cell + 9.3)) - 0.5) * 0.24;
+    // Orbital-scale sheet lightning diffuses through the cloud body. No
+    // enormous exposed zigzag bolts or continuously glowing surface nodes.
+    return exp(-dot(local, local) * 85.0);
   }
 
   vec2 advectVortex(vec2 uv, vec2 center, float radius, float angularSpeed) {
@@ -1272,8 +1261,8 @@ const stormCloudFragmentShader = `
     delta.x = fract(delta.x + 0.5) - 0.5;
     vec2 metricDelta = vec2(delta.x, delta.y * 1.92);
     float distanceFromEye = length(metricDelta);
-    float influence = smoothstep(radius, radius * 0.12, distanceFromEye);
-    float eyeWall = smoothstep(radius * 0.86, radius * 0.48, distanceFromEye)
+    float influence = 1.0 - smoothstep(radius * 0.12, radius, distanceFromEye);
+    float eyeWall = (1.0 - smoothstep(radius * 0.48, radius * 0.86, distanceFromEye))
       * smoothstep(radius * 0.08, radius * 0.31, distanceFromEye);
     float angle = uTime * angularSpeed * influence * (0.32 + eyeWall * 0.68);
     float cosine = cos(angle);
@@ -1284,16 +1273,16 @@ const stormCloudFragmentShader = `
   }
 
   vec2 weatherAdvection(vec2 uv) {
-    float altitudeShear = mix(1.0, -0.72, uLayer);
+    float altitudeShear = mix(1.0, 0.88, uLayer);
     float latitude = (uv.y - 0.5) * 2.0;
     uv.x = fract(
       uv.x
-        + sin(latitude * 8.5 + uTime * 0.045) * 0.0038
-        + sin(latitude * 17.0 - uTime * 0.028) * 0.0015
-        + uTime * 0.000085 * latitude * altitudeShear
+        + sin(latitude * 8.5 + uTime * 0.014) * 0.0009
+        + sin(latitude * 17.0 - uTime * 0.009) * 0.0004
+        + uTime * 0.000018 * latitude * altitudeShear
     );
     uv.y = clamp(
-      uv.y + sin(uv.x * 18.0 + uTime * 0.035) * 0.0013 * (1.0 - abs(latitude) * 0.55),
+      uv.y + sin(uv.x * 18.0 + uTime * 0.012) * 0.0004 * (1.0 - abs(latitude) * 0.55),
       0.002,
       0.998
     );
@@ -1301,8 +1290,8 @@ const stormCloudFragmentShader = `
     // Only the two continent-scale systems in the authored cloud map rotate.
     // Keeping the motion extremely slow preserves their mass and prevents the
     // surface from reading as small, turbulent texture noise.
-    uv = advectVortex(uv, vec2(0.23, 0.49), 0.34, 0.0032 * altitudeShear);
-    uv = advectVortex(uv, vec2(0.77, 0.47), 0.33, -0.003 * altitudeShear);
+    uv = advectVortex(uv, vec2(0.23, 0.49), 0.34, 0.0008 * altitudeShear);
+    uv = advectVortex(uv, vec2(0.77, 0.47), 0.33, -0.00075 * altitudeShear);
     return uv;
   }
 
@@ -1312,13 +1301,40 @@ const stormCloudFragmentShader = `
       fract(vStormUv.x + uDrift.x * uTime),
       clamp(vStormUv.y + uDrift.y * sin(uTime * 0.07), 0.002, 0.998)
     ));
-    float grazing = pow(
-      1.0 - clamp(dot(normalize(vViewNormal), normalize(vViewDirection)), 0.0, 1.0),
-      1.55
-    );
-    vec2 parallaxDirection = normalize(vViewDirection.xy + vec2(0.0001));
-    vec2 sunOffset = normalize(uSunDirection.xy + vec2(0.001)) * vec2(0.0055, 0.0038);
-    float sunlight = clamp(dot(normalize(vWorldNormal), normalize(uSunDirection)), -0.15, 1.0);
+    vec3 sphereNormal = normalize(vWorldNormal);
+    vec3 east = normalize(vWorldEast);
+    vec3 north = normalize(vWorldNorth);
+    vec3 viewDirection = normalize(cameraPosition - vWorldPosition);
+    vec3 sunDirection = normalize(uSunDirection);
+    float viewCosine = max(dot(sphereNormal, viewDirection), 0.0);
+    float grazing = pow(1.0 - viewCosine, 1.55);
+    float sunlight = dot(sphereNormal, sunDirection);
+    float daylight = smoothstep(-0.045, 0.19, sunlight);
+    // Project both the view ray and sunlight into the sphere's UV frame.
+    // Screen XY is not a valid texture direction on a rotating planet.
+    float latitudeMetric = max(sin(vStormUv.y * 3.14159265), 0.22);
+    vec2 parallaxDirection = vec2(dot(viewDirection, east) / latitudeMetric, dot(viewDirection, north) * 2.0)
+      / max(viewCosine, 0.2);
+    vec2 sunOffset = vec2(dot(sunDirection, east) / latitudeMetric, dot(sunDirection, north) * 2.0)
+      * 0.0015 / max(sunlight, 0.2);
+    // Two extra height samples per pixel, not per volume step: stable broad
+    // thunderhead normals instead of the sphere's smooth, flat-image shading.
+    float height = texture2D(uHeightMap, baseUv).r;
+    float heightEast = texture2D(uHeightMap, baseUv + vec2(0.00195, 0.0)).r;
+    float heightNorth = texture2D(uHeightMap, baseUv + vec2(0.0, 0.0039)).r;
+    vec3 cloudNormal = normalize(sphereNormal
+      - east * (heightEast - height) * 9.0 / latitudeMetric
+      - north * (heightNorth - height) * 9.0);
+    float crownLighting = max(dot(cloudNormal, sunDirection), 0.0);
+    float forwardScatter = pow(max(dot(-viewDirection, sunDirection), 0.0), 6.0);
+    // Shadow footprint is displaced away from the sun, not painted directly
+    // underneath the cloud albedo. Keep this pass to one sample on all tiers.
+    if (uShadowPass > 0.5) {
+      float shadowCoverage = dot(texture2D(uMap, baseUv + sunOffset * 1.8).rgb, vec3(0.2126, 0.7152, 0.0722));
+      float shadow = smoothstep(0.08, 0.52, shadowCoverage) * daylight;
+      gl_FragColor = vec4(vec3(0.003, 0.009, 0.017), shadow * uOpacity * 0.64);
+      return;
+    }
 
     float transmittance = 1.0;
     float accumulatedAlpha = 0.0;
@@ -1330,15 +1346,15 @@ const stormCloudFragmentShader = `
       float depth = (float(sampleIndex) + 0.5) / uSteps;
       float centeredDepth = depth - 0.5;
       vec2 sampleUv = baseUv
-        + parallaxDirection * centeredDepth * grazing * (0.007 + uLayer * 0.004);
+        - parallaxDirection * centeredDepth * (0.0016 + uLayer * 0.0007);
       sampleUv = vec2(fract(sampleUv.x), clamp(sampleUv.y, 0.002, 0.998));
 
       vec3 stormSample = texture2D(uMap, sampleUv).rgb;
       float luminance = dot(stormSample, vec3(0.2126, 0.7152, 0.0722));
       // Higher shells retain only the brightest thunderhead crowns while the
       // lower deck carries the broad spiral arms and global anvil bands.
-      float cloudFloor = mix(0.24, 0.5, layerHeight);
-      float cloudCeiling = mix(0.64, 0.88, layerHeight);
+      float cloudFloor = mix(0.09, 0.42, layerHeight);
+      float cloudCeiling = mix(0.56, 0.86, layerHeight);
       float density = smoothstep(cloudFloor, cloudCeiling, luminance);
       float billow = 0.94 + 0.06 * sin(
         sampleUv.x * 17.0
@@ -1364,24 +1380,22 @@ const stormCloudFragmentShader = `
         mix(0.64, 0.8, layerHeight),
         shadowLuminance
       );
-      float selfShadow = mix(1.0, 0.28, shadowDensity * (0.34 + depth * 0.66));
+      float selfShadow = exp(-shadowDensity * (0.36 + depth * 1.7));
       float sculptedLight = smoothstep(
         0.22,
         0.78,
         0.5 + (luminance - shadowLuminance) * 4.8
       );
-      float stepAlpha = density * (1.08 / uSteps) * (0.78 + grazing * 0.88);
+      float stepAlpha = 1.0 - exp(-density * (2.6 / uSteps) * (1.0 + grazing * 1.1));
       float contribution = transmittance * stepAlpha;
 
-      vec3 coldShadow = mix(vec3(0.16, 0.22, 0.3), vec3(0.28, 0.36, 0.47), layerHeight);
-      vec3 sunlitSilver = mix(vec3(0.74, 0.82, 0.9), vec3(0.98, 1.03, 1.08), layerHeight);
-      float silverMix = cloudCore
-        * mix(0.3, 1.0, sculptedLight)
-        * mix(0.68, 1.0, selfShadow);
-      vec3 layerColor = mix(coldShadow, sunlitSilver, silverMix);
-      layerColor *= 0.82 + max(sunlight, 0.0) * 0.78 + grazing * (0.34 + layerHeight * 0.24);
-      layerColor *= mix(1.16, 0.68, depth);
-      layerColor += vec3(0.19, 0.38, 0.48) * pow(grazing, 2.2) * density * (0.24 + layerHeight * 0.28);
+      vec3 coldShadow = mix(vec3(0.008, 0.016, 0.032), vec3(0.105, 0.17, 0.25), daylight);
+      vec3 sunlitSilver = mix(vec3(1.04, 0.98, 0.89), vec3(1.18, 1.2, 1.24), layerHeight);
+      float directLight = crownLighting * selfShadow * (0.48 + sculptedLight * 0.52);
+      vec3 layerColor = coldShadow + sunlitSilver * daylight * directLight * 1.35;
+      layerColor *= mix(0.82, 1.0, cloudCore);
+      layerColor += vec3(0.38, 0.58, 0.82) * grazing * daylight * 0.12;
+      layerColor += sunlitSilver * forwardScatter * daylight * (1.0 - density) * 0.2;
       accumulatedColor += layerColor * contribution;
       accumulatedAlpha += contribution;
 
@@ -1392,7 +1406,7 @@ const stormCloudFragmentShader = `
         * smoothstep(0.34, 0.68, luminance)
         * (1.0 - smoothstep(0.94, 1.0, luminance))
         * mix(1.0, 0.18, layerHeight);
-      accumulatedLightning += contribution * embeddedLightning * 3.4;
+      accumulatedLightning += contribution * embeddedLightning * mix(4.8, 0.9, daylight);
       transmittance *= 1.0 - stepAlpha;
     }
 
@@ -1400,8 +1414,10 @@ const stormCloudFragmentShader = `
     cloudColor += vec3(0.92, 0.97, 1.0) * accumulatedLightning;
     float alpha = clamp(accumulatedAlpha, 0.0, 0.96) * uOpacity;
     vec3 finalColor = mix(cloudColor, vec3(0.005, 0.012, 0.018), uShadowPass);
-    float finalAlpha = alpha * mix(1.0, 0.56, uShadowPass);
+    float finalAlpha = alpha;
     gl_FragColor = vec4(finalColor, finalAlpha);
+    #include <tonemapping_fragment>
+    #include <colorspace_fragment>
   }
 `;
 
@@ -1410,11 +1426,15 @@ const atmosphereVertexShader = `
 
   varying vec3 vAtmosphereWorldPosition;
   varying vec3 vAtmosphereWorldNormal;
+  varying vec3 vAtmosphereCenter;
+  varying float vAtmosphereRadius;
 
   void main() {
     vec4 worldPosition = modelMatrix * vec4(position, 1.0);
     vAtmosphereWorldPosition = worldPosition.xyz;
     vAtmosphereWorldNormal = normalize(mat3(modelMatrix) * normal);
+    vAtmosphereCenter = (modelMatrix * vec4(0.0, 0.0, 0.0, 1.0)).xyz;
+    vAtmosphereRadius = length(worldPosition.xyz - vAtmosphereCenter);
     gl_Position = projectionMatrix * viewMatrix * worldPosition;
   }
 `;
@@ -1424,35 +1444,53 @@ const atmosphereFragmentShader = `
 
   uniform float uOpacity;
   uniform float uInnerLayer;
+  uniform float uSurfaceRatio;
   uniform vec3 uSunDirection;
 
   varying vec3 vAtmosphereWorldPosition;
   varying vec3 vAtmosphereWorldNormal;
+  varying vec3 vAtmosphereCenter;
+  varying float vAtmosphereRadius;
 
   void main() {
-    vec3 normalDirection = normalize(vAtmosphereWorldNormal);
     vec3 viewDirection = normalize(cameraPosition - vAtmosphereWorldPosition);
+    vec3 ray = -viewDirection;
+    vec3 cameraRelative = cameraPosition - vAtmosphereCenter;
+    float closestDistance = -dot(cameraRelative, ray);
+    float impactSquared = max(dot(cameraRelative, cameraRelative) - closestDistance * closestDistance, 0.0);
+    float outerRadius = vAtmosphereRadius;
+    float surfaceRadius = outerRadius * uSurfaceRatio;
+    float halfChord = sqrt(max(outerRadius * outerRadius - impactSquared, 0.0));
+    float surfaceChord = sqrt(max(surfaceRadius * surfaceRadius - impactSquared, 0.0));
+    float opticalPath = max(halfChord - surfaceChord, 0.0);
+    float altitude = max(sqrt(impactSquared) - surfaceRadius, 0.0) / surfaceRadius;
+    float density = exp(-altitude / 0.0055);
+    float extinction = 1.0 - exp(-opticalPath / surfaceRadius * density * 6.0);
+    // Shade the near-side atmosphere, even when rendering the back-face shell.
+    vec3 normalDirection = normalize(cameraRelative + ray * (closestDistance - halfChord));
     vec3 sunDirection = normalize(uSunDirection);
     float viewNormal = abs(dot(normalDirection, viewDirection));
     float horizon = pow(1.0 - clamp(viewNormal, 0.0, 1.0), 2.15);
     float sunFacing = dot(normalDirection, sunDirection);
-    float daylight = smoothstep(-0.18, 0.34, sunFacing);
-    float forwardMie = pow(max(dot(viewDirection, sunDirection), 0.0), 18.0);
-    float terminator = 1.0 - smoothstep(-0.08, 0.18, abs(sunFacing));
+    float daylight = smoothstep(-0.09, 0.24, sunFacing);
+    float forwardMie = pow(max(dot(ray, sunDirection), 0.0), 12.0);
+    float terminator = (1.0 - smoothstep(0.02, 0.22, abs(sunFacing))) * daylight;
 
-    vec3 nightRayleigh = vec3(0.025, 0.18, 0.3);
-    vec3 dayRayleigh = vec3(0.18, 0.72, 0.92);
+    vec3 nightRayleigh = vec3(0.004, 0.01, 0.024);
+    vec3 dayRayleigh = vec3(0.12, 0.36, 0.76);
     vec3 rayleigh = mix(nightRayleigh, dayRayleigh, daylight);
     vec3 mie = vec3(0.72, 0.91, 1.0) * forwardMie;
-    vec3 electricalTerminator = vec3(0.08, 0.46, 0.68) * terminator * 0.34;
+    vec3 electricalTerminator = vec3(0.38, 0.2, 0.1) * terminator * 0.22;
     vec3 atmosphereColor = rayleigh * (0.58 + horizon * 0.86)
       + mie * 0.5
       + electricalTerminator;
 
-    float outerAlpha = horizon * (0.26 + daylight * 0.5 + forwardMie * 0.3);
-    float innerAlpha = (0.025 + horizon * 0.3) * (0.42 + daylight * 0.58);
+    float outerAlpha = extinction * (0.025 + daylight * 0.9 + forwardMie * daylight * 0.12);
+    float innerAlpha = extinction * (0.012 + daylight * 0.3);
     float alpha = mix(outerAlpha, innerAlpha, uInnerLayer) * uOpacity;
     gl_FragColor = vec4(atmosphereColor, alpha);
+    #include <tonemapping_fragment>
+    #include <colorspace_fragment>
   }
 `;
 
@@ -1930,30 +1968,28 @@ function createDeepSpaceWorld(isMobile: boolean, balancedQuality: boolean, softw
   const planetMaterial = trackMaterial(
     softwareRendering
       ? new THREE.MeshStandardMaterial({
-          color: 0x7895a0,
+          color: 0x486881,
           map: oceanTexture,
           bumpMap: oceanTexture,
-          bumpScale: 0.055,
-          roughnessMap: oceanTexture,
+          bumpScale: 0.009,
           emissive: 0x062936,
           emissiveMap: oceanTexture,
-          emissiveIntensity: 0.08,
-          roughness: 0.24,
+          emissiveIntensity: 0.025,
+          roughness: 0.42,
           metalness: 0.02,
         })
       : new THREE.MeshPhysicalMaterial({
-          color: 0x7895a0,
+          color: 0x486881,
           map: oceanTexture,
           bumpMap: oceanTexture,
-          bumpScale: 0.055,
-          roughnessMap: oceanTexture,
+          bumpScale: 0.009,
           emissive: 0x062936,
           emissiveMap: oceanTexture,
-          emissiveIntensity: 0.08,
-          roughness: 0.24,
+          emissiveIntensity: 0.025,
+          roughness: 0.42,
           metalness: 0.02,
-          clearcoat: 0.72,
-          clearcoatRoughness: 0.12,
+          clearcoat: 0.26,
+          clearcoatRoughness: 0.34,
         }),
   );
   const planetGeometry = trackGeometry(new THREE.SphereGeometry(planetRadius, isMobile ? 64 : softwareRendering ? 80 : balancedQuality ? 112 : 192, isMobile ? 40 : softwareRendering ? 48 : balancedQuality ? 72 : 128));
@@ -1988,7 +2024,7 @@ function createDeepSpaceWorld(isMobile: boolean, balancedQuality: boolean, softw
         transparent: true,
         depthWrite: false,
         blending: THREE.NormalBlending,
-        toneMapped: false,
+        toneMapped: true,
       }),
     );
     return { uniforms, material };
@@ -1996,7 +2032,7 @@ function createDeepSpaceWorld(isMobile: boolean, balancedQuality: boolean, softw
 
   const stormShadowLayer = softwareRendering
     ? null
-    : createStormLayer(0, 0.00006, isMobile ? 1 : balancedQuality ? 3 : 4, 0, 1);
+    : createStormLayer(0, 0.000035, 1, 0, 1);
   const stormShadows = stormShadowLayer
     ? new THREE.Mesh(planetGeometry, stormShadowLayer.material)
     : null;
@@ -2006,32 +2042,32 @@ function createDeepSpaceWorld(isMobile: boolean, balancedQuality: boolean, softw
   if (stormShadows) {
     stormShadows.position.copy(planet.position);
     stormShadows.rotation.copy(planet.rotation);
-    stormShadows.scale.setScalar(1.006);
+    stormShadows.scale.setScalar(1.001);
     stormShadows.renderOrder = 1;
     group.add(stormShadows);
   }
 
-  const lowerStormLayer = createStormLayer(0, 0.00006, isMobile || softwareRendering ? 2 : balancedQuality ? 4 : 6, isMobile ? 0.14 : 0.22);
+  const lowerStormLayer = createStormLayer(0, 0.000035, isMobile || softwareRendering ? 2 : balancedQuality ? 3 : 4, 0.028);
   const lowerStormClouds = new THREE.Mesh(planetGeometry, lowerStormLayer.material);
   lowerStormClouds.position.copy(planet.position);
   lowerStormClouds.rotation.copy(planet.rotation);
-  lowerStormClouds.scale.setScalar(1.009);
+  lowerStormClouds.scale.setScalar(1.003);
   lowerStormClouds.renderOrder = 2;
   group.add(lowerStormClouds);
 
-  const anvilStormLayer = createStormLayer(0.56, 0.000025, isMobile || softwareRendering ? 2 : balancedQuality ? 4 : 5, isMobile ? 0.24 : 0.36);
+  const anvilStormLayer = createStormLayer(0.56, 0.00003, isMobile || softwareRendering ? 2 : 3, 0.045);
   const anvilStormClouds = new THREE.Mesh(planetGeometry, anvilStormLayer.material);
   anvilStormClouds.position.copy(planet.position);
   anvilStormClouds.rotation.copy(planet.rotation);
-  anvilStormClouds.scale.setScalar(1.019);
+  anvilStormClouds.scale.setScalar(1.007);
   anvilStormClouds.renderOrder = 3;
   group.add(anvilStormClouds);
 
-  const upperStormLayer = createStormLayer(1, -0.000015, isMobile || softwareRendering ? 1 : balancedQuality ? 3 : 4, isMobile ? 0.34 : 0.52);
+  const upperStormLayer = createStormLayer(1, 0.000027, isMobile || softwareRendering ? 1 : 2, 0.06);
   const upperStormClouds = new THREE.Mesh(planetGeometry, upperStormLayer.material);
   upperStormClouds.position.copy(planet.position);
   upperStormClouds.rotation.copy(planet.rotation);
-  upperStormClouds.scale.setScalar(1.031);
+  upperStormClouds.scale.setScalar(1.011);
   upperStormClouds.renderOrder = 4;
   group.add(upperStormClouds);
 
@@ -2039,6 +2075,7 @@ function createDeepSpaceWorld(isMobile: boolean, balancedQuality: boolean, softw
     const uniforms = {
       uOpacity: { value: 0 },
       uInnerLayer: { value: innerLayer },
+      uSurfaceRatio: { value: 1 / (innerLayer > 0.5 ? 1.017 : 1.029) },
       uSunDirection: { value: sceneSunDirection },
     };
     const material = trackMaterial(
@@ -2050,7 +2087,7 @@ function createDeepSpaceWorld(isMobile: boolean, balancedQuality: boolean, softw
         transparent: true,
         depthWrite: false,
         blending: additive ? THREE.AdditiveBlending : THREE.NormalBlending,
-        toneMapped: false,
+        toneMapped: true,
       }),
     );
     return { uniforms, material };
@@ -2058,14 +2095,14 @@ function createDeepSpaceWorld(isMobile: boolean, balancedQuality: boolean, softw
 
   const innerAtmosphereLayer = createAtmosphereLayer(1, THREE.FrontSide, false);
   const innerAtmosphere = new THREE.Mesh(planetGeometry, innerAtmosphereLayer.material);
-  innerAtmosphere.scale.setScalar(1.047);
+  innerAtmosphere.scale.setScalar(1.017);
   innerAtmosphere.position.copy(planet.position);
   innerAtmosphere.renderOrder = 6;
   group.add(innerAtmosphere);
 
   const outerAtmosphereLayer = createAtmosphereLayer(0, THREE.BackSide, true);
   const outerAtmosphere = new THREE.Mesh(planetGeometry, outerAtmosphereLayer.material);
-  outerAtmosphere.scale.setScalar(1.068);
+  outerAtmosphere.scale.setScalar(1.029);
   outerAtmosphere.position.copy(planet.position);
   outerAtmosphere.renderOrder = 7;
   group.add(outerAtmosphere);
@@ -2470,7 +2507,7 @@ function createDeepSpaceWorld(isMobile: boolean, balancedQuality: boolean, softw
     anvilStormLayer.uniforms.uTime.value = elapsedSeconds;
     upperStormLayer.uniforms.uTime.value = elapsedSeconds;
     if (stormShadowLayer) stormShadowLayer.uniforms.uTime.value = elapsedSeconds;
-    planet.rotation.y = 0.12 + elapsedSeconds * 0.008;
+    planet.rotation.y = 0.12 + elapsedSeconds * 0.002;
     orbitalRing.rotation.z = 0.12 + elapsedSeconds * 0.018;
     if (stormShadows) {
       stormShadows.rotation.copy(planet.rotation);
